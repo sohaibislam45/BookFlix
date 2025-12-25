@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import { showError } from '@/lib/swal';
@@ -92,13 +93,14 @@ export default function Home() {
       <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-hero-gradient z-10"></div>
-          <div
-            className="w-full h-full bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBCyDl6Ydl0fjXvdPpWK70bp9YmcxzROe9R8B6O9TQ2RHas7rIWvoNAiylNrZwXf5bUdZGXamxLoHuaQ6W8Bghg0P3g8gRItLPO2U5PyBQKtQJCliTZOoeKK07Lak-RZlAWwVY-ldaPqTLQjxA7ME5uUi7BYhpK77Lc8Q9VyHVgpud7xSs_yJJZXvzl0mYJGkHIfbClEDgxpjOWWJkeSUcva2YiDmLH7plqW280-oEaVwdPcclydgX074xXCDbGwVreuqDKEIqc1kY')",
-            }}
-          ></div>
+          <Image
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCyDl6Ydl0fjXvdPpWK70bp9YmcxzROe9R8B6O9TQ2RHas7rIWvoNAiylNrZwXf5bUdZGXamxLoHuaQ6W8Bghg0P3g8gRItLPO2U5PyBQKtQJCliTZOoeKK07Lak-RZlAWwVY-ldaPqTLQjxA7ME5uUi7BYhpK77Lc8Q9VyHVgpud7xSs_yJJZXvzl0mYJGkHIfbClEDgxpjOWWJkeSUcva2YiDmLH7plqW280-oEaVwdPcclydgX074xXCDbGwVreuqDKEIqc1kY"
+            alt="Library bookshelf background"
+            fill
+            className="object-cover opacity-20 blur-sm scale-110"
+            priority
+            quality={75}
+          />
         </div>
         <div className="relative z-20 w-full max-w-4xl px-4 flex flex-col items-center text-center mt-10">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 drop-shadow-xl">
@@ -188,10 +190,13 @@ export default function Home() {
               ].map((book, index) => (
                 <div key={index} className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer">
                   <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50">
-                    <div
-                      className="w-full h-full bg-cover bg-center"
-                      style={{ backgroundImage: `url('${book.image}')` }}
-                    ></div>
+                    <Image
+                      src={book.image}
+                      alt={`${book.title} by ${book.author}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 160px, 200px"
+                    />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                       <button className="bg-white text-black font-bold py-2 px-4 rounded-sm text-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-1 mb-2">
                         <span className="material-symbols-outlined text-sm fill-1">play_arrow</span>

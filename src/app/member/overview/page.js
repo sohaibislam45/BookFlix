@@ -173,13 +173,16 @@ export default function MemberOverviewPage() {
                   <div className="absolute top-0 right-0 p-3 z-10">
                     <span className="animate-pulse size-2 rounded-full bg-alert-red block shadow-[0_0_10px_red]"></span>
                   </div>
-                  <div className="relative w-full aspect-[16/9] mb-4 overflow-hidden rounded-lg grayscale-[30%]">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                      style={{ backgroundImage: `url('${borrowing.book?.coverImage}')` }}
-                    ></div>
+                  <div className="relative w-full aspect-[16/9] mb-4 overflow-hidden rounded-lg grayscale-[30%] group/image">
+                    <OptimizedImage
+                      src={borrowing.book?.coverImage}
+                      alt={borrowing.book?.title || 'Book cover'}
+                      fill
+                      className="transition-transform duration-500 group-hover/image:scale-105"
+                      objectFit="cover"
+                    />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
-                    <div className="absolute bottom-2 right-2 bg-alert-red/20 backdrop-blur-md border border-alert-red/30 text-alert-red text-xs font-bold px-2 py-1 rounded">
+                    <div className="absolute bottom-2 right-2 bg-alert-red/20 backdrop-blur-md border border-alert-red/30 text-alert-red text-xs font-bold px-2 py-1 rounded z-10">
                       Overdue
                     </div>
                   </div>
@@ -205,13 +208,16 @@ export default function MemberOverviewPage() {
               ))}
               {stats.activeBorrowings.map((borrowing) => (
                 <div key={borrowing._id} className="bg-surface-dark rounded-xl p-4 border border-[#3c2348] hover:border-primary/50 transition-all group flex flex-col h-full">
-                  <div className="relative w-full aspect-[16/9] mb-4 overflow-hidden rounded-lg">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                      style={{ backgroundImage: `url('${borrowing.book?.coverImage}')` }}
-                    ></div>
+                  <div className="relative w-full aspect-[16/9] mb-4 overflow-hidden rounded-lg group/image">
+                    <OptimizedImage
+                      src={borrowing.book?.coverImage}
+                      alt={borrowing.book?.title || 'Book cover'}
+                      fill
+                      className="transition-transform duration-500 group-hover/image:scale-105"
+                      objectFit="cover"
+                    />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
-                    <div className={`absolute bottom-2 right-2 backdrop-blur-md text-xs font-bold px-2 py-1 rounded ${
+                    <div className={`absolute bottom-2 right-2 backdrop-blur-md text-xs font-bold px-2 py-1 rounded z-10 ${
                       borrowing.daysRemaining <= 3
                         ? 'bg-orange-500/20 border border-orange-500/30 text-orange-300'
                         : 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'

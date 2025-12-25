@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
@@ -256,10 +257,13 @@ export default function LoginPage() {
     <div className="bg-background-dark min-h-screen flex items-center justify-center relative overflow-hidden text-white transition-colors duration-300">
       {/* Background */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <img
+        <Image
           alt="Abstract blurred dark library bookshelf background"
-          className="w-full h-full object-cover opacity-20 blur-sm scale-110"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrkBpYjLhjVBQK6K_A1QaUVbEISijO_-GU1oBHfIYBro1ARZUrc_1PmGPycfAMSKxGng9F-fVCW9iUQ-XIQGiZy_4ZQEfCUs6vQAOKMkTjWKJVSnVUUPmYcRyHYJuTph36eEw_-Bh9YiL1mn8aMnmExnNq8w_Teo5ttE_kctOCALUeNNLsIYo7XIE04KSz0yVZgyGoEdzPZ3-hcF7KOysKxL4AddZPanWOzeAdA1y6T4HnA9U-pgiVDVj1_u1bEO7NOFw3ve26JKg"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrkBpYjLhjVBQK6K_A1QaUVbEISijO_-GU1oBHfIYBro1ARZUrc_1PmGPycfAMSKxGng9F-fVCW9iUQ-XIQGiZy_4ZQEfCUs6vQAOKMkTjWKJVSnVUUPmYcRyHYJuTph36eEw_-Bh9YiL1mn8aMnmExnNq8w_Teo5ttE_kctOCALUeNNLsIYo7XIE04KSz0yVZgyGoEdzPcclydgX074xXCDbGwVreuqDKEIqc1kY"
+          fill
+          className="object-cover opacity-20 blur-sm scale-110"
+          priority
+          quality={75}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/95 to-background-dark/80"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
