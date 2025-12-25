@@ -58,7 +58,6 @@ export default function AdminMembersPage() {
 
   const handleEdit = (member) => {
     // TODO: Open edit modal
-    console.log('Edit member:', member);
   };
 
   const handleDelete = async (member) => {
@@ -83,7 +82,6 @@ export default function AdminMembersPage() {
 
   const handleUpgrade = (member) => {
     // TODO: Open upgrade modal
-    console.log('Upgrade member:', member);
   };
 
   const getInitials = (name) => {

@@ -87,7 +87,8 @@ export async function POST(request) {
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type
+        break;
     }
 
     return NextResponse.json({ received: true });
@@ -102,8 +103,6 @@ export async function POST(request) {
 
 // Handler functions for different event types
 async function handleCheckoutSessionCompleted(session) {
-  console.log('Checkout session completed:', session.id);
-  
   const metadata = session.metadata;
   const paymentId = metadata?.paymentId;
   
@@ -155,7 +154,6 @@ async function handleCheckoutSessionCompleted(session) {
           ).catch(err => console.error('Error sending payment notification:', err));
         }
 
-        console.log(`Fine payment completed via checkout: Payment ${paymentId}, Fine ${payment.fine}`);
       }
     } catch (error) {
       console.error('Error handling checkout session completed for fine payment:', error);
@@ -179,8 +177,6 @@ async function handleCheckoutSessionCompleted(session) {
 }
 
 async function handleSubscriptionUpdate(subscription) {
-  console.log('Subscription updated:', subscription.id);
-  
   try {
     const customerId = subscription.customer;
     const status = subscription.status;
@@ -236,8 +232,6 @@ async function handleSubscriptionUpdate(subscription) {
     user.subscription.stripeCustomerId = customerId;
     
     await user.save();
-
-    console.log(`Subscription updated: User ${user._id}, Status: ${status}`);
   } catch (error) {
     console.error('Error handling subscription update:', error);
     throw error;
@@ -245,8 +239,6 @@ async function handleSubscriptionUpdate(subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription) {
-  console.log('Subscription deleted:', subscription.id);
-  
   try {
     const customerId = subscription.customer;
     
@@ -276,8 +268,6 @@ async function handleSubscriptionDeleted(subscription) {
       user.subscription.endDate = new Date();
       await user.save();
     }
-
-    console.log(`Subscription deleted: User ${user._id}`);
   } catch (error) {
     console.error('Error handling subscription deleted:', error);
     throw error;
@@ -285,13 +275,10 @@ async function handleSubscriptionDeleted(subscription) {
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent) {
-  console.log('Payment intent succeeded:', paymentIntent.id);
-  
   const metadata = paymentIntent.metadata;
   const paymentId = metadata?.paymentId;
   
   if (!paymentId) {
-    console.log('No paymentId in metadata, skipping fine payment handling');
     return;
   }
 
@@ -340,8 +327,6 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
           true // Send email
         ).catch(err => console.error('Error sending payment notification:', err));
       }
-
-      console.log(`Fine payment completed: Payment ${paymentId}, Fine ${payment.fine}`);
     }
   } catch (error) {
     console.error('Error handling payment intent succeeded:', error);
@@ -350,13 +335,10 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
 }
 
 async function handlePaymentIntentFailed(paymentIntent) {
-  console.log('Payment intent failed:', paymentIntent.id);
-  
   const metadata = paymentIntent.metadata;
   const paymentId = metadata?.paymentId;
   
   if (!paymentId) {
-    console.log('No paymentId in metadata, skipping fine payment failure handling');
     return;
   }
 
@@ -373,8 +355,6 @@ async function handlePaymentIntentFailed(paymentIntent) {
     payment.status = PAYMENT_STATUS.FAILED;
     payment.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
     await payment.save();
-
-    console.log(`Fine payment failed: Payment ${paymentId}`);
   } catch (error) {
     console.error('Error handling payment intent failed:', error);
     throw error;
@@ -382,21 +362,16 @@ async function handlePaymentIntentFailed(paymentIntent) {
 }
 
 async function handleInvoicePaymentSucceeded(invoice) {
-  console.log('Invoice payment succeeded:', invoice.id);
-  
   try {
     const subscriptionId = invoice.subscription;
     
     if (!subscriptionId) {
-      console.log('No subscription ID in invoice, skipping');
       return;
     }
 
     // Get subscription from Stripe to update our records
     const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
     await handleSubscriptionUpdate(stripeSubscription);
-
-    console.log(`Subscription renewed: ${subscriptionId}`);
   } catch (error) {
     console.error('Error handling invoice payment succeeded:', error);
     throw error;
@@ -404,21 +379,16 @@ async function handleInvoicePaymentSucceeded(invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice) {
-  console.log('Invoice payment failed:', invoice.id);
-  
   try {
     const subscriptionId = invoice.subscription;
     
     if (!subscriptionId) {
-      console.log('No subscription ID in invoice, skipping');
       return;
     }
 
     // Get subscription from Stripe to update status
     const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
     await handleSubscriptionUpdate(stripeSubscription);
-
-    console.log(`Subscription payment failed: ${subscriptionId}`);
   } catch (error) {
     console.error('Error handling invoice payment failed:', error);
     throw error;
@@ -427,8 +397,6 @@ async function handleInvoicePaymentFailed(invoice) {
 
 // Handle subscription checkout session completed
 async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan) {
-  console.log('Subscription checkout completed:', subscriptionId);
-  
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       console.error(`Invalid user ID: ${userId}`);
@@ -488,8 +456,6 @@ async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan)
     user.subscription.stripeCustomerId = customerId;
     
     await user.save();
-
-    console.log(`Subscription activated: User ${user._id}, Plan: ${plan}, Status: ${status}`);
   } catch (error) {
     console.error('Error handling subscription checkout completed:', error);
     throw error;

@@ -3,44 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
-import { isValidEmail, validatePassword } from '@/lib/validation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setFieldErrors({});
-
-    // Client-side validation
-    const errors = {};
-    if (!email) {
-      errors.email = 'Email is required';
-    } else if (!isValidEmail(email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    if (!password) {
-      errors.password = 'Password is required';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -49,19 +26,10 @@ export default function LoginPage() {
       if (result.success) {
         // Fetch user data to get role for navigation
         try {
-          console.log('[Login] Fetching user from MongoDB with firebaseUid:', result.user.uid);
           let response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
-          console.log('[Login] Response status:', response.status);
           
           // If user doesn't exist in MongoDB, create them automatically
           if (response.status === 404) {
-            console.warn('[Login] User not found in MongoDB (404), creating user automatically...');
-            console.log('[Login] Creating user with data:', {
-              firebaseUid: result.user.uid,
-              email: result.user.email,
-              name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-            });
-            
             const createResponse = await fetch('/api/users', {
               method: 'POST',
               headers: {
@@ -80,16 +48,12 @@ export default function LoginPage() {
               }),
             });
             
-            console.log('[Login] Create user response status:', createResponse.status);
-            
             if (createResponse.ok) {
               const newUserData = await createResponse.json();
-              console.log('[Login] User data received:', newUserData);
               // API returns { message, user } structure
               // Handle both "created" (201) and "already exists" (200) cases
               const user = newUserData.user || newUserData;
               const role = user?.role || 'member';
-              console.log('[Login] Navigating to role overview:', getRoleOverviewRoute(role));
               router.push(getRoleOverviewRoute(role));
             } else {
               // If creation fails, try to fetch user anyway
@@ -98,24 +62,19 @@ export default function LoginPage() {
               console.error('[Login] Error details:', errorData);
               
               // Try to fetch user as fallback
-              console.log('[Login] Attempting to fetch user data as fallback...');
               const fetchResponse = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
               if (fetchResponse.ok) {
                 const userData = await fetchResponse.json();
                 const role = userData.role || 'member';
-                console.log('[Login] User found, navigating to role overview:', getRoleOverviewRoute(role));
                 router.push(getRoleOverviewRoute(role));
               } else {
-                console.log('[Login] Navigating to member overview as fallback');
                 router.push('/member/overview');
               }
             }
           } else if (response.ok) {
             const userData = await response.json();
-            console.log('[Login] User found in MongoDB:', { email: userData.email, role: userData.role });
             const role = userData.role || 'member';
             // Navigate to role-based overview page
-            console.log('[Login] Navigating to role overview:', getRoleOverviewRoute(role));
             router.push(getRoleOverviewRoute(role));
           } else {
             // Other error - still navigate to member overview
@@ -153,19 +112,10 @@ export default function LoginPage() {
       if (result.success) {
         // Check if user exists in MongoDB, if not create them automatically
         try {
-          console.log('[Google Login] Fetching user from MongoDB with firebaseUid:', result.user.uid);
           let response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
-          console.log('[Google Login] Response status:', response.status);
           
           // If user doesn't exist in MongoDB, create them automatically
           if (response.status === 404) {
-            console.warn('[Google Login] User not found in MongoDB (404), creating user automatically...');
-            console.log('[Google Login] Creating user with data:', {
-              firebaseUid: result.user.uid,
-              email: result.user.email,
-              name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-            });
-            
             const createResponse = await fetch('/api/users', {
               method: 'POST',
               headers: {
@@ -184,16 +134,12 @@ export default function LoginPage() {
               }),
             });
             
-            console.log('[Google Login] Create user response status:', createResponse.status);
-            
             if (createResponse.ok) {
               const newUserData = await createResponse.json();
-              console.log('[Google Login] User data received:', newUserData);
               // API returns { message, user } structure
               // Handle both "created" (201) and "already exists" (200) cases
               const user = newUserData.user || newUserData;
               const role = user?.role || 'member';
-              console.log('[Google Login] Navigating to role overview:', getRoleOverviewRoute(role));
               router.push(getRoleOverviewRoute(role));
             } else {
               // Log the error details for debugging
@@ -206,41 +152,34 @@ export default function LoginPage() {
               
               // If creation fails, try to fetch user anyway in case they exist
               // (user might have been created by another request or already exists)
-              console.log('[Google Login] User creation returned non-OK status, checking if user exists...');
               const fetchResponse = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
               if (fetchResponse.ok) {
                 const userData = await fetchResponse.json();
                 const role = userData.role || 'member';
-                console.log('[Google Login] User found after creation failed, navigating to role overview:', getRoleOverviewRoute(role));
                 router.push(getRoleOverviewRoute(role));
               } else {
                 // If Firebase auth succeeded but user creation/lookup failed,
                 // still redirect to member dashboard since user is authenticated
                 // The user can complete their profile later if needed
-                console.log('[Google Login] Firebase auth succeeded but user not in MongoDB. Redirecting to member dashboard.');
                 router.push('/member/overview');
               }
             }
           } else if (response.ok) {
             // Fetch user data to get role for navigation
             const userData = await response.json();
-            console.log('[Google Login] User found in MongoDB:', { email: userData.email, role: userData.role });
             const role = userData.role || 'member';
-            console.log('[Google Login] Navigating to role overview:', getRoleOverviewRoute(role));
             router.push(getRoleOverviewRoute(role));
           } else {
             // Other error - if Firebase auth succeeded, redirect to dashboard anyway
             console.error('[Google Login] Error fetching user data, status:', response.status);
             // Since Firebase authentication succeeded, redirect to member dashboard
             // User can complete profile later if needed
-            console.log('[Google Login] Firebase auth succeeded. Redirecting to member dashboard.');
             router.push('/member/overview');
           }
         } catch (error) {
           console.error('[Google Login] Error checking user:', error);
           // Since Firebase authentication succeeded, redirect to member dashboard
           // User can complete profile later if needed
-          console.log('[Google Login] Firebase auth succeeded. Redirecting to member dashboard.');
           router.push('/member/overview');
         }
       } else {
@@ -258,13 +197,10 @@ export default function LoginPage() {
     <div className="bg-background-dark min-h-screen flex items-center justify-center relative overflow-hidden text-white transition-colors duration-300">
       {/* Background */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <Image
+        <img
           alt="Abstract blurred dark library bookshelf background"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrkBpYjLhjVBQK6K_A1QaUVbEISijO_-GU1oBHfIYBro1ARZUrc_1PmGPycfAMSKxGng9F-fVCW9iUQ-XIQGiZy_4ZQEfCUs6vQAOKMkTjWKJVSnVUUPmYcRyHYJuTph36eEw_-Bh9YiL1mn8aMnmExnNq8w_Teo5ttE_kctOCALUeNNLsIYo7XIE04KSz0yVZgyGoEdzPcclydgX074xXCDbGwVreuqDKEIqc1kY"
-          fill
-          className="object-cover opacity-20 blur-sm scale-110"
-          priority
-          quality={75}
+          className="w-full h-full object-cover opacity-20 blur-sm scale-110"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrkBpYjLhjVBQK6K_A1QaUVbEISijO_-GU1oBHfIYBro1ARZUrc_1PmGPycfAMSKxGng9F-fVCW9iUQ-XIQGiZy_4ZQEfCUs6vQAOKMkTjWKJVSnVUUPmYcRyHYJuTph36eEw_-Bh9YiL1mn8aMnmExnNq8w_Teo5ttE_kctOCALUeNNLsIYo7XIE04KSz0yVZgyGoEdzPZ3-hcF7KOysKxL4AddZPanWOzeAdA1y6T4HnA9U-pgiVDVj1_u1bEO7NOFw3ve26JKg"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/95 to-background-dark/80"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
@@ -290,8 +226,8 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm flex items-start gap-2" role="alert" aria-live="polite">
-              <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }} aria-hidden="true">
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+              <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }}>
                 error
               </span>
               <span className="flex-1">{error}</span>
@@ -310,39 +246,24 @@ export default function LoginPage() {
                   </span>
                 </div>
                 <input
-                  className={`w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border ${
-                    fieldErrors.email ? 'border-red-500/50' : 'border-white/10'
-                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm`}
+                  className="w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                   id="email"
                   type="email"
                   placeholder="user@library.edu"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (fieldErrors.email) {
-                      setFieldErrors(prev => ({ ...prev, email: '' }));
-                    }
-                  }}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
-                  aria-invalid={!!fieldErrors.email}
-                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-                  autoComplete="email"
                 />
               </div>
-              {fieldErrors.email && (
-                <p id="email-error" className="text-red-400 text-xs mt-1 ml-1" role="alert">
-                  {fieldErrors.email}
-                </p>
-              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider" htmlFor="password">
-                  Password <span className="text-red-400" aria-label="required">*</span>
+                  Password
                 </label>
-                <Link className="text-xs font-medium text-primary hover:text-primary/80 transition-colors" href="#" aria-label="Forgot password?">
+                <Link className="text-xs font-medium text-primary hover:text-primary/80 transition-colors" href="#">
                   Forgot password?
                 </Link>
               </div>
@@ -353,50 +274,22 @@ export default function LoginPage() {
                   </span>
                 </div>
                 <input
-                  className={`w-full h-10 pl-10 pr-10 rounded-lg bg-white/5 border ${
-                    fieldErrors.password ? 'border-red-500/50' : 'border-white/10'
-                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm`}
+                  className="w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (fieldErrors.password) {
-                      setFieldErrors(prev => ({ ...prev, password: '' }));
-                    }
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  aria-invalid={!!fieldErrors.password}
-                  aria-describedby={fieldErrors.password ? 'password-error' : undefined}
-                  autoComplete="current-password"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-white transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={0}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showPassword ? 'visibility_off' : 'visibility'}
-                  </span>
-                </button>
               </div>
-              {fieldErrors.password && (
-                <p id="password-error" className="text-red-400 text-xs mt-1 ml-1" role="alert">
-                  {fieldErrors.password}
-                </p>
-              )}
             </div>
 
             <button
               className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(170,31,239,0.4)] hover:shadow-[0_0_20px_rgba(170,31,239,0.6)] transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
               disabled={loading}
-              aria-busy={loading}
-              aria-label={loading ? 'Signing in...' : 'Sign in'}
             >
               {loading ? <Loader /> : 'Sign In'}
             </button>

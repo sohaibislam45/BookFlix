@@ -131,34 +131,16 @@ export default function RegisterPage() {
     setError('');
     setFieldErrors({});
 
-    console.log('[Register] Form submitted');
-    console.log('[Register] completeRegistration:', completeRegistration);
-    console.log('[Register] user authenticated:', !!user);
-    console.log('[Register] formData:', { name: formData.name, email: formData.email, division: formData.division, city: formData.city, area: formData.area });
-    console.log('[Register] termsAccepted:', termsAccepted);
-
     if (!termsAccepted) {
       setError('Please accept the Terms & Conditions and Privacy Policy');
       return;
     }
 
-    // If completing Google registration and user is authenticated, ensure we have required data
-    if (completeRegistration && user) {
-      // Ensure we have the Firebase user's email if form doesn't have it
-      if (!formData.email && user.email) {
-        setFormData(prev => ({ ...prev, email: user.email }));
-      }
-      // Ensure we have the Firebase user's name if form doesn't have it
-      if (!formData.name && user.displayName) {
-        setFormData(prev => ({ ...prev, name: user.displayName }));
-      }
-    }
-
     // Client-side validation
     const validationRules = {
       name: { required: true, label: 'Name', minLength: 2 },
-      email: { required: !completeRegistration, label: 'Email', email: true }, // Email not required for Google sign-up
-      password: { required: !completeRegistration, label: 'Password', password: true }, // Password not required for Google sign-up
+      email: { required: true, label: 'Email', email: true },
+      password: { required: true, label: 'Password', password: true },
       phone: { required: false, label: 'Phone', custom: (value) => {
         if (value && !isValidPhone(value)) {
           return { isValid: false, message: 'Please enter a valid phone number' };
@@ -218,16 +200,15 @@ export default function RegisterPage() {
         try {
           const result = await signUp(formData.email.trim(), formData.password, formData.name?.trim());
           if (!result.success) {
-            // Check if email is already in use - handle all possible error codes/messages
+            // Check if email is already in use
             if (result.code === 'auth/email-already-in-use' || 
                 result.error?.includes('email-already-in-use') || 
                 result.error?.includes('already in use') || 
                 result.error?.includes('already registered') ||
-                result.error?.includes('EMAIL_EXISTS') ||
-                result.error?.toLowerCase().includes('email is already registered')) {
+                result.error?.includes('EMAIL_EXISTS')) {
               setError('already_registered');
             } else {
-              // Display the user-friendly error message from AuthContext
+              // Display the user-friendly error message
               setError(result.error || 'Failed to create account. Please check your email and password.');
             }
             setLoading(false);
@@ -236,15 +217,7 @@ export default function RegisterPage() {
           firebaseUser = result.user;
         } catch (signupError) {
           console.error('Signup error:', signupError);
-          // Check if it's an email already in use error
-          if (signupError?.code === 'auth/email-already-in-use' || 
-              signupError?.message?.includes('email-already-in-use') ||
-              signupError?.message?.includes('already in use') ||
-              signupError?.message?.includes('already registered')) {
-            setError('already_registered');
-          } else {
-            setError(signupError.message || 'Failed to create account. Please try again.');
-          }
+          setError(signupError.message || 'Failed to create account. Please try again.');
           setLoading(false);
           return;
         }
@@ -253,7 +226,7 @@ export default function RegisterPage() {
       // Save user to MongoDB
       const userData = {
         firebaseUid: firebaseUser.uid,
-        email: completeRegistration ? (firebaseUser.email || formData.email) : formData.email,
+        email: formData.email,
         name: formData.name,
         phone: formData.phone,
         profilePhoto: profilePhotoUrl || firebaseUser.photoURL || null, // Use Google photo if available
@@ -265,13 +238,6 @@ export default function RegisterPage() {
         },
       };
 
-      console.log('[Register] Submitting user data to API:', { 
-        firebaseUid: userData.firebaseUid, 
-        email: userData.email, 
-        name: userData.name,
-        hasAddress: !!userData.address.division 
-      });
-
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
@@ -280,83 +246,36 @@ export default function RegisterPage() {
         body: JSON.stringify(userData),
       });
 
-      console.log('[Register] API response status:', response.status, response.statusText);
-
-      // Handle 404 - route not found, but if we're completing registration, try to redirect anyway
-      if (response.status === 404 && completeRegistration) {
-        console.warn('[Register] API route returned 404, but user is authenticated via Google. Redirecting to member dashboard anyway.');
-        window.location.href = '/member/overview';
-        return;
-      }
-
-      let responseData;
-      try {
-        responseData = await response.json();
-      } catch (jsonError) {
-        console.error('[Register] Error parsing response JSON:', jsonError);
-        // If we can't parse JSON but got a successful status, assume success
-        if (response.ok || response.status === 200 || response.status === 201) {
-          console.log('[Register] User saved successfully (unparseable response), redirecting to member dashboard');
-          window.location.href = '/member/overview';
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // Check if user already exists
+        if (response.status === 409 || errorData.error === 'User already exists') {
+          setError('already_registered');
+          setLoading(false);
           return;
         }
-        // For other errors, if completing registration, redirect anyway
-        if (completeRegistration) {
-          console.warn('[Register] Error parsing response but completing registration, redirecting to member dashboard');
-          window.location.href = '/member/overview';
-          return;
-        }
-        throw new Error('Failed to parse server response');
+        
+        const errorMessage = errorData.details 
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to create user profile';
+        throw new Error(errorMessage);
       }
 
-      // Handle user already exists cases (check this BEFORE successful responses since API returns 200 for existing users)
-      if (response.status === 409 || (responseData && (responseData.error === 'User already exists' || responseData.message === 'User already exists'))) {
-        // If completing Google registration and user already exists, just redirect to member dashboard
-        if (completeRegistration) {
-          console.log('[Register] User already exists, redirecting to member dashboard');
-          const userRole = responseData?.user?.role || 'member';
-          const redirectPath = getRoleOverviewRoute(userRole);
-          window.location.href = redirectPath;
-          return;
-        }
-        // Otherwise show error for regular registration
-        setError('already_registered');
-        setLoading(false);
-        return;
+      // Fetch user data to get role for navigation
+      const userResponse = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const role = userData.role || 'member';
+        router.push(getRoleOverviewRoute(role));
+      } else {
+        // Fallback to dashboard if user data fetch fails
+        router.push('/dashboard');
       }
-
-      // Handle successful responses (200 or 201) - new user created
-      if (response.ok || response.status === 200 || response.status === 201) {
-        console.log('[Register] User saved successfully, redirecting to member dashboard');
-        // Get user role from response and redirect to appropriate dashboard
-        const userRole = responseData?.user?.role || 'member';
-        const redirectPath = getRoleOverviewRoute(userRole);
-        // Use window.location for more reliable redirect
-        window.location.href = redirectPath;
-        return;
-      }
-      
-      // Handle other errors - if completing registration, redirect anyway
-      if (completeRegistration) {
-        console.warn('[Register] API error but completing registration, redirecting to member dashboard:', response.status);
-        window.location.href = '/member/overview';
-        return;
-      }
-      
-      // Handle other errors
-      const errorMessage = responseData && responseData.details 
-        ? `${responseData.error}: ${responseData.details}`
-        : (responseData && responseData.error) || 'Failed to create user profile';
-      throw new Error(errorMessage);
     } catch (error) {
       console.error('Registration error:', error);
-      // If completing Google registration and we have an authenticated user, redirect anyway
-      if (completeRegistration && user) {
-        console.warn('[Register] Error during registration but user is authenticated, redirecting to member dashboard:', error.message);
-        window.location.href = '/member/overview';
-        return;
-      }
       setError(error.message || 'Failed to register. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -366,95 +285,37 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      console.log('[Register] Starting Google sign up...');
       const result = await signInWithGoogle();
       
       if (result.success && result.user) {
-        console.log('[Register] Google authentication successful, checking MongoDB...');
-        const googleUser = result.user;
-        
         // Check if user exists in MongoDB
         try {
-          const checkResponse = await fetch(`/api/users?firebaseUid=${encodeURIComponent(googleUser.uid)}`);
-          console.log('[Register] MongoDB check response:', checkResponse.status);
+          const response = await fetch(`/api/users?firebaseUid=${encodeURIComponent(result.user.uid)}`);
           
-          if (checkResponse.ok) {
-            // User exists, redirect to member dashboard
-            const userData = await checkResponse.json();
+          if (response.ok) {
+            // User exists, redirect to dashboard
+            const userData = await response.json();
             const role = userData.role || 'member';
-            console.log('[Register] User exists in MongoDB, redirecting to member dashboard');
-            window.location.href = getRoleOverviewRoute(role);
-            return;
-          } else if (checkResponse.status === 404) {
-            // User doesn't exist in MongoDB, create user automatically
-            console.log('[Register] User not found in MongoDB, creating user automatically...');
-            
-            const userData = {
-              firebaseUid: googleUser.uid,
-              email: googleUser.email || '',
-              name: googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
-              profilePhoto: googleUser.photoURL || null,
-              role: 'member', // Default to member role
-              subscription: {
-                type: 'free',
-                status: 'active',
-              },
-            };
-
-            console.log('[Register] Creating user in MongoDB:', { 
-              firebaseUid: userData.firebaseUid, 
-              email: userData.email, 
-              name: userData.name 
-            });
-
-            const createResponse = await fetch('/api/users', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(userData),
-            });
-
-            if (createResponse.ok || createResponse.status === 200 || createResponse.status === 201) {
-              console.log('[Register] User created successfully, redirecting to member dashboard');
-              window.location.href = '/member/overview';
-              return;
-            } else {
-              // If creation fails, try to get existing user (might have been created by another request)
-              const retryResponse = await fetch(`/api/users?firebaseUid=${encodeURIComponent(googleUser.uid)}`);
-              if (retryResponse.ok) {
-                console.log('[Register] User found after creation attempt, redirecting to member dashboard');
-                window.location.href = '/member/overview';
-                return;
-              }
-              
-              // If still fails, show error
-              const errorData = await createResponse.json().catch(() => ({}));
-              console.error('[Register] Failed to create user:', errorData);
-              setError('Failed to create user account. Please try again.');
-              setLoading(false);
-              return;
-            }
+            router.push(getRoleOverviewRoute(role));
+          } else if (response.status === 404) {
+            // User doesn't exist in MongoDB, redirect to complete registration
+            router.push('/register?complete=true');
           } else {
-            // Other error checking user
-            console.error('[Register] Error checking user:', checkResponse.status);
-            setError('Failed to verify user account. Please try again.');
-            setLoading(false);
-            return;
+            // Other error, still redirect to complete registration as fallback
+            console.error('Error checking user:', response.status, await response.text().catch(() => ''));
+            router.push('/register?complete=true');
           }
         } catch (error) {
-          console.error('[Register] Error during user creation process:', error);
-          setError('An error occurred. Please try again.');
-          setLoading(false);
-          return;
+          console.error('Error fetching user:', error);
+          // On error, redirect to complete registration
+          router.push('/register?complete=true');
         }
       } else {
-        console.error('[Register] Google sign up failed:', result.error);
         setError(result.error || 'Failed to sign up with Google');
         setLoading(false);
       }
     } catch (error) {
-      console.error('[Register] Google sign up error:', error);
+      console.error('Google sign up error:', error);
       setError(error.message || 'Failed to sign up with Google');
       setLoading(false);
     }

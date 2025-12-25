@@ -73,20 +73,6 @@ export default function UserProfile() {
     userData.subscription.status === 'active';
   const memberStatus = isPremiumMember ? 'Premium Member' : 'General Member';
   
-  // Debug logging (remove in production)
-  useEffect(() => {
-    if (user) {
-      console.log('UserProfile Debug:', {
-        hasUserData: !!userData,
-        userDataPhoto: userData?.profilePhoto,
-        firebasePhotoURL: user?.photoURL,
-        finalPhoto: profilePhoto,
-        imageError,
-        willShowImage: profilePhoto && !imageError,
-      });
-    }
-  }, [user, userData, profilePhoto, imageError]);
-  
   // Reset image error when profile photo changes
   useEffect(() => {
     setImageError(false);
@@ -117,16 +103,8 @@ export default function UserProfile() {
                 console.error('Image load error:', profilePhoto, e);
                 setImageError(true);
               }}
-              onLoad={(e) => {
-                const img = e.target;
-                const computed = window.getComputedStyle(img);
-                console.log('Image loaded successfully:', profilePhoto);
-                console.log('Image dimensions:', img.width, 'x', img.height);
-                console.log('Image display:', computed.display);
-                console.log('Image visibility:', computed.visibility);
-                console.log('Image opacity:', computed.opacity);
-                console.log('Image position:', computed.position);
-                console.log('Image z-index:', computed.zIndex);
+              onLoad={() => {
+                // Image loaded successfully
               }}
             />
           ) : (

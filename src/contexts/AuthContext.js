@@ -35,13 +35,10 @@ export default function AuthProvider({ children }) {
         setUser(firebaseUser);
         // Fetch user data from MongoDB
         try {
-          console.log('[AuthContext] Fetching user from MongoDB with firebaseUid:', firebaseUser.uid);
           const response = await fetch(`/api/users?firebaseUid=${encodeURIComponent(firebaseUser.uid)}`);
-          console.log('[AuthContext] Response status:', response.status);
           
           if (response.ok) {
             const data = await response.json();
-            console.log('[AuthContext] User found in MongoDB');
             // If userData doesn't have profilePhoto but Firebase user has photoURL, update it
             if (!data.profilePhoto && firebaseUser.photoURL) {
               // Update user profile photo in MongoDB
@@ -68,7 +65,6 @@ export default function AuthProvider({ children }) {
           } else if (response.status === 404) {
             // User doesn't exist in MongoDB yet - this is expected for new logins
             // The login handler will create the user, so we just use fallback data here
-            console.log('[AuthContext] User not found in MongoDB (404) - using fallback data');
             const fallbackData = {
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               email: firebaseUser.email,
