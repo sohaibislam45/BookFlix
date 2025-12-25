@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { LOCATION_DATA } from '@/lib/locationData';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -46,10 +47,43 @@ export default function RegisterPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Handle cascading dropdowns
+    if (name === 'division') {
+      setFormData(prev => ({
+        ...prev,
+        division: value,
+        city: '', // Reset city when division changes
+        area: '', // Reset area when division changes
+      }));
+    } else if (name === 'city') {
+      setFormData(prev => ({
+        ...prev,
+        city: value,
+        area: '', // Reset area when city changes
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  // Get available cities based on selected division
+  const getAvailableCities = () => {
+    if (!formData.division || !LOCATION_DATA[formData.division]) {
+      return [];
+    }
+    return Object.keys(LOCATION_DATA[formData.division]);
+  };
+
+  // Get available areas based on selected division and city
+  const getAvailableAreas = () => {
+    if (!formData.division || !formData.city || !LOCATION_DATA[formData.division]) {
+      return [];
+    }
+    return LOCATION_DATA[formData.division][formData.city] || [];
   };
 
   const handlePhotoChange = async (e) => {
@@ -109,7 +143,12 @@ export default function RegisterPage() {
         // Create Firebase account
         const result = await signUp(formData.email, formData.password, formData.name);
         if (!result.success) {
-          setError(result.error || 'Failed to create account');
+          // Check if email is already in use
+          if (result.error && (result.error.includes('email-already-in-use') || result.error.includes('already in use'))) {
+            setError('already_registered');
+          } else {
+            setError(result.error || 'Failed to create account');
+          }
           setLoading(false);
           return;
         }
@@ -141,7 +180,18 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create user profile');
+        
+        // Check if user already exists
+        if (response.status === 409 || errorData.error === 'User already exists') {
+          setError('already_registered');
+          setLoading(false);
+          return;
+        }
+        
+        const errorMessage = errorData.details 
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to create user profile';
+        throw new Error(errorMessage);
       }
 
       router.push('/dashboard');
@@ -190,6 +240,17 @@ export default function RegisterPage() {
 
       <div className="layout-container flex grow flex-col items-center justify-center p-4 py-12 md:py-16">
         <div className="relative w-full max-w-[900px] flex flex-col rounded-2xl border border-border-dark bg-purple-300/80 backdrop-blur-xl shadow-2xl overflow-hidden">
+          {/* Close Button */}
+          <Link
+            href="/"
+            className="absolute top-4 right-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-card-dark/50 hover:bg-card-dark border border-border-dark hover:border-primary/50 text-text-muted hover:text-white transition-all cursor-pointer"
+            aria-label="Close and go to home"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+              close
+            </span>
+          </Link>
+          
           {/* Header */}
           <div className="flex flex-col items-center justify-center pt-10 pb-6 px-6 text-center z-10">
             <div className="flex items-center gap-2 mb-4">
@@ -209,8 +270,23 @@ export default function RegisterPage() {
           {/* Form */}
           <div className="layout-content-container flex flex-col w-full p-6 md:p-10 md:pt-2">
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm mb-4">
-                {error}
+              <div className={`${error === 'already_registered' ? 'bg-blue-500/20 border-blue-500/50 text-blue-200' : 'bg-red-500/20 border-red-500/50 text-red-200'} px-4 py-3 rounded-lg text-sm mb-4`}>
+                {error === 'already_registered' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                      info
+                    </span>
+                    <span>
+                      You are already registered. Please{' '}
+                      <Link className="text-primary hover:text-white font-medium transition-colors underline" href="/login">
+                        login
+                      </Link>
+                      {' '}instead.
+                    </span>
+                  </div>
+                ) : (
+                  error
+                )}
               </div>
             )}
 
@@ -251,7 +327,7 @@ export default function RegisterPage() {
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Full Name</p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors"
                     placeholder="John Doe"
                     type="text"
                     name="name"
@@ -265,7 +341,7 @@ export default function RegisterPage() {
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Phone Number</p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors"
                     placeholder="+1 (555) 000-0000"
                     type="tel"
                     name="phone"
@@ -278,7 +354,7 @@ export default function RegisterPage() {
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Email Address</p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors"
                     placeholder="you@example.com"
                     type="email"
                     name="email"
@@ -294,7 +370,7 @@ export default function RegisterPage() {
                     <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Password</p>
                     <div className="flex w-full flex-1 items-stretch rounded-lg relative group">
                       <input
-                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 pr-12 text-base font-normal leading-normal transition-colors"
+                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 pr-12 text-base font-normal leading-normal transition-colors"
                         placeholder="••••••••"
                         type={showPassword ? 'text' : 'password'}
                         name="password"
@@ -317,47 +393,62 @@ export default function RegisterPage() {
 
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Division</p>
-                  <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
-                    placeholder="State or Province"
-                    type="text"
+                  <select
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors cursor-pointer"
                     name="division"
                     value={formData.division}
                     onChange={handleInputChange}
                     disabled={loading}
-                  />
+                  >
+                    <option value="" className="bg-card-dark text-white">Select Division</option>
+                    {Object.keys(LOCATION_DATA).map((division) => (
+                      <option key={division} value={division} className="bg-card-dark text-white">
+                        {division}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">City</p>
-                  <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
-                    placeholder="City Name"
-                    type="text"
+                  <select
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    disabled={loading}
-                  />
+                    disabled={loading || !formData.division}
+                  >
+                    <option value="" className="bg-card-dark text-white">Select City</option>
+                    {getAvailableCities().map((city) => (
+                      <option key={city} value={city} className="bg-card-dark text-white">
+                        {city}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Area</p>
-                  <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
-                    placeholder="Neighborhood or District"
-                    type="text"
+                  <select
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     name="area"
                     value={formData.area}
                     onChange={handleInputChange}
-                    disabled={loading}
-                  />
+                    disabled={loading || !formData.city}
+                  >
+                    <option value="" className="bg-card-dark text-white">Select Area</option>
+                    {getAvailableAreas().map((area) => (
+                      <option key={area} value={area} className="bg-card-dark text-white">
+                        {area}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="flex flex-col flex-1">
                   <p className="text-white text-sm font-medium leading-normal pb-2 ml-1">Landmark</p>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 text-base font-normal leading-normal transition-colors"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-border-dark bg-card-dark focus:border-primary h-12 placeholder:text-text-muted px-4 py-3 text-base font-normal leading-normal transition-colors"
                     placeholder="Near Public Library"
                     type="text"
                     name="landmark"

@@ -12,7 +12,7 @@ export async function POST(request) {
 
     if (!firebaseUid || !email || !name) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields', received: { firebaseUid: !!firebaseUid, email: !!email, name: !!name } },
         { status: 400 }
       );
     }
@@ -29,14 +29,22 @@ export async function POST(request) {
       );
     }
 
+    // Clean address object - remove empty strings
+    const cleanAddress = address ? {
+      division: address.division || undefined,
+      city: address.city || undefined,
+      area: address.area || undefined,
+      landmark: address.landmark || undefined,
+    } : undefined;
+
     // Create new user
     const user = new User({
       firebaseUid,
       email,
       name,
-      phone,
-      profilePhoto,
-      address,
+      phone: phone || undefined,
+      profilePhoto: profilePhoto || undefined,
+      address: cleanAddress,
       role: USER_ROLES.MEMBER,
       subscription: {
         type: 'free',
@@ -52,6 +60,26 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error('Error creating user:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return NextResponse.json(
+        { error: 'Validation error', details: validationErrors.join(', ') },
+        { status: 400 }
+      );
+    }
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return NextResponse.json(
+        { error: `${field} already exists` },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to create user', details: error.message },
       { status: 500 }

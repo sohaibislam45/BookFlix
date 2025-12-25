@@ -70,7 +70,18 @@ export default function LoginPage() {
 
       {/* Login Form */}
       <main className="relative z-10 w-full max-w-[400px] px-4">
-        <div className="glass-panel w-full rounded-2xl p-8 flex flex-col gap-6">
+        <div className="glass-panel w-full rounded-2xl p-8 flex flex-col gap-6 relative">
+          {/* Close Button */}
+          <Link
+            href="/"
+            className="absolute top-4 right-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 text-text-muted hover:text-white transition-all cursor-pointer"
+            aria-label="Close and go to home"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+              close
+            </span>
+          </Link>
+          
           <div className="flex flex-col items-center text-center gap-1">
             <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-lg">Bookflix</h1>
             <p className="text-text-muted text-sm font-medium">Welcome back to your digital library.</p>
