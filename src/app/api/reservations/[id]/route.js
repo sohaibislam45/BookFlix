@@ -3,7 +3,8 @@ import connectDB from '@/lib/db';
 import Reservation from '@/models/Reservation';
 import BookCopy from '@/models/BookCopy';
 import Borrowing from '@/models/Borrowing';
-import { RESERVATION_STATUS, BOOK_STATUS, BORROWING_STATUS, BORROWING_RULES } from '@/lib/constants';
+import { RESERVATION_STATUS, BOOK_STATUS, BORROWING_STATUS, BORROWING_RULES, NOTIFICATION_TYPES } from '@/lib/constants';
+import { notifyUser } from '@/lib/notifications';
 
 // GET - Get a specific reservation
 export async function GET(request, { params }) {
@@ -136,6 +137,24 @@ export async function PATCH(request, { params }) {
 
         // Update queue positions
         await Reservation.updateQueuePositions(reservation.book._id);
+
+        // Send reservation ready notification
+        notifyUser(
+          reservation.member._id || reservation.member,
+          NOTIFICATION_TYPES.RESERVATION_READY,
+          'Book Ready for Pickup',
+          `Your reserved book "${reservation.book.title}" by ${reservation.book.author} is now ready for pickup. You have 3 days to pick it up before the reservation expires.`,
+          {
+            reservation: reservation._id,
+            book: reservation.book._id,
+            data: {
+              expiryDate: expiryDate,
+              bookTitle: reservation.book.title,
+              bookAuthor: reservation.book.author,
+            },
+          },
+          true // Send email
+        ).catch(err => console.error('Error sending reservation ready notification:', err));
 
         return NextResponse.json(
           { message: 'Reservation marked as ready', reservation },

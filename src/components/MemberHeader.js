@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import NotificationBell from './NotificationBell';
 
 export default function MemberHeader({ onSearch, initialSearch = '' }) {
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -33,10 +34,7 @@ export default function MemberHeader({ onSearch, initialSearch = '' }) {
         </label>
       </form>
       <div className="flex items-center gap-4 ml-4">
-        <button className="relative p-2 text-text-secondary hover:text-white hover:bg-surface-hover rounded-full transition-colors">
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="absolute top-2 right-2 size-2 bg-primary rounded-full border-2 border-[#1c1022]"></span>
-        </button>
+        <NotificationBell />
         <button className="md:hidden p-2 text-white">
           <span className="material-symbols-outlined">menu</span>
         </button>

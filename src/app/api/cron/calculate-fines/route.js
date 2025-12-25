@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Borrowing from '@/models/Borrowing';
 import Fine from '@/models/Fine';
-import { BORROWING_STATUS, FINE_STATUS, FINE_RATE } from '@/lib/constants';
+import { BORROWING_STATUS, FINE_STATUS, FINE_RATE, NOTIFICATION_TYPES } from '@/lib/constants';
+import { notifyUser } from '@/lib/notifications';
 
 // This route can be called by cron services (Vercel Cron, GitHub Actions, etc.)
 // or can be triggered manually for testing
@@ -80,7 +81,58 @@ export async function GET(request) {
 
           await fine.save();
           stats.finesCreated++;
+
+          // Populate borrowing to get book info for notification
+          await fine.populate({
+            path: 'borrowing',
+            populate: { path: 'book', select: 'title author' },
+          });
+
+          // Send fine issued notification
+          const bookTitle = fine.borrowing?.book?.title || 'Unknown Book';
+          const bookAuthor = fine.borrowing?.book?.author || 'Unknown Author';
+          
+          notifyUser(
+            fine.member._id || fine.member,
+            NOTIFICATION_TYPES.FINE_ISSUED,
+            'Fine Issued',
+            `A fine of $${fineAmount.toFixed(2)} has been issued for the overdue book "${bookTitle}" (${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue).`,
+            {
+              fine: fine._id,
+              borrowing: borrowing._id,
+              data: {
+                amount: fineAmount,
+                daysOverdue,
+                bookTitle,
+                bookAuthor,
+              },
+            },
+            true // Send email
+          ).catch(err => console.error('Error sending fine notification:', err));
         }
+
+        // Send overdue notification (even if fine already exists)
+        await borrowing.populate('book', 'title author');
+        const bookTitle = borrowing.book?.title || 'Unknown Book';
+        const bookAuthor = borrowing.book?.author || 'Unknown Author';
+        
+        notifyUser(
+          borrowing.member._id || borrowing.member,
+          NOTIFICATION_TYPES.BORROWING_OVERDUE,
+          'Book Overdue',
+          `Your borrowed book "${bookTitle}" by ${bookAuthor} is now ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it as soon as possible.`,
+          {
+            borrowing: borrowing._id,
+            book: borrowing.book?._id,
+            data: {
+              daysOverdue,
+              dueDate: borrowing.dueDate,
+              bookTitle,
+              bookAuthor,
+            },
+          },
+          true // Send email
+        ).catch(err => console.error('Error sending overdue notification:', err));
       } catch (error) {
         console.error(`Error processing borrowing ${borrowing._id}:`, error);
         stats.errors++;

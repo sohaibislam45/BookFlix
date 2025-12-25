@@ -4,7 +4,8 @@ import Borrowing from '@/models/Borrowing';
 import BookCopy from '@/models/BookCopy';
 import Book from '@/models/Book';
 import User from '@/models/User';
-import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS } from '@/lib/constants';
+import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS, NOTIFICATION_TYPES } from '@/lib/constants';
+import { notifyUser } from '@/lib/notifications';
 
 /**
  * Get user's borrowing rules based on subscription
@@ -128,6 +129,19 @@ export async function POST(request) {
     await borrowing.populate('member', 'name email');
     await borrowing.populate('book', 'title author coverImage');
     await borrowing.populate('bookCopy', 'copyNumber barcode');
+
+    // Send notification (async, don't wait)
+    notifyUser(
+      memberId,
+      NOTIFICATION_TYPES.BOOK_AVAILABLE,
+      'Book Borrowed Successfully',
+      `You have successfully borrowed "${borrowing.book.title}" by ${borrowing.book.author}. Due date: ${dueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
+      {
+        borrowing: borrowing._id,
+        book: borrowing.book._id,
+      },
+      false // Don't send email for successful borrow
+    ).catch(err => console.error('Error sending borrow notification:', err));
 
     return NextResponse.json(
       {

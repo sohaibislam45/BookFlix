@@ -5,7 +5,8 @@ import Payment from '@/models/Payment';
 import Fine from '@/models/Fine';
 import User from '@/models/User';
 import Subscription from '@/models/Subscription';
-import { PAYMENT_STATUS, FINE_STATUS } from '@/lib/constants';
+import { PAYMENT_STATUS, FINE_STATUS, NOTIFICATION_TYPES } from '@/lib/constants';
+import { notifyUser } from '@/lib/notifications';
 import mongoose from 'mongoose';
 
 // Configure runtime for Node.js (required for raw body access)
@@ -124,11 +125,34 @@ async function handleCheckoutSessionCompleted(session) {
         await payment.save();
 
         // Update fine status to paid
-        const fine = await Fine.findById(payment.fine);
+        const fine = await Fine.findById(payment.fine)
+          .populate({
+            path: 'borrowing',
+            populate: { path: 'book', select: 'title author' },
+          });
         if (fine && fine.status === FINE_STATUS.PENDING) {
           fine.status = FINE_STATUS.PAID;
           fine.paidDate = new Date();
           await fine.save();
+
+          // Send payment received notification
+          const bookTitle = fine.borrowing?.book?.title || 'Unknown Book';
+          notifyUser(
+            payment.member._id || payment.member,
+            NOTIFICATION_TYPES.PAYMENT_RECEIVED,
+            'Payment Received',
+            `Thank you! We've received your payment of $${payment.amount.toFixed(2)}. Your fine has been paid in full.`,
+            {
+              payment: payment._id,
+              fine: fine._id,
+              data: {
+                amount: payment.amount,
+                fineAmount: fine.amount,
+                bookTitle,
+              },
+            },
+            true // Send email
+          ).catch(err => console.error('Error sending payment notification:', err));
         }
 
         console.log(`Fine payment completed via checkout: Payment ${paymentId}, Fine ${payment.fine}`);
@@ -287,11 +311,34 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
       await payment.save();
 
       // Update fine status to paid
-      const fine = await Fine.findById(payment.fine);
+      const fine = await Fine.findById(payment.fine)
+        .populate({
+          path: 'borrowing',
+          populate: { path: 'book', select: 'title author' },
+        });
       if (fine && fine.status === FINE_STATUS.PENDING) {
         fine.status = FINE_STATUS.PAID;
         fine.paidDate = new Date();
         await fine.save();
+
+        // Send payment received notification
+        const bookTitle = fine.borrowing?.book?.title || 'Unknown Book';
+        notifyUser(
+          payment.member._id || payment.member,
+          NOTIFICATION_TYPES.PAYMENT_RECEIVED,
+          'Payment Received',
+          `Thank you! We've received your payment of $${payment.amount.toFixed(2)}. Your fine has been paid in full.`,
+          {
+            payment: payment._id,
+            fine: fine._id,
+            data: {
+              amount: payment.amount,
+              fineAmount: fine.amount,
+              bookTitle,
+            },
+          },
+          true // Send email
+        ).catch(err => console.error('Error sending payment notification:', err));
       }
 
       console.log(`Fine payment completed: Payment ${paymentId}, Fine ${payment.fine}`);

@@ -37,7 +37,7 @@ todos:
       - phase5-fines-payments
   - id: phase7-notifications
     content: "Phase 7: Create Notification model, setup Resend email service, implement in-app notifications, create notification triggers"
-    status: pending
+    status: completed
     dependencies:
       - phase6-premium
   - id: phase8-librarian
