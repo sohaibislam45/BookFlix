@@ -14,6 +14,7 @@ export default function Home() {
   const { user, userData } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [ctaVisible, setCtaVisible] = useState(false);
   const statsRef = useRef(null);
   const sectionsRef = useRef([]);
 
@@ -70,6 +71,16 @@ export default function Home() {
       });
     };
   }, []);
+
+  // Ensure CTA section becomes visible when conditionally rendered
+  useEffect(() => {
+    if (isGeneralMember || !user) {
+      const timer = setTimeout(() => {
+        setCtaVisible(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isGeneralMember, user]);
 
   const togglePricingModal = () => {
     setPricingModalOpen(!pricingModalOpen);
@@ -353,7 +364,8 @@ export default function Home() {
         {(isGeneralMember || !user) && (
           <div 
             ref={(el) => (sectionsRef.current[2] = el)}
-            className="relative rounded-3xl overflow-hidden mt-12 group opacity-0"
+            className={`relative rounded-3xl overflow-hidden mt-12 group ${ctaVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+            style={{ '--animation-delay': '100ms' }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
