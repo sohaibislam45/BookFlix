@@ -36,7 +36,7 @@ export default function AuthProvider({ children }) {
         // Fetch user data from MongoDB
         try {
           console.log('[AuthContext] Fetching user from MongoDB with firebaseUid:', firebaseUser.uid);
-          const response = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
+          const response = await fetch(`/api/users?firebaseUid=${encodeURIComponent(firebaseUser.uid)}`);
           console.log('[AuthContext] Response status:', response.status);
           
           if (response.ok) {

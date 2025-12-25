@@ -99,9 +99,9 @@ export function getRoleOverviewRoute(role) {
     case 'member':
       return '/member/overview';
     case 'librarian':
-      return '/dashboard'; // TODO: Create librarian overview page
+      return '/librarian/overview';
     case 'admin':
-      return '/dashboard'; // TODO: Create admin overview page
+      return '/admin/overview';
     default:
       // Default to member overview for unknown roles
       return '/member/overview';

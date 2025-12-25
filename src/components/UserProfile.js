@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { getRoleOverviewRoute } from '@/lib/utils';
 
 export default function UserProfile() {
   const { user, userData, signOut } = useAuth();
@@ -116,24 +117,16 @@ export default function UserProfile() {
           </div>
           <div className="py-2">
             <Link
-              href="/dashboard"
+              href={getRoleOverviewRoute(userData?.role || 'member')}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 transition-colors"
             >
               <span className="material-symbols-outlined text-lg">dashboard</span>
               Dashboard
             </Link>
-            <Link
-              href="/dashboard"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">settings</span>
-              Settings
-            </Link>
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
             >
               <span className="material-symbols-outlined text-lg">logout</span>
               Sign Out

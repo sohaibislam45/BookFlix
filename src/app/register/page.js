@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { LOCATION_DATA } from '@/lib/locationData';
-import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
 import { isValidEmail, validatePassword, isValidPhone, validateForm } from '@/lib/validation';
 
@@ -262,16 +261,9 @@ export default function RegisterPage() {
         throw new Error(errorMessage);
       }
 
-      // Fetch user data to get role for navigation
-      const userResponse = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        const role = userData.role || 'member';
-        router.push(getRoleOverviewRoute(role));
-      } else {
-        // Fallback to dashboard if user data fetch fails
-        router.push('/dashboard');
-      }
+      // Redirect to dashboard after successful registration
+      // Refresh user data in AuthContext by triggering a page reload or navigation
+      router.push('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
       setError(error.message || 'Failed to register. Please try again.');
@@ -284,26 +276,39 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    const result = await signInWithGoogle();
-    
-    if (result.success) {
-      // Check if user exists in MongoDB
-      try {
-        const response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
-        if (response.ok) {
-          router.push('/dashboard');
-        } else {
-          // Redirect to complete registration
+    try {
+      const result = await signInWithGoogle();
+      
+      if (result.success && result.user) {
+        // Check if user exists in MongoDB
+        try {
+          const response = await fetch(`/api/users?firebaseUid=${encodeURIComponent(result.user.uid)}`);
+          
+          if (response.ok) {
+            // User exists, redirect to dashboard
+            router.push('/dashboard');
+          } else if (response.status === 404) {
+            // User doesn't exist in MongoDB, redirect to complete registration
+            router.push('/register?complete=true');
+          } else {
+            // Other error, still redirect to complete registration as fallback
+            console.error('Error checking user:', response.status, await response.text().catch(() => ''));
+            router.push('/register?complete=true');
+          }
+        } catch (error) {
+          console.error('Error fetching user:', error);
+          // On error, redirect to complete registration
           router.push('/register?complete=true');
         }
-      } catch (error) {
-        router.push('/register?complete=true');
+      } else {
+        setError(result.error || 'Failed to sign up with Google');
+        setLoading(false);
       }
-    } else {
-      setError(result.error || 'Failed to sign up with Google');
+    } catch (error) {
+      console.error('Google sign up error:', error);
+      setError(error.message || 'Failed to sign up with Google');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
