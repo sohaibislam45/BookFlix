@@ -51,26 +51,40 @@ export default function MemberSettingsPage() {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    
+    if (!user || !user.uid) {
+      showError('Authentication Error', 'Please log in to update your profile.');
+      return;
+    }
+    
     setLoading(true);
     
     try {
+      const updateData = {
+        name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+        bio: profileData.bio,
+      };
+      
+      console.log('[Settings] Updating profile for user:', user.uid);
+      console.log('[Settings] Update data:', updateData);
+      
       const response = await fetch(`/api/users/${user.uid}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: `${profileData.firstName} ${profileData.lastName}`.trim(),
-          bio: profileData.bio,
-        }),
+        body: JSON.stringify(updateData),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('[Settings] Update failed:', errorData);
         throw new Error(errorData.error || 'Failed to update profile');
       }
 
       const updatedData = await response.json();
+      console.log('[Settings] Profile updated successfully:', updatedData);
+      // The API returns the user object directly
       updateUserData(updatedData);
       showSuccess('Profile Updated', 'Your profile has been successfully updated.');
     } catch (error) {
