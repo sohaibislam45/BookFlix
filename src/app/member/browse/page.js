@@ -144,6 +144,39 @@ function BrowseContent() {
     }
   };
 
+  const handleReserve = async (bookId) => {
+    if (!userData?._id) {
+      alert('Please log in to reserve books');
+      return;
+    }
+
+    if (!confirm('Reserve this book? You will be added to the waitlist.')) return;
+
+    try {
+      setBorrowing(true);
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: userData._id, bookId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Reservation created! Your queue position: #${data.reservation.queuePosition}`);
+        // Refresh books to update available copies
+        fetchBooks();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to reserve book');
+      }
+    } catch (error) {
+      console.error('Error reserving book:', error);
+      alert('Failed to reserve book');
+    } finally {
+      setBorrowing(false);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-20">
       <div className="max-w-[1440px] mx-auto w-full">
@@ -280,16 +313,29 @@ function BrowseContent() {
                             {book.description || 'No description available'}
                           </p>
                           <div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleBorrow(book._id);
-                              }}
-                              disabled={book.availableCopies === 0}
-                              className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {book.availableCopies > 0 ? 'Borrow' : 'Reserve'}
-                            </button>
+                            {book.availableCopies > 0 ? (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleBorrow(book._id);
+                                }}
+                                disabled={borrowing}
+                                className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {borrowing ? 'Processing...' : 'Borrow'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleReserve(book._id);
+                                }}
+                                disabled={borrowing}
+                                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {borrowing ? 'Processing...' : 'Reserve'}
+                              </button>
+                            )}
                             <button className="bg-white/10 hover:bg-white/20 text-white p-2 rounded transition-colors" title="Add to List">
                               <span className="material-symbols-outlined text-[18px] leading-none">bookmark_add</span>
                             </button>

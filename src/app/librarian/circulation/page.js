@@ -7,12 +7,16 @@ import { useRouter } from 'next/navigation';
 export default function CirculationDeskPage() {
   const { userData } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('checkout'); // checkout, return, overdue
+  const [activeTab, setActiveTab] = useState('checkout'); // checkout, return, overdue, reservations
   const [searchQuery, setSearchQuery] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [member, setMember] = useState(null);
   const [books, setBooks] = useState([]);
   const [overdueBooks, setOverdueBooks] = useState([]);
+  const [reservations, setReservations] = useState([]);
+  const [reservationBookSearch, setReservationBookSearch] = useState('');
+  const [selectedBookReservations, setSelectedBookReservations] = useState([]);
+  const [availableCopies, setAvailableCopies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
@@ -25,6 +29,8 @@ export default function CirculationDeskPage() {
   useEffect(() => {
     if (activeTab === 'overdue') {
       fetchOverdueBooks();
+    } else if (activeTab === 'reservations') {
+      fetchReservations();
     }
   }, [activeTab]);
 
@@ -152,6 +158,125 @@ export default function CirculationDeskPage() {
     }
   };
 
+  const fetchReservations = async () => {
+    try {
+      setLoading(true);
+      // Fetch all reservations and filter for pending/ready on frontend
+      const response = await fetch('/api/reservations?limit=100');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter for active reservations (pending and ready)
+        const activeReservations = (data.reservations || []).filter(
+          (r) => r.status === 'pending' || r.status === 'ready'
+        );
+        setReservations(activeReservations);
+      }
+    } catch (error) {
+      console.error('Error fetching reservations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchBookForReservations = async () => {
+    if (!reservationBookSearch) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/books?search=${encodeURIComponent(reservationBookSearch)}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        const booksWithReservations = await Promise.all(
+          (data.books || []).map(async (book) => {
+            const reservationsResponse = await fetch(`/api/reservations/book/${book._id}`);
+            if (reservationsResponse.ok) {
+              const reservationsData = await reservationsResponse.json();
+              return { ...book, reservations: reservationsData.reservations || [] };
+            }
+            return { ...book, reservations: [] };
+          })
+        );
+        setSelectedBookReservations(booksWithReservations.filter((b) => b.reservations.length > 0));
+      }
+    } catch (error) {
+      console.error('Error searching books for reservations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailableCopies = async (bookId) => {
+    try {
+      const response = await fetch(`/api/books/${bookId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Get available copies from book details
+        return data.book;
+      }
+    } catch (error) {
+      console.error('Error fetching book copies:', error);
+    }
+    return null;
+  };
+
+  const handleMarkReady = async (reservationId, bookId) => {
+    if (!confirm('Mark this reservation as ready? An available copy will be reserved for the member.')) return;
+
+    try {
+      setProcessing(true);
+      // API will auto-find an available copy
+      const response = await fetch(`/api/reservations/${reservationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markReady' }), // API will find available copy automatically
+      });
+
+      if (response.ok) {
+        alert('Reservation marked as ready');
+        await fetchReservations();
+        if (reservationBookSearch) {
+          searchBookForReservations();
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to mark reservation as ready');
+      }
+    } catch (error) {
+      console.error('Error marking reservation as ready:', error);
+      alert('Failed to mark reservation as ready');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCompleteReservation = async (reservationId) => {
+    if (!confirm('Complete this reservation and create a borrowing?')) return;
+
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/reservations/${reservationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete' }),
+      });
+
+      if (response.ok) {
+        alert('Reservation completed and book borrowed successfully');
+        await fetchReservations();
+        if (reservationBookSearch) {
+          searchBookForReservations();
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to complete reservation');
+      }
+    } catch (error) {
+      console.error('Error completing reservation:', error);
+      alert('Failed to complete reservation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-8 pb-20">
       <div className="max-w-7xl mx-auto">
@@ -189,6 +314,16 @@ export default function CirculationDeskPage() {
             }`}
           >
             Overdue Books
+          </button>
+          <button
+            onClick={() => setActiveTab('reservations')}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'reservations'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-secondary hover:text-white'
+            }`}
+          >
+            Reservations
           </button>
         </div>
 
@@ -349,6 +484,177 @@ export default function CirculationDeskPage() {
                           </div>
                         </div>
                       ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Reservations Tab */}
+        {activeTab === 'reservations' && (
+          <div className="space-y-6">
+            <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
+              <h3 className="text-xl font-bold text-white mb-4">Search Book Reservations</h3>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Search book by title or ISBN..."
+                  value={reservationBookSearch}
+                  onChange={(e) => setReservationBookSearch(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && searchBookForReservations()}
+                  className="flex-1 bg-background-dark border border-[#3c2348] rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                />
+                <button
+                  onClick={searchBookForReservations}
+                  disabled={loading}
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
+                >
+                  {loading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+            </div>
+
+            {selectedBookReservations.length > 0 && (
+              <div className="space-y-4">
+                {selectedBookReservations.map((book) => (
+                  <div key={book._id} className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
+                    <div className="flex gap-4 mb-4">
+                      <div
+                        className="w-16 h-24 bg-cover bg-center rounded flex-shrink-0"
+                        style={{ backgroundImage: `url('${book.coverImage}')` }}
+                      ></div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-bold">{book.title}</h4>
+                        <p className="text-text-secondary text-sm">{book.author}</p>
+                        <p className="text-text-secondary text-xs mt-1">
+                          {book.reservations.length} active reservation{book.reservations.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {book.reservations.map((reservation) => (
+                        <div
+                          key={reservation._id}
+                          className={`p-4 rounded-lg border ${
+                            reservation.status === 'ready'
+                              ? 'bg-emerald-500/10 border-emerald-500/30'
+                              : 'bg-background-dark border-[#3c2348]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="text-white font-semibold">{reservation.member?.name}</p>
+                              <p className="text-text-secondary text-xs">{reservation.member?.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <span
+                                className={`text-xs font-bold px-2 py-1 rounded ${
+                                  reservation.status === 'ready'
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-amber-500/20 text-amber-300'
+                                }`}
+                              >
+                                {reservation.status === 'ready' ? 'Ready' : `Queue #${reservation.queuePosition}`}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <p className="text-text-secondary text-xs">
+                              Reserved: {new Date(reservation.reservedDate).toLocaleDateString()}
+                              {reservation.readyDate && (
+                                <> • Ready: {new Date(reservation.readyDate).toLocaleDateString()}</>
+                              )}
+                            </p>
+                            <div className="flex gap-2">
+                              {reservation.status === 'pending' && (
+                                <button
+                                  onClick={() => handleMarkReady(reservation._id, book._id)}
+                                  disabled={processing}
+                                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Mark Ready
+                                </button>
+                              )}
+                              {reservation.status === 'ready' && (
+                                <button
+                                  onClick={() => handleCompleteReservation(reservation._id)}
+                                  disabled={processing}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!reservationBookSearch && (
+              <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
+                <h3 className="text-xl font-bold text-white mb-4">All Active Reservations</h3>
+                {loading ? (
+                  <div className="text-center py-8 text-text-secondary">Loading...</div>
+                ) : reservations.length === 0 ? (
+                  <div className="text-center py-8 text-text-secondary">No active reservations</div>
+                ) : (
+                  <div className="space-y-3">
+                    {reservations.map((reservation) => (
+                      <div
+                        key={reservation._id}
+                        className={`p-4 rounded-lg border flex items-center justify-between ${
+                          reservation.status === 'ready'
+                            ? 'bg-emerald-500/10 border-emerald-500/30'
+                            : 'bg-background-dark border-[#3c2348]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div
+                            className="w-12 h-16 bg-cover bg-center rounded flex-shrink-0"
+                            style={{ backgroundImage: `url('${reservation.book?.coverImage}')` }}
+                          ></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold truncate">{reservation.book?.title}</p>
+                            <p className="text-text-secondary text-xs truncate">{reservation.member?.name}</p>
+                            <p className="text-text-secondary text-xs">{reservation.member?.email}</p>
+                          </div>
+                          <span
+                            className={`text-xs font-bold px-2 py-1 rounded flex-shrink-0 ${
+                              reservation.status === 'ready'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {reservation.status === 'ready' ? 'Ready' : `Queue #${reservation.queuePosition}`}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          {reservation.status === 'pending' && (
+                            <button
+                              onClick={() => handleMarkReady(reservation._id, reservation.book?._id)}
+                              disabled={processing}
+                              className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                            >
+                              Mark Ready
+                            </button>
+                          )}
+                          {reservation.status === 'ready' && (
+                            <button
+                              onClick={() => handleCompleteReservation(reservation._id)}
+                              disabled={processing}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

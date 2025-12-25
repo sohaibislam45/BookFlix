@@ -22,7 +22,7 @@ todos:
       - phase2-books
   - id: phase4-reservations
     content: "Phase 4: Create Reservation model, implement queue system, build reservation APIs and UI for members and librarians"
-    status: pending
+    status: completed
     dependencies:
       - phase3-borrowing
   - id: phase5-fines-payments
