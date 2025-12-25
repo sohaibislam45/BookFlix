@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# BookFlix - Online Library Management System
+
+BookFlix is a comprehensive online library management system built with Next.js 16, MongoDB, Firebase Authentication, Stripe payments, and DaisyUI.
+
+## Features
+
+- **Role-Based Access Control**: Member, Librarian, and Admin dashboards
+- **Book Management**: Browse, search, and manage books with image uploads via ImgBB
+- **Borrowing System**: Different borrowing limits for general (1 book/7 days) and premium (4 books/20 days) members
+- **Reservation System**: Queue-based book reservations with notifications
+- **Fine Management**: Automatic fine calculation and payment processing
+- **Stripe Integration**: Secure payment processing for fines and premium subscriptions
+- **Email Notifications**: Automated notifications via Resend
+- **Premium Subscriptions**: Monthly subscription plans with enhanced borrowing privileges
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: MongoDB with Mongoose
+- **Authentication**: Firebase Auth
+- **Payments**: Stripe
+- **Styling**: Tailwind CSS v4 + DaisyUI
+- **Email**: Resend
+- **Image Hosting**: ImgBB
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+ installed
+- MongoDB Atlas account
+- Firebase project
+- Stripe account
+- ImgBB API key
+- Resend API key
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local`
+   - Fill in all required environment variables (see `SETUP.md` for detailed instructions)
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+
+```
+src/
+├── app/              # Next.js app directory
+│   ├── api/          # API routes
+│   └── ...
+├── components/       # React components
+├── contexts/         # React contexts (Auth, etc.)
+├── lib/             # Utility libraries
+│   ├── mongodb.js   # MongoDB connection (native driver)
+│   ├── db.js        # Mongoose connection
+│   ├── firebase.js  # Firebase config
+│   ├── stripe.js    # Stripe client
+│   ├── resend.js    # Resend client
+│   ├── imgbb.js     # ImgBB utilities
+│   ├── utils.js     # Helper functions
+│   └── constants.js # Application constants
+└── models/          # Mongoose models
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Development Phases
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `SETUP.md` for detailed setup instructions and the development plan.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Stripe Documentation](https://stripe.com/docs)
+- [DaisyUI Documentation](https://daisyui.com/)
