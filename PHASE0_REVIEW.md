@@ -125,3 +125,4 @@ The project is ready to proceed to Phase 1: Authentication setup.
 2. **Domain Verification**: When ready for production, verify a domain in Resend
 3. **Testing**: Test the Stripe webhook endpoint with test events
 
+

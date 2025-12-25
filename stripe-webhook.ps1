@@ -18,3 +18,4 @@ if (Test-Path "$stripePath\stripe.exe") {
     Write-Host "Expected location: $stripePath\stripe.exe" -ForegroundColor Red
 }
 
+

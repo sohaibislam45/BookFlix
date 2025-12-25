@@ -217,37 +217,89 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="relative rounded-3xl overflow-hidden mt-12 group">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl">
-            <div className="max-w-2xl space-y-4">
-              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                Ready to Reimagine Your Reading?
-              </h2>
-              <p className="text-gray-300 text-lg font-light leading-relaxed">
-                Join Bookflix today and get instant access to our curated collection. No late fees on the premium plan.
-              </p>
-              <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-gray-400 pt-2">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
-                  Cancel anytime
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
-                  Free 7-day trial
-                </span>
-              </div>
-            </div>
-            <button
-              className="shrink-0 bg-white text-black hover:bg-gray-100 px-10 py-5 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 flex items-center gap-2"
-              onClick={togglePricingModal}
+        {/* Fresh New Arrivals Section */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-end justify-between px-2">
+            <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Fresh New Arrivals</h2>
+            <Link
+              className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1"
+              href="#"
             >
-              Get Started Now <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
+              View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </Link>
+          </div>
+          <div className="relative group/carousel">
+            <div className="flex overflow-x-auto gap-4 md:gap-6 pb-8 pt-4 px-2 no-scrollbar scroll-smooth snap-x">
+              {[
+                { title: 'The Seven Husbands of Evelyn Hugo', author: 'Taylor Jenkins Reid', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCyDl6Ydl0fjXvdPpWK70bp9YmcxzROe9R8B6O9TQ2RHas7rIWvoNAiylNrZwXf5bUdZGXamxLoHuaQ6W8Bghg0P3g8gRItLPO2U5PyBQKtQJCliTZOoeKK07Lak-RZlAWwVY-ldaPqTLQjxA7ME5uUi7BYhpK77Lc8Q9VyHVgpud7xSs_yJJZXvzl0mYJGkHIfbClEDgxpjOWWJkeSUcva2YiDmLH7plqW280-oEaVwdPcclydgX074xXCDbGwVreuqDKEIqc1kY' },
+                { title: 'Atomic Habits', author: 'James Clear', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDM3Qy-wPH8-3c-QtIqMgaWX_KyiEXtgbryq5BTpAztR4RbiH4pVHqdjtbI9bS9N2_DMAxjvJz17PvdEkdn1e-n2taKASZcu5mcH70styS1c2FN9TGs-tBLxXFf0z2lY9BfpQTG3Vh3WVOwnrwCM-6RCVb17jNMqZ2dbysuU0xjhQavzsz0ST9nFseXp8zlthH-90qBtdsDHOrNswcgk-CQOVCfminR2kM_bRWUeMoDPjZDN-3KUv4tuttMPzBQBmmCKvqTrZRF0fU' },
+                { title: 'The Invisible Life of Addie LaRue', author: 'V.E. Schwab', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCj98KbnzSpxoTqikaNWVGoSQWN3F6nz7xsdEM-ALagKI3BiRzAzLLVkrwgxIS26jBRNmk-amKrX3v-ffIdERmkQk3Lo6uKA6FAw1-DmP-qYJSu_zMItW1TlFnbEjFCKMrW0oIzpTQbEfC5nljW1GeYMnJb56bpUNTT3GDLM0l0kW-IjU3K_bTtrm7zozWICjgwJHqSLmW1BfChjvCSzYsYtNmSzRlaEBSIaH5ycJerimbC3NoznMSriAeIeWz4ByP11OJRC5pQ_WU' },
+                { title: 'Educated', author: 'Tara Westover', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCmOUeyKDZ2G_Bstqjjblqqlam7aWaDgigxyuK4evgwTUIGQJMvafmCCG38_l-wGlBkarTOBbkhwvG5_5SecQGQvPLkUB35_gXZOBT4x29mOT6Bbd1aV4ASLr5aZDUAJnsyLAc4QpseYSrhNdSXMzmbjyijCs4DpfCBUTbO_whgmlja_EsouO09HPrvdRnfTbU55I7LDHeaNs-0obI9KN2hatducD3EN83BHw_W9sCpgz8_-GWTb9Kjc_LdjRyjCuKsvJRElxnkz3U' },
+                { title: 'The Song of Achilles', author: 'Madeline Miller', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCcQ14wur7aXNUHMha0ihywimkm5eFnIFULpbXmpGjMRsBgObWnGgh-lCpSqfuh0aGmQ2kh95B1Zlstsj3WnQvnHwfI2Fs67_BQQMj5praIoTLGHQK9zhVIfPH38K18mo6ztzr6JbTS67UxQIEgEtpjwqh4iX8taRFEOktG8MwQy3ZPb85Myfr84I-EysYuvpCO2XDKhmOLCrjO0_qIiembo6zBHylSLvOzBbAuGClPKRBt_hL7dKG5sw5GcQCyNS_hPGe3OoE2fk0' },
+                { title: 'A Court of Thorns and Roses', author: 'Sarah J. Maas', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWIVE_ktKG2xlUtm-Wy0J-C8iqaEYLd24D3PkutxrKZAK8zOdL9-tI0cklpaKL4nPZnkkqVXcLxOrXgsBRWpf92HO30ZcjXb8QjoTZ-whDUbxq-q--nsTosQ5CBkL_KvxLgAmrv5WyHjz5XZP1mDfbwMMshpVmrguPCAYc0RlyDqPxqnBmR1lI-Rz1jhixls6SX_cHZijkfRJVquW6QkMfr2tBpSeEoGK83EWOWjsIAq4UfInCr-6iH9taovNZT35bhB_hqiE_fHA' },
+              ].map((book, index) => (
+                <div key={index} className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer">
+                  <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50">
+                    <Image
+                      src={book.image}
+                      alt={`${book.title} by ${book.author}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 160px, 200px"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                      <button className="bg-white text-black font-bold py-2 px-4 rounded-sm text-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-1 mb-2">
+                        <span className="material-symbols-outlined text-sm fill-1">play_arrow</span>
+                        Preview
+                      </button>
+                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors">
+                        Details
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <h3 className="text-white text-sm font-semibold truncate">{book.title}</h3>
+                    <p className="text-gray-400 text-xs">{book.author}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* CTA Section */}
+        {!user && (
+          <div className="relative rounded-3xl overflow-hidden mt-12 group">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+            <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl">
+              <div className="max-w-2xl space-y-4">
+                <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                  Ready to Reimagine Your Reading?
+                </h2>
+                <p className="text-gray-300 text-lg font-light leading-relaxed">
+                  Join Bookflix today and get instant access to our curated collection. No late fees on the premium plan.
+                </p>
+                <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-gray-400 pt-2">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+                    Cancel anytime
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+                    Free 7-day trial
+                  </span>
+                </div>
+              </div>
+              <button
+                className="shrink-0 bg-white text-black hover:bg-gray-100 px-10 py-5 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 flex items-center gap-2"
+                onClick={togglePricingModal}
+              >
+                Get Started Now <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer */}
