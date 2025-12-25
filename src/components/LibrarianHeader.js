@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
+import UserProfile from './UserProfile';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LibrarianHeader({ title = 'Dashboard', subtitle, onSearch }) {
@@ -48,6 +49,7 @@ export default function LibrarianHeader({ title = 'Dashboard', subtitle, onSearc
         </div>
         <div className="h-6 w-px bg-white/10 hidden md:block"></div>
         <NotificationBell />
+        <UserProfile />
       </div>
     </header>
   );

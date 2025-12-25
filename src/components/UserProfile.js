@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getRoleOverviewRoute } from '@/lib/utils';
 
 export default function UserProfile() {
   const { user, userData, signOut } = useAuth();
@@ -103,7 +101,7 @@ export default function UserProfile() {
             </div>
           )}
         </div>
-        <span className="text-white font-medium text-sm hidden md:block">{displayName}</span>
+        <span className="text-white font-medium text-sm">{displayName}</span>
         <span className="material-symbols-outlined text-white/60 text-lg">
           {isOpen ? 'expand_less' : 'expand_more'}
         </span>
@@ -116,14 +114,6 @@ export default function UserProfile() {
             <p className="text-gray-400 text-xs truncate mt-1">{userData?.email || user?.email}</p>
           </div>
           <div className="py-2">
-            <Link
-              href={getRoleOverviewRoute(userData?.role || 'member')}
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">dashboard</span>
-              Dashboard
-            </Link>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
