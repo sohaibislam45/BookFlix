@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Borrowing from '@/models/Borrowing';
-import { BORROWING_STATUS } from '@/lib/constants';
+import Fine from '@/models/Fine';
+import { BORROWING_STATUS, FINE_STATUS } from '@/lib/constants';
 import mongoose from 'mongoose';
 
 export async function GET(request) {
@@ -50,8 +51,13 @@ export async function GET(request) {
       returnedDate: { $gte: thisYear },
     });
 
-    // Calculate outstanding fines (placeholder - will be implemented in Phase 5)
-    const outstandingFines = 0;
+    // Calculate outstanding fines (sum of all pending fines)
+    const pendingFines = await Fine.find({
+      member: memberId,
+      status: FINE_STATUS.PENDING,
+    }).lean();
+    
+    const outstandingFines = pendingFines.reduce((sum, fine) => sum + fine.amount, 0);
 
     // Calculate days remaining for active borrowings
     const activeWithDays = activeBorrowings.map((borrowing) => {

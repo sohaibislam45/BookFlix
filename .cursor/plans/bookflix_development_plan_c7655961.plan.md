@@ -27,7 +27,7 @@ todos:
       - phase3-borrowing
   - id: phase5-fines-payments
     content: "Phase 5: Create Fine and Payment models, setup fine calculation cron job, integrate Stripe, build payment UI"
-    status: pending
+    status: completed
     dependencies:
       - phase4-reservations
   - id: phase6-premium

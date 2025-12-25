@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import dbConnect from '@/lib/db';
+import connectDB from '@/lib/db';
+import Payment from '@/models/Payment';
+import Fine from '@/models/Fine';
+import { PAYMENT_STATUS, FINE_STATUS } from '@/lib/constants';
 
 // Configure runtime for Node.js (required for raw body access)
 export const runtime = 'nodejs';
@@ -39,7 +42,7 @@ export async function POST(request) {
     }
 
     // Connect to database
-    await dbConnect();
+    await connectDB();
 
     // Handle the event
     switch (event.type) {
@@ -97,9 +100,45 @@ export async function POST(request) {
 async function handleCheckoutSessionCompleted(session) {
   console.log('Checkout session completed:', session.id);
   
-  // TODO: Update user subscription status based on session metadata
-  // Example:
-  // const userId = session.metadata?.userId;
+  const metadata = session.metadata;
+  const paymentId = metadata?.paymentId;
+  
+  // Handle fine payment
+  if (paymentId) {
+    try {
+      const payment = await Payment.findById(paymentId);
+      
+      if (!payment) {
+        console.error(`Payment not found: ${paymentId}`);
+        return;
+      }
+
+      // Update payment status
+      if (payment.status !== PAYMENT_STATUS.COMPLETED) {
+        payment.status = PAYMENT_STATUS.COMPLETED;
+        payment.completedDate = new Date();
+        payment.stripePaymentIntentId = session.payment_intent || session.id;
+        await payment.save();
+
+        // Update fine status to paid
+        const fine = await Fine.findById(payment.fine);
+        if (fine && fine.status === FINE_STATUS.PENDING) {
+          fine.status = FINE_STATUS.PAID;
+          fine.paidDate = new Date();
+          await fine.save();
+        }
+
+        console.log(`Fine payment completed via checkout: Payment ${paymentId}, Fine ${payment.fine}`);
+      }
+    } catch (error) {
+      console.error('Error handling checkout session completed for fine payment:', error);
+      throw error;
+    }
+    return;
+  }
+  
+  // TODO: Handle subscription checkout sessions here (Phase 6)
+  // const userId = metadata?.userId;
   // if (userId) {
   //   await updateUserSubscription(userId, session.subscription);
   // }
@@ -127,23 +166,75 @@ async function handleSubscriptionDeleted(subscription) {
 async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log('Payment intent succeeded:', paymentIntent.id);
   
-  // TODO: Handle successful payment (e.g., update fine payment status)
-  // Example:
-  // const metadata = paymentIntent.metadata;
-  // if (metadata.fineId) {
-  //   await updateFinePaymentStatus(metadata.fineId, 'paid');
-  // }
+  const metadata = paymentIntent.metadata;
+  const paymentId = metadata?.paymentId;
+  
+  if (!paymentId) {
+    console.log('No paymentId in metadata, skipping fine payment handling');
+    return;
+  }
+
+  try {
+    // Find the payment record
+    const payment = await Payment.findById(paymentId);
+    
+    if (!payment) {
+      console.error(`Payment not found: ${paymentId}`);
+      return;
+    }
+
+    // Update payment status
+    if (payment.status !== PAYMENT_STATUS.COMPLETED) {
+      payment.status = PAYMENT_STATUS.COMPLETED;
+      payment.completedDate = new Date();
+      await payment.save();
+
+      // Update fine status to paid
+      const fine = await Fine.findById(payment.fine);
+      if (fine && fine.status === FINE_STATUS.PENDING) {
+        fine.status = FINE_STATUS.PAID;
+        fine.paidDate = new Date();
+        await fine.save();
+      }
+
+      console.log(`Fine payment completed: Payment ${paymentId}, Fine ${payment.fine}`);
+    }
+  } catch (error) {
+    console.error('Error handling payment intent succeeded:', error);
+    throw error;
+  }
 }
 
 async function handlePaymentIntentFailed(paymentIntent) {
   console.log('Payment intent failed:', paymentIntent.id);
   
-  // TODO: Handle failed payment
-  // Example:
-  // const metadata = paymentIntent.metadata;
-  // if (metadata.fineId) {
-  //   await logPaymentFailure(metadata.fineId);
-  // }
+  const metadata = paymentIntent.metadata;
+  const paymentId = metadata?.paymentId;
+  
+  if (!paymentId) {
+    console.log('No paymentId in metadata, skipping fine payment failure handling');
+    return;
+  }
+
+  try {
+    // Find the payment record
+    const payment = await Payment.findById(paymentId);
+    
+    if (!payment) {
+      console.error(`Payment not found: ${paymentId}`);
+      return;
+    }
+
+    // Update payment status to failed
+    payment.status = PAYMENT_STATUS.FAILED;
+    payment.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
+    await payment.save();
+
+    console.log(`Fine payment failed: Payment ${paymentId}`);
+  } catch (error) {
+    console.error('Error handling payment intent failed:', error);
+    throw error;
+  }
 }
 
 async function handleInvoicePaymentSucceeded(invoice) {
