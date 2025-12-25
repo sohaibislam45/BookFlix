@@ -14,6 +14,7 @@ export default function Home() {
   const { user, userData } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [booksVisible, setBooksVisible] = useState(false);
   const statsRef = useRef(null);
   const sectionsRef = useRef([]);
 
@@ -45,6 +46,14 @@ export default function Home() {
     
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isVisible]);
+
+  // Trigger book animations on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBooksVisible(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Intersection Observer for section animations
   useEffect(() => {
@@ -269,8 +278,11 @@ export default function Home() {
               ].map((book, index) => (
                 <div 
                   key={index} 
-                  className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                  style={{ animationDelay: `${700 + index * 100}ms` }}
+                  className={`flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer ${booksVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+                  style={booksVisible ? { 
+                    '--animation-delay': `${700 + index * 100}ms`,
+                    animationDelay: `${700 + index * 100}ms`
+                  } : {}}
                 >
                   <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                     <Image
@@ -322,8 +334,11 @@ export default function Home() {
               ].map((book, index) => (
                 <div 
                   key={index} 
-                  className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                  style={{ animationDelay: `${800 + index * 100}ms` }}
+                  className={`flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer ${booksVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+                  style={booksVisible ? { 
+                    '--animation-delay': `${800 + index * 100}ms`,
+                    animationDelay: `${800 + index * 100}ms`
+                  } : {}}
                 >
                   <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                     <Image
