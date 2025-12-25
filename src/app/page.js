@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import UserProfile from '@/components/UserProfile';
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
@@ -23,12 +24,7 @@ export default function Home() {
           </Link>
           <div className="flex items-center gap-4">
             {user ? (
-              <Link
-                href="/dashboard"
-                className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
-              >
-                Dashboard
-              </Link>
+              <UserProfile />
             ) : (
               <>
                 <Link

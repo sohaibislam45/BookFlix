@@ -37,6 +37,10 @@ export default function RegisterPage() {
         email: user.email || '',
         name: user.displayName || '',
       }));
+      // Set Google profile photo if available
+      if (user.photoURL && !profilePhotoUrl) {
+        setProfilePhotoUrl(user.photoURL);
+      }
     }
   }, [completeRegistration, user]);
 
@@ -118,7 +122,7 @@ export default function RegisterPage() {
         email: formData.email,
         name: formData.name,
         phone: formData.phone,
-        profilePhoto: profilePhotoUrl,
+        profilePhoto: profilePhotoUrl || firebaseUser.photoURL || null, // Use Google photo if available
         address: {
           division: formData.division,
           city: formData.city,

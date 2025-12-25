@@ -3,9 +3,10 @@
 import { useAuth } from '@/contexts/AuthContext';
 import RequireAuth from '@/components/RequireAuth';
 import Link from 'next/link';
+import UserProfile from '@/components/UserProfile';
 
 export default function DashboardPage() {
-  const { user, userData, signOut } = useAuth();
+  const { user, userData } = useAuth();
 
   return (
     <RequireAuth>
@@ -17,13 +18,7 @@ export default function DashboardPage() {
               <h1 className="text-white text-2xl font-black tracking-tighter">Bookflix</h1>
             </Link>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">{userData?.name || user?.email}</span>
-              <button
-                onClick={signOut}
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                Sign Out
-              </button>
+              <UserProfile />
             </div>
           </div>
         </header>

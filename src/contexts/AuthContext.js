@@ -38,10 +38,51 @@ export default function AuthProvider({ children }) {
           const response = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
           if (response.ok) {
             const data = await response.json();
+            // If userData doesn't have profilePhoto but Firebase user has photoURL, update it
+            if (!data.profilePhoto && firebaseUser.photoURL) {
+              // Update user profile photo in MongoDB
+              try {
+                const updateResponse = await fetch(`/api/users/${firebaseUser.uid}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ profilePhoto: firebaseUser.photoURL }),
+                });
+                if (updateResponse.ok) {
+                  data.profilePhoto = firebaseUser.photoURL;
+                }
+              } catch (error) {
+                console.error('Error updating profile photo:', error);
+              }
+            }
+            // Ensure profilePhoto is set from Firebase if MongoDB doesn't have it
+            if (!data.profilePhoto && firebaseUser.photoURL) {
+              data.profilePhoto = firebaseUser.photoURL;
+            }
             setUserData(data);
+          } else {
+            // User doesn't exist in MongoDB yet - create userData from Firebase
+            const fallbackData = {
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email,
+            };
+            if (firebaseUser.photoURL) {
+              fallbackData.profilePhoto = firebaseUser.photoURL;
+            }
+            setUserData(fallbackData);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          // Fallback to Firebase user data if MongoDB fetch fails
+          const fallbackData = {
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            email: firebaseUser.email,
+          };
+          if (firebaseUser.photoURL) {
+            fallbackData.profilePhoto = firebaseUser.photoURL;
+          }
+          setUserData(fallbackData);
         }
       } else {
         setUser(null);
