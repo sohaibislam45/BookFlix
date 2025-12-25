@@ -1,0 +1,297 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import AdminHeader from '@/components/AdminHeader';
+import Link from 'next/link';
+
+export default function AdminBooksPage() {
+  const { userData } = useAuth();
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState({
+    totalInventory: 0,
+    borrowed: 0,
+    available: 0,
+    lowStock: 0,
+  });
+
+  useEffect(() => {
+    fetchBooks();
+    fetchStats();
+  }, [searchQuery]);
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        limit: '10',
+        ...(searchQuery && { search: searchQuery }),
+      });
+      const response = await fetch(`/api/books?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBooks(data.books || []);
+      }
+    } catch (error) {
+      console.error('Error fetching books:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          totalInventory: data.totalCopies || 0,
+          borrowed: data.borrowedCopies || 0,
+          available: data.availableCopies || 0,
+          lowStock: 15, // Mock data
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const getStockStatus = (book) => {
+    const available = book.availableCopies || 0;
+    if (available === 0) return { label: 'Out of Stock', color: 'red', textColor: 'red-400' };
+    if (available <= 2) return { label: 'Low Stock', color: 'orange', textColor: 'orange-400' };
+    return { label: 'Available', color: 'emerald', textColor: 'emerald-400' };
+  };
+
+  return (
+    <>
+      <AdminHeader title="Admin Books Management" subtitle="Comprehensive inventory control, stock management, and catalog reporting." />
+      <div className="flex-1 overflow-y-auto">
+        <header className="px-8 py-6 border-b border-white/5 bg-background-dark z-10">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-text-secondary text-sm">
+                  <span className="hover:text-white cursor-pointer transition-colors">Dashboard</span>
+                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  <span className="text-white font-medium">Books Management</span>
+                </div>
+                <h1 className="text-3xl font-bold text-white tracking-tight mt-1">Admin Books Management</h1>
+                <p className="text-text-secondary text-sm max-w-2xl mt-1">Comprehensive inventory control, stock management, and catalog reporting.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button className="flex items-center gap-2 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white px-4 py-2.5 rounded-lg font-medium transition-all border border-white/5 shadow-md">
+                  <span className="material-symbols-outlined text-[20px]">description</span>
+                  Reports
+                </button>
+                <button className="flex items-center gap-2 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white px-4 py-2.5 rounded-lg font-medium transition-all border border-white/5 shadow-md">
+                  <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                  Bulk Import
+                </button>
+                <button className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                  Add New Book
+                </button>
+              </div>
+            </div>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">library_books</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Total Inventory</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalInventory.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">outbound</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Borrowed</p>
+                  <p className="text-2xl font-bold text-white">{stats.borrowed.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">check_circle</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Available</p>
+                  <p className="text-2xl font-bold text-white">{stats.available.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">warning</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Low Stock</p>
+                  <p className="text-2xl font-bold text-white">{stats.lowStock}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="px-8 py-4 bg-background-dark/90 border-b border-white/5 flex flex-col sm:flex-row gap-4 items-center justify-between sticky top-0 z-10 backdrop-blur-md shadow-md">
+          <div className="flex-1 w-full sm:w-auto relative max-w-md">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">search</span>
+            <input
+              className="w-full bg-card-dark border border-white/5 text-white placeholder-text-secondary pl-10 pr-4 py-2.5 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none text-sm transition-all shadow-sm"
+              placeholder="Search by title, ISBN, author..."
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+            <div className="flex items-center gap-2 bg-card-dark rounded-lg p-1 border border-white/5 shadow-sm">
+              <button className="px-3 py-1.5 rounded bg-primary/20 text-white text-sm font-medium">All</button>
+              <button className="px-3 py-1.5 rounded hover:bg-white/5 text-text-secondary hover:text-white text-sm font-medium transition-colors">Physical</button>
+              <button className="px-3 py-1.5 rounded hover:bg-white/5 text-text-secondary hover:text-white text-sm font-medium transition-colors">Digital</button>
+            </div>
+            <div className="h-6 w-px bg-white/5 mx-1 hidden sm:block"></div>
+            <button className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm">
+              <span className="material-symbols-outlined text-[18px]">category</span>
+              Categories
+            </button>
+            <button className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm">
+              <span className="material-symbols-outlined text-[18px]">filter_list</span>
+              Filters
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-8 pt-6">
+          <div className="bg-card-dark rounded-xl border border-white/5 shadow-xl overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-background-dark">
+                <tr className="border-b border-white/5">
+                  <th className="px-6 py-4 w-12 text-center">
+                    <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer" type="checkbox" />
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-20">Thumbnail</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Book Details</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-36">ISBN</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">Total</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">Available</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-32">Shelf</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-44 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {loading ? (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">Loading...</td>
+                  </tr>
+                ) : books.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">No books found</td>
+                  </tr>
+                ) : (
+                  books.map((book) => {
+                    const stockStatus = getStockStatus(book);
+                    return (
+                      <tr key={book._id} className="group hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-center">
+                          <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" type="checkbox" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div
+                            className="h-16 w-11 rounded bg-gray-700 bg-cover bg-center shadow-lg border border-white/5"
+                            style={{ backgroundImage: book.coverImage ? `url('${book.coverImage}')` : 'none' }}
+                          ></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-white font-semibold text-sm group-hover:text-primary transition-colors cursor-pointer">{book.title}</span>
+                            <span className="text-text-secondary text-xs mt-0.5">{book.author}</span>
+                            {book.category && (
+                              <span className="inline-flex items-center gap-1.5 mt-1.5">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20">{book.category.name}</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="font-mono text-xs text-text-secondary tracking-wide">{book.isbn || 'N/A'}</span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="text-white font-bold text-sm">{book.totalCopies || 0}</span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {stockStatus.color === 'red' ? (
+                            <div className="flex flex-col items-center">
+                              <span className="text-red-400 font-bold text-sm">0</span>
+                              <span className="text-[10px] text-red-400/70">Out of Stock</span>
+                            </div>
+                          ) : stockStatus.color === 'orange' ? (
+                            <div className="flex flex-col items-center">
+                              <span className="text-orange-400 font-bold text-sm">{book.availableCopies || 0}</span>
+                              <span className="text-[10px] text-orange-400/70">Low Stock</span>
+                            </div>
+                          ) : (
+                            <span className="text-emerald-400 font-bold text-sm">{book.availableCopies || 0}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-text-secondary text-[16px]">shelves</span>
+                            <span className="text-white text-sm">A4-102</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors" title="Edit Details">
+                              <span className="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Manage Stock">
+                              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                            </button>
+                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete Book">
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+            <div className="px-6 py-4 bg-background-dark border-t border-white/5 flex items-center justify-between">
+              <div className="text-sm text-text-secondary">
+                Showing <span className="font-semibold text-white">1</span> to <span className="font-semibold text-white">5</span> of <span className="font-semibold text-white">1,240</span> entries
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">first_page</span>
+                </button>
+                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                </button>
+                <button className="h-8 w-8 rounded bg-primary text-white text-sm font-medium flex items-center justify-center shadow-lg shadow-primary/20">1</button>
+                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">2</button>
+                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">3</button>
+                <span className="text-text-secondary text-sm px-1">...</span>
+                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">12</button>
+                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                </button>
+                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">last_page</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+

@@ -47,7 +47,7 @@ todos:
       - phase7-notifications
   - id: phase9-admin
     content: "Phase 9: Build complete admin dashboard with overview, member/book/staff management, finance reports, and system configuration"
-    status: pending
+    status: completed
     dependencies:
       - phase8-librarian
   - id: phase10-polish
