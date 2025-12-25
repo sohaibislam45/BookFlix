@@ -42,7 +42,7 @@ todos:
       - phase6-premium
   - id: phase8-librarian
     content: "Phase 8: Build complete librarian dashboard with overview, book requests, circulation, inventory, and member management"
-    status: pending
+    status: completed
     dependencies:
       - phase7-notifications
   - id: phase9-admin

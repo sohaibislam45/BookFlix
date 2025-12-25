@@ -3,21 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { showSuccess, showError, showConfirm, showInfo } from '@/lib/swal';
+import LibrarianHeader from '@/components/LibrarianHeader';
+import { showSuccess, showError, showConfirm } from '@/lib/swal';
+import Link from 'next/link';
 
 export default function CirculationDeskPage() {
   const { userData } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('checkout'); // checkout, return, overdue, reservations
+  const [activeTab, setActiveTab] = useState('checkout'); // checkout, return, renew
   const [searchQuery, setSearchQuery] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [member, setMember] = useState(null);
+  const [cart, setCart] = useState([]);
   const [books, setBooks] = useState([]);
-  const [overdueBooks, setOverdueBooks] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [reservationBookSearch, setReservationBookSearch] = useState('');
-  const [selectedBookReservations, setSelectedBookReservations] = useState([]);
-  const [availableCopies, setAvailableCopies] = useState([]);
+  const [recentReturns, setRecentReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
@@ -25,28 +24,18 @@ export default function CirculationDeskPage() {
     if (userData?.role !== 'librarian' && userData?.role !== 'admin') {
       router.push('/member/overview');
     }
+    fetchRecentReturns();
   }, [userData, router]);
 
-  useEffect(() => {
-    if (activeTab === 'overdue') {
-      fetchOverdueBooks();
-    } else if (activeTab === 'reservations') {
-      fetchReservations();
-    }
-  }, [activeTab]);
-
-  const fetchOverdueBooks = async () => {
+  const fetchRecentReturns = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/borrowings?status=overdue');
+      const response = await fetch('/api/borrowings?status=returned&limit=5&sort=returnedDate');
       if (response.ok) {
         const data = await response.json();
-        setOverdueBooks(data.borrowings || []);
+        setRecentReturns(data.borrowings || []);
       }
     } catch (error) {
-      console.error('Error fetching overdue books:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching recent returns:', error);
     }
   };
 
@@ -57,17 +46,22 @@ export default function CirculationDeskPage() {
       const response = await fetch(`/api/users?email=${encodeURIComponent(memberSearch)}`);
       if (response.ok) {
         const data = await response.json();
-        setMember(data);
-        // Fetch member's borrowings
-        if (data._id) {
-          const borrowingsResponse = await fetch(`/api/borrowings/member/${data._id}`);
-          if (borrowingsResponse.ok) {
-            const borrowingsData = await borrowingsResponse.json();
-            setBooks(borrowingsData.borrowings || []);
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          setMember(data.users[0]);
+          // Fetch member's borrowings
+          if (data.users[0]._id) {
+            const borrowingsResponse = await fetch(`/api/borrowings/member/${data.users[0]._id}`);
+            if (borrowingsResponse.ok) {
+              const borrowingsData = await borrowingsResponse.json();
+              setBooks(borrowingsData.borrowings || []);
+            }
           }
+        } else {
+          showError('Member Not Found', 'No member found with that email or ID');
+          setMember(null);
         }
       } else {
-        showInfo('Member Not Found', 'No member found with that email or ID');
+        showError('Error', 'Error searching member');
         setMember(null);
       }
     } catch (error) {
@@ -78,62 +72,103 @@ export default function CirculationDeskPage() {
     }
   };
 
-  const handleCheckout = async (bookId) => {
-    if (!member?._id || !bookId) return;
+  const searchBook = async (isbn) => {
+    if (!isbn) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/books?search=${encodeURIComponent(isbn)}&limit=1`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.books && data.books.length > 0) {
+          const book = data.books[0];
+          // Check if already in cart
+          if (!cart.find((b) => b._id === book._id)) {
+            setCart([...cart, { ...book, dueDate: calculateDueDate() }]);
+            setSearchQuery('');
+          }
+        } else {
+          showError('Book Not Found', 'No book found with that ISBN');
+        }
+      }
+    } catch (error) {
+      console.error('Error searching book:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateDueDate = () => {
+    const dueDate = new Date();
+    const subscriptionType = member?.subscription?.type || 'free';
+    const maxDays = subscriptionType === 'free' ? 7 : 20;
+    dueDate.setDate(dueDate.getDate() + maxDays);
+    return dueDate;
+  };
+
+  const handleCheckout = async () => {
+    if (!member?._id || cart.length === 0) return;
+
     try {
       setProcessing(true);
-      const response = await fetch('/api/borrowings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: member._id, bookId }),
-      });
+      for (const book of cart) {
+        const response = await fetch('/api/borrowings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId: member._id, bookId: book._id }),
+        });
 
-      if (response.ok) {
-        showSuccess('Success!', 'Book checked out successfully');
-        // Refresh member's borrowings
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to checkout book');
+        }
+      }
+
+      showSuccess('Success!', 'All books checked out successfully');
+      setCart([]);
+      setSearchQuery('');
+      // Refresh member's borrowings
+      if (member._id) {
         const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
         if (borrowingsResponse.ok) {
           const borrowingsData = await borrowingsResponse.json();
           setBooks(borrowingsData.borrowings || []);
         }
-        setSearchQuery('');
-      } else {
-        const error = await response.json();
-        showError('Error', error.error || 'Failed to checkout book');
       }
     } catch (error) {
-      console.error('Error checking out book:', error);
-      showError('Error', 'Failed to checkout book');
+      console.error('Error checking out books:', error);
+      showError('Error', error.message || 'Failed to checkout books');
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleReturn = async (borrowingId) => {
+  const handleReturn = async (isbn) => {
+    if (!isbn) return;
     try {
       setProcessing(true);
-      const response = await fetch(`/api/borrowings/${borrowingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'return', returnedBy: userData?._id }),
-      });
-
+      // Find the borrowing by book ISBN
+      const response = await fetch(`/api/borrowings?status=active&limit=100`);
       if (response.ok) {
-        showSuccess('Success!', 'Book returned successfully');
-        // Refresh data
-        if (member?._id) {
-          const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
-          if (borrowingsResponse.ok) {
-            const borrowingsData = await borrowingsResponse.json();
-            setBooks(borrowingsData.borrowings || []);
+        const data = await response.json();
+        const borrowing = data.borrowings?.find((b) => b.book?.isbn === isbn);
+        if (borrowing) {
+          const returnResponse = await fetch(`/api/borrowings/${borrowing._id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'return', returnedBy: userData?._id }),
+          });
+
+          if (returnResponse.ok) {
+            showSuccess('Success!', 'Book returned successfully');
+            fetchRecentReturns();
+            setSearchQuery('');
+          } else {
+            const error = await returnResponse.json();
+            showError('Error', error.error || 'Failed to return book');
           }
+        } else {
+          showError('Not Found', 'No active borrowing found for this ISBN');
         }
-        if (activeTab === 'overdue') {
-          fetchOverdueBooks();
-        }
-      } else {
-        const error = await response.json();
-        showError('Error', error.error || 'Failed to return book');
       }
     } catch (error) {
       console.error('Error returning book:', error);
@@ -143,597 +178,331 @@ export default function CirculationDeskPage() {
     }
   };
 
-  const searchBook = async () => {
-    if (!searchQuery) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/books?search=${encodeURIComponent(searchQuery)}&limit=10`);
-      if (response.ok) {
-        const data = await response.json();
-        setBooks(data.books || []);
-      }
-    } catch (error) {
-      console.error('Error searching books:', error);
-    } finally {
-      setLoading(false);
-    }
+  const removeFromCart = (bookId) => {
+    setCart(cart.filter((b) => b._id !== bookId));
   };
 
-  const fetchReservations = async () => {
-    try {
-      setLoading(true);
-      // Fetch all reservations and filter for pending/ready on frontend
-      const response = await fetch('/api/reservations?limit=100');
-      if (response.ok) {
-        const data = await response.json();
-        // Filter for active reservations (pending and ready)
-        const activeReservations = (data.reservations || []).filter(
-          (r) => r.status === 'pending' || r.status === 'ready'
-        );
-        setReservations(activeReservations);
-      }
-    } catch (error) {
-      console.error('Error fetching reservations:', error);
-    } finally {
-      setLoading(false);
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-  };
-
-  const searchBookForReservations = async () => {
-    if (!reservationBookSearch) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/books?search=${encodeURIComponent(reservationBookSearch)}&limit=10`);
-      if (response.ok) {
-        const data = await response.json();
-        const booksWithReservations = await Promise.all(
-          (data.books || []).map(async (book) => {
-            const reservationsResponse = await fetch(`/api/reservations/book/${book._id}`);
-            if (reservationsResponse.ok) {
-              const reservationsData = await reservationsResponse.json();
-              return { ...book, reservations: reservationsData.reservations || [] };
-            }
-            return { ...book, reservations: [] };
-          })
-        );
-        setSelectedBookReservations(booksWithReservations.filter((b) => b.reservations.length > 0));
-      }
-    } catch (error) {
-      console.error('Error searching books for reservations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAvailableCopies = async (bookId) => {
-    try {
-      const response = await fetch(`/api/books/${bookId}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Get available copies from book details
-        return data.book;
-      }
-    } catch (error) {
-      console.error('Error fetching book copies:', error);
-    }
-    return null;
-  };
-
-  const handleMarkReady = async (reservationId, bookId) => {
-    const result = await showConfirm('Mark Reservation Ready', 'Mark this reservation as ready? An available copy will be reserved for the member.');
-    if (!result.isConfirmed) return;
-
-    try {
-      setProcessing(true);
-      // API will auto-find an available copy
-      const response = await fetch(`/api/reservations/${reservationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'markReady' }), // API will find available copy automatically
-      });
-
-      if (response.ok) {
-        showSuccess('Success!', 'Reservation marked as ready');
-        await fetchReservations();
-        if (reservationBookSearch) {
-          searchBookForReservations();
-        }
-      } else {
-        const error = await response.json();
-        showError('Error', error.error || 'Failed to mark reservation as ready');
-      }
-    } catch (error) {
-      console.error('Error marking reservation as ready:', error);
-      showError('Error', 'Failed to mark reservation as ready');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCompleteReservation = async (reservationId) => {
-    const result = await showConfirm('Complete Reservation', 'Complete this reservation and create a borrowing?');
-    if (!result.isConfirmed) return;
-
-    try {
-      setProcessing(true);
-      const response = await fetch(`/api/reservations/${reservationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete' }),
-      });
-
-      if (response.ok) {
-        showSuccess('Success!', 'Reservation completed and book borrowed successfully');
-        await fetchReservations();
-        if (reservationBookSearch) {
-          searchBookForReservations();
-        }
-      } else {
-        const error = await response.json();
-        showError('Error', error.error || 'Failed to complete reservation');
-      }
-    } catch (error) {
-      console.error('Error completing reservation:', error);
-      showError('Error', 'Failed to complete reservation');
-    } finally {
-      setProcessing(false);
-    }
+    return name[0].toUpperCase();
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 pb-20">
-      <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-black tracking-tight text-white mb-2">Circulation Desk</h2>
-        <p className="text-text-secondary mb-8">Manage book checkouts and returns</p>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-[#3c2348]">
-          <button
-            onClick={() => setActiveTab('checkout')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'checkout'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-secondary hover:text-white'
-            }`}
-          >
-            Checkout
-          </button>
-          <button
-            onClick={() => setActiveTab('return')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'return'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-secondary hover:text-white'
-            }`}
-          >
-            Return
-          </button>
-          <button
-            onClick={() => setActiveTab('overdue')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'overdue'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-secondary hover:text-white'
-            }`}
-          >
-            Overdue Books
-          </button>
-          <button
-            onClick={() => setActiveTab('reservations')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'reservations'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-secondary hover:text-white'
-            }`}
-          >
-            Reservations
-          </button>
-        </div>
-
-        {/* Checkout Tab */}
-        {activeTab === 'checkout' && (
-          <div className="space-y-6">
-            <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-              <h3 className="text-xl font-bold text-white mb-4">Find Member</h3>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Search by email..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && searchMember()}
-                  className="flex-1 bg-background-dark border border-[#3c2348] rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                />
-                <button
-                  onClick={searchMember}
-                  disabled={loading}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {loading ? 'Searching...' : 'Search'}
-                </button>
+    <>
+      <LibrarianHeader title="Circulation Desk" />
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        {/* Left Column - Main Checkout Area */}
+        <div className="lg:col-span-8 flex flex-col border-r border-[#3c2348] bg-background-dark relative">
+          <div className="p-6 pb-6 bg-[#23142b] border-b border-[#3c2348]">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Member Search */}
+              <div className="flex-1 flex flex-col gap-2">
+                <label className="text-xs text-primary font-bold uppercase tracking-widest flex justify-between">
+                  Check Member Status <span className="text-text-muted font-normal normal-case">[F1 Focus]</span>
+                </label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-primary transition-colors">search</span>
+                  <div className="flex gap-2">
+                    <input
+                      className="w-full bg-[#2b1934] border border-[#553267] text-white text-lg font-mono h-12 pl-12 pr-4 rounded-xl focus:outline-none focus:border-primary placeholder:text-text-muted/50 transition-all"
+                      placeholder="Scan Member ID or Search Name..."
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && searchMember()}
+                    />
+                    <button
+                      onClick={searchMember}
+                      disabled={loading}
+                      className="bg-[#3c2348] hover:bg-primary text-white px-4 rounded-xl transition-colors border border-[#553267] hover:border-primary"
+                    >
+                      Check
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Member Info Display */}
               {member && (
-                <div className="mt-4 p-4 bg-background-dark rounded-lg border border-[#3c2348]">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-white font-bold">{member.name}</h4>
-                      <p className="text-text-secondary text-sm">{member.email}</p>
-                      <p className="text-text-secondary text-xs mt-1">
-                        Subscription: {member.subscription?.type || 'free'}
-                      </p>
+                <div className="flex-[1.5] bg-[#2b1934]/50 border border-[#3c2348] rounded-xl p-3 flex items-center gap-4 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-1 bg-emerald-500/10 rounded-bl-xl border-b border-l border-emerald-500/20 text-[10px] text-emerald-400 font-bold uppercase px-2">Active</div>
+                  <div
+                    className="size-12 rounded-full bg-cover bg-center shrink-0 border border-[#553267]"
+                    style={{
+                      backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
+                      backgroundColor: member.profilePhoto ? 'transparent' : '#3c2348',
+                    }}
+                  >
+                    {!member.profilePhoto && (
+                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                        {getInitials(member.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-white font-bold leading-tight truncate">{member.name}</h4>
+                    <p className="text-text-muted text-xs truncate">ID: #{member._id.toString().slice(-4)} • {member.subscription?.type || 'free'}</p>
+                  </div>
+                  <div className="flex gap-3 text-xs border-l border-[#3c2348] pl-3">
+                    <div className="text-center">
+                      <div className="text-text-muted uppercase text-[9px]">Loans</div>
+                      <div className="text-white font-bold text-lg">
+                        {books.filter((b) => b.status === 'active' || b.status === 'overdue').length}
+                        <span className="text-text-muted text-sm font-normal">/{member.subscription?.type === 'free' ? '1' : '4'}</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-text-muted uppercase text-[9px]">Fines</div>
+                      <div className="text-emerald-400 font-bold text-lg">$0.00</div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      setMember(null);
+                      setCart([]);
+                      setBooks([]);
+                    }}
+                    className="absolute bottom-2 right-2 p-1 text-text-muted hover:text-white rounded hover:bg-white/10"
+                    title="Clear Member"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
                 </div>
               )}
             </div>
-
-            {member && (
-              <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-                <h3 className="text-xl font-bold text-white mb-4">Checkout Book</h3>
-                <div className="flex gap-3 mb-4">
-                  <input
-                    type="text"
-                    placeholder="Search book by title or ISBN..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && searchBook()}
-                    className="flex-1 bg-background-dark border border-[#3c2348] rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                  />
-                  <button
-                    onClick={searchBook}
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
-                  >
-                    {loading ? 'Searching...' : 'Search'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {books.map((book) => (
-                    <div key={book._id} className="bg-background-dark rounded-lg p-4 border border-[#3c2348]">
-                      <div className="flex gap-3">
-                        <div
-                          className="w-16 h-24 bg-cover bg-center rounded flex-shrink-0"
-                          style={{ backgroundImage: `url('${book.coverImage}')` }}
-                        ></div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-bold truncate">{book.title}</h4>
-                          <p className="text-text-secondary text-xs truncate">{book.author}</p>
-                          <p className="text-text-secondary text-xs mt-1">
-                            Available: {book.availableCopies || 0}
-                          </p>
-                          <button
-                            onClick={() => handleCheckout(book._id)}
-                            disabled={processing || (book.availableCopies || 0) === 0}
-                            className="mt-2 w-full bg-primary hover:bg-primary/90 text-white text-xs font-bold py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {processing ? 'Processing...' : 'Checkout'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-        )}
 
-        {/* Return Tab */}
-        {activeTab === 'return' && (
-          <div className="space-y-6">
-            <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-              <h3 className="text-xl font-bold text-white mb-4">Find Member</h3>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Search by email..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && searchMember()}
-                  className="flex-1 bg-background-dark border border-[#3c2348] rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                />
-                <button
-                  onClick={searchMember}
-                  disabled={loading}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {loading ? 'Searching...' : 'Search'}
-                </button>
+          {/* Checkout/Renew Tabs */}
+          <div className="flex-1 flex flex-col min-h-0 bg-background-dark">
+            <div className="flex items-center border-b border-[#3c2348] px-6 pt-2 gap-1 bg-[#23142b]">
+              <button
+                onClick={() => setActiveTab('checkout')}
+                className={`relative px-6 py-3 rounded-t-lg font-medium text-sm flex items-center gap-2 transition-all ${
+                  activeTab === 'checkout'
+                    ? 'bg-primary/10 text-white border border-primary/20 border-b-transparent'
+                    : 'text-text-muted hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
+                Borrow Book
+                {activeTab === 'checkout' && (
+                  <span className="absolute bottom-[-2px] left-0 w-full h-[2px] bg-primary shadow-[0_-2px_10px_rgba(170,31,239,0.5)]"></span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('renew')}
+                className={`px-6 py-3 rounded-t-lg font-medium text-sm flex items-center gap-2 transition-all ${
+                  activeTab === 'renew'
+                    ? 'bg-primary/10 text-white border border-primary/20 border-b-transparent'
+                    : 'text-text-muted hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">autorenew</span>
+                Renew Book
+              </button>
+              <div className="ml-auto text-xs text-text-muted flex gap-2">
+                <span className="bg-[#2b1934] px-2 py-1 rounded border border-[#3c2348]">Session: #{Date.now().toString().slice(-4)}</span>
               </div>
             </div>
 
-            {member && (
-              <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-                <h3 className="text-xl font-bold text-white mb-4">Active Borrowings</h3>
-                {loading ? (
-                  <div className="text-center py-8 text-text-secondary">Loading...</div>
-                ) : books.filter((b) => b.status === 'active' || b.status === 'overdue').length === 0 ? (
-                  <div className="text-center py-8 text-text-secondary">No active borrowings</div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {books
-                      .filter((b) => b.status === 'active' || b.status === 'overdue')
-                      .map((borrowing) => (
-                        <div
-                          key={borrowing._id}
-                          className={`bg-background-dark rounded-lg p-4 border ${
-                            borrowing.status === 'overdue' ? 'border-alert-red/50' : 'border-[#3c2348]'
-                          }`}
-                        >
-                          <div className="flex gap-3">
-                            <div
-                              className="w-16 h-24 bg-cover bg-center rounded flex-shrink-0"
-                              style={{ backgroundImage: `url('${borrowing.book?.coverImage}')` }}
-                            ></div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-white font-bold truncate">{borrowing.book?.title}</h4>
-                              <p className="text-text-secondary text-xs truncate">{borrowing.book?.author}</p>
-                              <p className="text-text-secondary text-xs mt-1">
-                                Due: {new Date(borrowing.dueDate).toLocaleDateString()}
-                              </p>
-                              {borrowing.status === 'overdue' && (
-                                <p className="text-alert-red text-xs font-bold mt-1">
-                                  {borrowing.daysOverdue} day(s) overdue
-                                </p>
-                              )}
-                              <button
-                                onClick={() => handleReturn(borrowing._id)}
-                                disabled={processing}
-                                className="mt-2 w-full bg-primary hover:bg-primary/90 text-white text-xs font-bold py-1.5 rounded transition-colors disabled:opacity-50"
-                              >
-                                {processing ? 'Processing...' : 'Return'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+            {/* Checkout Tab Content */}
+            {activeTab === 'checkout' && (
+              <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                <div className="mb-6">
+                  <label className="text-xs text-text-muted font-bold uppercase tracking-widest mb-2 block">Add Item to Cart</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary">qr_code_scanner</span>
+                    <input
+                      autoFocus
+                      className="w-full bg-[#2b1934] border border-[#553267] text-white text-xl font-mono h-14 pl-12 pr-24 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-text-muted/40 transition-all"
+                      placeholder="Scan Book ISBN to borrow..."
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && searchQuery && member) {
+                          searchBook(searchQuery);
+                        }
+                      }}
+                    />
+                    <kbd className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#3c2348] text-text-muted text-xs rounded font-mono border border-[#553267]">Enter</kbd>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                </div>
 
-        {/* Reservations Tab */}
-        {activeTab === 'reservations' && (
-          <div className="space-y-6">
-            <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-              <h3 className="text-xl font-bold text-white mb-4">Search Book Reservations</h3>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Search book by title or ISBN..."
-                  value={reservationBookSearch}
-                  onChange={(e) => setReservationBookSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && searchBookForReservations()}
-                  className="flex-1 bg-background-dark border border-[#3c2348] rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                />
-                <button
-                  onClick={searchBookForReservations}
-                  disabled={loading}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {loading ? 'Searching...' : 'Search'}
-                </button>
-              </div>
-            </div>
-
-            {selectedBookReservations.length > 0 && (
-              <div className="space-y-4">
-                {selectedBookReservations.map((book) => (
-                  <div key={book._id} className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-                    <div className="flex gap-4 mb-4">
-                      <div
-                        className="w-16 h-24 bg-cover bg-center rounded flex-shrink-0"
-                        style={{ backgroundImage: `url('${book.coverImage}')` }}
-                      ></div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-bold">{book.title}</h4>
-                        <p className="text-text-secondary text-sm">{book.author}</p>
-                        <p className="text-text-secondary text-xs mt-1">
-                          {book.reservations.length} active reservation{book.reservations.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      {book.reservations.map((reservation) => (
-                        <div
-                          key={reservation._id}
-                          className={`p-4 rounded-lg border ${
-                            reservation.status === 'ready'
-                              ? 'bg-emerald-500/10 border-emerald-500/30'
-                              : 'bg-background-dark border-[#3c2348]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <p className="text-white font-semibold">{reservation.member?.name}</p>
-                              <p className="text-text-secondary text-xs">{reservation.member?.email}</p>
-                            </div>
-                            <div className="text-right">
-                              <span
-                                className={`text-xs font-bold px-2 py-1 rounded ${
-                                  reservation.status === 'ready'
-                                    ? 'bg-emerald-500/20 text-emerald-300'
-                                    : 'bg-amber-500/20 text-amber-300'
-                                }`}
-                              >
-                                {reservation.status === 'ready' ? 'Ready' : `Queue #${reservation.queuePosition}`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between mt-3">
-                            <p className="text-text-secondary text-xs">
-                              Reserved: {new Date(reservation.reservedDate).toLocaleDateString()}
-                              {reservation.readyDate && (
-                                <> • Ready: {new Date(reservation.readyDate).toLocaleDateString()}</>
-                              )}
-                            </p>
-                            <div className="flex gap-2">
-                              {reservation.status === 'pending' && (
-                                <button
-                                  onClick={() => handleMarkReady(reservation._id, book._id)}
-                                  disabled={processing}
-                                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-                                >
-                                  Mark Ready
-                                </button>
-                              )}
-                              {reservation.status === 'ready' && (
-                                <button
-                                  onClick={() => handleCompleteReservation(reservation._id)}
-                                  disabled={processing}
-                                  className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-                                >
-                                  Complete
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!reservationBookSearch && (
-              <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-                <h3 className="text-xl font-bold text-white mb-4">All Active Reservations</h3>
-                {loading ? (
-                  <div className="text-center py-8 text-text-secondary">Loading...</div>
-                ) : reservations.length === 0 ? (
-                  <div className="text-center py-8 text-text-secondary">No active reservations</div>
-                ) : (
-                  <div className="space-y-3">
-                    {reservations.map((reservation) => (
-                      <div
-                        key={reservation._id}
-                        className={`p-4 rounded-lg border flex items-center justify-between ${
-                          reservation.status === 'ready'
-                            ? 'bg-emerald-500/10 border-emerald-500/30'
-                            : 'bg-background-dark border-[#3c2348]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-4 flex-1">
-                          <div
-                            className="w-12 h-16 bg-cover bg-center rounded flex-shrink-0"
-                            style={{ backgroundImage: `url('${reservation.book?.coverImage}')` }}
-                          ></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold truncate">{reservation.book?.title}</p>
-                            <p className="text-text-secondary text-xs truncate">{reservation.member?.name}</p>
-                            <p className="text-text-secondary text-xs">{reservation.member?.email}</p>
-                          </div>
-                          <span
-                            className={`text-xs font-bold px-2 py-1 rounded flex-shrink-0 ${
-                              reservation.status === 'ready'
-                                ? 'bg-emerald-500/20 text-emerald-300'
-                                : 'bg-amber-500/20 text-amber-300'
-                            }`}
-                          >
-                            {reservation.status === 'ready' ? 'Ready' : `Queue #${reservation.queuePosition}`}
-                          </span>
-                        </div>
-                        <div className="flex gap-2 ml-4">
-                          {reservation.status === 'pending' && (
-                            <button
-                              onClick={() => handleMarkReady(reservation._id, reservation.book?._id)}
-                              disabled={processing}
-                              className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-                            >
-                              Mark Ready
-                            </button>
-                          )}
-                          {reservation.status === 'ready' && (
-                            <button
-                              onClick={() => handleCompleteReservation(reservation._id)}
-                              disabled={processing}
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-                            >
-                              Complete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Overdue Tab */}
-        {activeTab === 'overdue' && (
-          <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-            <h3 className="text-xl font-bold text-white mb-4">Overdue Books</h3>
-            {loading ? (
-              <div className="text-center py-8 text-text-secondary">Loading...</div>
-            ) : overdueBooks.length === 0 ? (
-              <div className="text-center py-8 text-text-secondary">No overdue books</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="border-b border-[#3c2348]">
-                    <tr>
-                      <th className="pb-3 text-text-secondary text-sm font-semibold">Book</th>
-                      <th className="pb-3 text-text-secondary text-sm font-semibold">Member</th>
-                      <th className="pb-3 text-text-secondary text-sm font-semibold">Due Date</th>
-                      <th className="pb-3 text-text-secondary text-sm font-semibold">Days Overdue</th>
-                      <th className="pb-3 text-text-secondary text-sm font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overdueBooks.map((borrowing) => {
-                      const daysOverdue = Math.ceil(
-                        (new Date() - new Date(borrowing.dueDate)) / (1000 * 60 * 60 * 24)
-                      );
-                      return (
-                        <tr key={borrowing._id} className="border-b border-[#3c2348]">
-                          <td className="py-3">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-12 h-16 bg-cover bg-center rounded flex-shrink-0"
-                                style={{ backgroundImage: `url('${borrowing.book?.coverImage}')` }}
-                              ></div>
-                              <div>
-                                <p className="text-white font-semibold">{borrowing.book?.title}</p>
-                                <p className="text-text-secondary text-xs">{borrowing.book?.author}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3">
-                            <p className="text-white">{borrowing.member?.name}</p>
-                            <p className="text-text-secondary text-xs">{borrowing.member?.email}</p>
-                          </td>
-                          <td className="py-3 text-text-secondary text-sm">
-                            {new Date(borrowing.dueDate).toLocaleDateString()}
-                          </td>
-                          <td className="py-3">
-                            <span className="text-alert-red font-bold">{daysOverdue} days</span>
-                          </td>
-                          <td className="py-3">
-                            <button
-                              onClick={() => handleReturn(borrowing._id)}
-                              disabled={processing}
-                              className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-4 py-1.5 rounded transition-colors disabled:opacity-50"
-                            >
-                              {processing ? 'Processing...' : 'Return'}
-                            </button>
+                <div className="flex-1 overflow-y-auto bg-[#23142b] rounded-xl border border-[#3c2348]">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-[#2b1934] text-xs uppercase text-text-muted font-semibold sticky top-0 z-10">
+                      <tr>
+                        <th className="p-4 border-b border-[#3c2348]">Book Title</th>
+                        <th className="p-4 border-b border-[#3c2348]">Author</th>
+                        <th className="p-4 border-b border-[#3c2348]">Due Date</th>
+                        <th className="p-4 border-b border-[#3c2348] text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm divide-y divide-[#3c2348]">
+                      {cart.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="p-8 text-center text-text-muted">
+                            No items in cart. Scan a book ISBN to add.
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ) : (
+                        cart.map((book) => (
+                          <tr key={book._id} className="hover:bg-white/5 group transition-colors">
+                            <td className="p-4 text-white font-medium flex items-center gap-3">
+                              <div
+                                className="w-8 h-10 bg-gray-700 rounded bg-cover"
+                                style={{
+                                  backgroundImage: book.coverImage ? `url('${book.coverImage}')` : 'none',
+                                }}
+                              ></div>
+                              {book.title}
+                            </td>
+                            <td className="p-4 text-text-muted">{book.author}</td>
+                            <td className="p-4 text-emerald-400 font-mono">
+                              {new Date(book.dueDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </td>
+                            <td className="p-4 text-right">
+                              <button
+                                onClick={() => removeFromCart(book._id)}
+                                className="text-text-muted hover:text-red-400 transition-colors"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex justify-between items-center">
+                  <div className="text-sm text-text-muted">
+                    Items: <span className="text-white font-bold">{cart.length}</span>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setCart([])}
+                      className="px-5 py-2.5 rounded-lg border border-[#3c2348] text-text-muted hover:text-white hover:bg-[#3c2348] transition-colors font-medium text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={cart.length === 0 || !member || processing}
+                      className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold shadow-[0_0_15px_rgba(170,31,239,0.3)] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">print</span>
+                      Complete Checkout
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Renew Tab Content */}
+            {activeTab === 'renew' && (
+              <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                <div className="text-center py-12 text-text-muted">
+                  <p>Renew functionality coming soon</p>
+                </div>
               </div>
             )}
           </div>
-        )}
+        </div>
+
+        {/* Right Column - Quick Return */}
+        <div className="lg:col-span-4 flex flex-col bg-[#160c1b] border-l border-[#3c2348]">
+          <div className="p-6 border-b border-[#3c2348] bg-[#1e1024]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="p-1.5 bg-blue-500/10 rounded-md text-blue-400 border border-blue-500/20">
+                  <span className="material-symbols-outlined text-[20px]">move_to_inbox</span>
+                </span>
+                Quick Return
+              </h3>
+              <span className="text-[10px] font-mono text-text-muted bg-[#2b1934] px-1.5 py-0.5 rounded border border-[#3c2348]">[F2]</span>
+            </div>
+          </div>
+          <div className="p-6 border-b border-[#3c2348] bg-gradient-to-b from-[#1e1024] to-[#160c1b]">
+            <div className="flex flex-col gap-3">
+              <label className="text-xs text-text-muted font-bold uppercase tracking-widest">Scan Item to Return</label>
+              <div className="relative">
+                <input
+                  className="w-full bg-[#2b1934] border border-[#3c2348] text-white text-lg font-mono h-14 pl-4 pr-12 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-text-muted/40 transition-all"
+                  placeholder="ISBN..."
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && searchQuery) {
+                      handleReturn(searchQuery);
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => handleReturn(searchQuery)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3 px-2">Recently Returned</h4>
+            <div className="flex flex-col gap-3">
+              {recentReturns.length === 0 ? (
+                <div className="text-center py-8 text-text-muted text-sm">No recent returns</div>
+              ) : (
+                recentReturns.map((returnItem) => (
+                  <div
+                    key={returnItem._id}
+                    className="p-3 rounded-xl bg-[#2b1934] border-l-4 border-l-blue-500 border-y border-r border-[#3c2348] hover:border-blue-500/30 transition-all"
+                  >
+                    <div className="flex gap-3">
+                      <div
+                        className="w-10 h-14 bg-gray-700 rounded shadow-sm bg-cover shrink-0"
+                        style={{
+                          backgroundImage: returnItem.book?.coverImage ? `url('${returnItem.book.coverImage}')` : 'none',
+                        }}
+                      ></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-bold truncate">{returnItem.book?.title || 'Unknown Book'}</p>
+                        <p className="text-xs text-text-muted mb-2">{returnItem.book?.author || 'Unknown Author'}</p>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase">Shelving Cart A</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
+                      <span className="text-[10px] text-text-muted font-mono">
+                        {returnItem.returnedDate
+                          ? new Date(returnItem.returnedDate).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'N/A'}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                        Processed
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-

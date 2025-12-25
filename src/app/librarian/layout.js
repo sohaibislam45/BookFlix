@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import RequireAuth from '@/components/RequireAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import MemberSidebar from '@/components/MemberSidebar';
-import MemberHeader from '@/components/MemberHeader';
+import LibrarianSidebar from '@/components/LibrarianSidebar';
+import LibrarianHeader from '@/components/LibrarianHeader';
 
 export default function LibrarianLayout({ children }) {
   const { userData } = useAuth();
@@ -20,12 +20,9 @@ export default function LibrarianLayout({ children }) {
   return (
     <RequireAuth>
       <div className="flex h-screen w-full bg-background-dark text-white font-display antialiased overflow-hidden">
-        <MemberSidebar />
+        <LibrarianSidebar />
         <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-          <MemberHeader />
-          <div className="flex-1 overflow-y-auto scroll-smooth">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </RequireAuth>
