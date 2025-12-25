@@ -12,7 +12,7 @@ todos:
       - phase0-setup
   - id: phase2-books
     content: "Phase 2: Create Book, BookCopy, Category models, implement book CRUD APIs, integrate ImgBB for images, build browse/search UI"
-    status: pending
+    status: completed
     dependencies:
       - phase1-auth
   - id: phase3-borrowing

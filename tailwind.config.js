@@ -22,6 +22,10 @@ module.exports = {
         'card-dark': '#2b1934',
         'border-dark': '#553267',
         'text-muted': '#b791ca',
+        'text-secondary': '#b791ca',
+        'alert-red': '#ef4444',
+        'success-green': '#10b981',
+        'surface-dark-hover': '#3c2348',
         purple: {
           '50': '#3c2348',
           '100': '#352140',

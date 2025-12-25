@@ -32,6 +32,11 @@
   
   /* Text Colors */
   --color-text-muted: #b791ca;
+  --color-text-secondary: #b791ca;
+  
+  /* Alert Colors */
+  --color-alert-red: #ef4444;
+  --color-success-green: #10b981;
   
   /* Purple Variants */
   --color-purple-50: #3c2348;
@@ -111,4 +116,23 @@ body {
 .card-hover-effect:hover {
   transform: scale(1.05);
   z-index: 10;
+}
+
+/* Custom scrollbar for member pages */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1c1022;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3c2348;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aa1fef;
 }
