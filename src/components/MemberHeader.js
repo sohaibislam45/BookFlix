@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
+import UserProfile from './UserProfile';
 
 export default function MemberHeader({ onSearch, initialSearch = '' }) {
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -35,6 +36,7 @@ export default function MemberHeader({ onSearch, initialSearch = '' }) {
       </form>
       <div className="flex items-center gap-4 ml-4">
         <NotificationBell />
+        <UserProfile />
         <button className="md:hidden p-2 text-white">
           <span className="material-symbols-outlined">menu</span>
         </button>

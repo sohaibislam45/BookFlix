@@ -173,6 +173,9 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
+  console.log('[GET /api/users] Route handler called');
+  console.log('[GET /api/users] Request URL:', request.url);
+  
   try {
     await connectDB();
 
