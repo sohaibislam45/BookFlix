@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { USER_ROLES } from '@/lib/constants';
 
 export default function UserProfile() {
   const { user, userData, signOut } = useAuth();
@@ -32,6 +33,32 @@ export default function UserProfile() {
     await signOut();
     setIsOpen(false);
     router.push('/');
+  };
+
+  const handleDashboardClick = (e) => {
+    e.preventDefault();
+    setIsOpen(false);
+    
+    // Redirect based on user role
+    if (!userData) {
+      router.push('/');
+      return;
+    }
+
+    const role = userData.role || USER_ROLES.MEMBER;
+    
+    switch (role) {
+      case USER_ROLES.ADMIN:
+        router.push('/admin/overview');
+        break;
+      case USER_ROLES.LIBRARIAN:
+        router.push('/librarian/overview');
+        break;
+      case USER_ROLES.MEMBER:
+      default:
+        router.push('/member/overview');
+        break;
+    }
   };
 
   if (!user) return null;
@@ -161,15 +188,14 @@ export default function UserProfile() {
 
           {/* Menu Items */}
           <div className="py-2">
-            <Link
-              href="/dashboard"
-              onClick={() => setIsOpen(false)}
+            <button
+              onClick={handleDashboardClick}
               className="group w-full flex items-center gap-3 px-5 py-3 text-sm text-white hover:bg-gradient-to-r hover:from-primary/20 hover:to-transparent transition-all duration-200 text-left border-l-2 border-transparent hover:border-primary"
             >
               <span className="material-symbols-outlined text-lg text-gray-400 group-hover:text-primary transition-colors">dashboard</span>
               <span className="font-medium">Dashboard</span>
               <span className="ml-auto material-symbols-outlined text-xs text-gray-500 group-hover:text-primary transition-colors">chevron_right</span>
-            </Link>
+            </button>
             <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1"></div>
             <button
               onClick={handleSignOut}
