@@ -218,15 +218,16 @@ export default function RegisterPage() {
         try {
           const result = await signUp(formData.email.trim(), formData.password, formData.name?.trim());
           if (!result.success) {
-            // Check if email is already in use
+            // Check if email is already in use - handle all possible error codes/messages
             if (result.code === 'auth/email-already-in-use' || 
                 result.error?.includes('email-already-in-use') || 
                 result.error?.includes('already in use') || 
                 result.error?.includes('already registered') ||
-                result.error?.includes('EMAIL_EXISTS')) {
+                result.error?.includes('EMAIL_EXISTS') ||
+                result.error?.toLowerCase().includes('email is already registered')) {
               setError('already_registered');
             } else {
-              // Display the user-friendly error message
+              // Display the user-friendly error message from AuthContext
               setError(result.error || 'Failed to create account. Please check your email and password.');
             }
             setLoading(false);
@@ -235,7 +236,15 @@ export default function RegisterPage() {
           firebaseUser = result.user;
         } catch (signupError) {
           console.error('Signup error:', signupError);
-          setError(signupError.message || 'Failed to create account. Please try again.');
+          // Check if it's an email already in use error
+          if (signupError?.code === 'auth/email-already-in-use' || 
+              signupError?.message?.includes('email-already-in-use') ||
+              signupError?.message?.includes('already in use') ||
+              signupError?.message?.includes('already registered')) {
+            setError('already_registered');
+          } else {
+            setError(signupError.message || 'Failed to create account. Please try again.');
+          }
           setLoading(false);
           return;
         }
@@ -275,8 +284,8 @@ export default function RegisterPage() {
 
       // Handle 404 - route not found, but if we're completing registration, try to redirect anyway
       if (response.status === 404 && completeRegistration) {
-        console.warn('[Register] API route returned 404, but user is authenticated via Google. Redirecting to dashboard anyway.');
-        window.location.href = '/dashboard';
+        console.warn('[Register] API route returned 404, but user is authenticated via Google. Redirecting to member dashboard anyway.');
+        window.location.href = '/member/overview';
         return;
       }
 
@@ -287,33 +296,27 @@ export default function RegisterPage() {
         console.error('[Register] Error parsing response JSON:', jsonError);
         // If we can't parse JSON but got a successful status, assume success
         if (response.ok || response.status === 200 || response.status === 201) {
-          console.log('[Register] User saved successfully (unparseable response), redirecting to dashboard');
-          window.location.href = '/dashboard';
+          console.log('[Register] User saved successfully (unparseable response), redirecting to member dashboard');
+          window.location.href = '/member/overview';
           return;
         }
         // For other errors, if completing registration, redirect anyway
         if (completeRegistration) {
-          console.warn('[Register] Error parsing response but completing registration, redirecting to dashboard');
-          window.location.href = '/dashboard';
+          console.warn('[Register] Error parsing response but completing registration, redirecting to member dashboard');
+          window.location.href = '/member/overview';
           return;
         }
         throw new Error('Failed to parse server response');
       }
 
-      // Handle successful responses (200 or 201)
-      if (response.ok || response.status === 200 || response.status === 201) {
-        console.log('[Register] User saved successfully, redirecting to dashboard');
-        // Use window.location for more reliable redirect
-        window.location.href = '/dashboard';
-        return;
-      }
-
-      // Handle user already exists cases
+      // Handle user already exists cases (check this BEFORE successful responses since API returns 200 for existing users)
       if (response.status === 409 || (responseData && (responseData.error === 'User already exists' || responseData.message === 'User already exists'))) {
-        // If completing Google registration and user already exists, just redirect to dashboard
+        // If completing Google registration and user already exists, just redirect to member dashboard
         if (completeRegistration) {
-          console.log('[Register] User already exists, redirecting to dashboard');
-          window.location.href = '/dashboard';
+          console.log('[Register] User already exists, redirecting to member dashboard');
+          const userRole = responseData?.user?.role || 'member';
+          const redirectPath = getRoleOverviewRoute(userRole);
+          window.location.href = redirectPath;
           return;
         }
         // Otherwise show error for regular registration
@@ -321,11 +324,22 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
+
+      // Handle successful responses (200 or 201) - new user created
+      if (response.ok || response.status === 200 || response.status === 201) {
+        console.log('[Register] User saved successfully, redirecting to member dashboard');
+        // Get user role from response and redirect to appropriate dashboard
+        const userRole = responseData?.user?.role || 'member';
+        const redirectPath = getRoleOverviewRoute(userRole);
+        // Use window.location for more reliable redirect
+        window.location.href = redirectPath;
+        return;
+      }
       
       // Handle other errors - if completing registration, redirect anyway
       if (completeRegistration) {
-        console.warn('[Register] API error but completing registration, redirecting to dashboard:', response.status);
-        window.location.href = '/dashboard';
+        console.warn('[Register] API error but completing registration, redirecting to member dashboard:', response.status);
+        window.location.href = '/member/overview';
         return;
       }
       
@@ -338,8 +352,8 @@ export default function RegisterPage() {
       console.error('Registration error:', error);
       // If completing Google registration and we have an authenticated user, redirect anyway
       if (completeRegistration && user) {
-        console.warn('[Register] Error during registration but user is authenticated, redirecting to dashboard:', error.message);
-        window.location.href = '/dashboard';
+        console.warn('[Register] Error during registration but user is authenticated, redirecting to member dashboard:', error.message);
+        window.location.href = '/member/overview';
         return;
       }
       setError(error.message || 'Failed to register. Please try again.');
