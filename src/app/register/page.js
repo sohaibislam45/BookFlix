@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { LOCATION_DATA } from '@/lib/locationData';
 import { getRoleOverviewRoute } from '@/lib/utils';
+import Loader from '@/components/Loader';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -542,7 +543,7 @@ export default function RegisterPage() {
                   type="submit"
                   disabled={loading || uploading}
                 >
-                  {loading ? 'Creating Account...' : 'Join Bookflix'}
+                  {loading ? <Loader /> : 'Join Bookflix'}
                 </button>
 
                 {!completeRegistration && (

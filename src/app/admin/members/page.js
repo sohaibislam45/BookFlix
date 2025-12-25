@@ -271,7 +271,11 @@ export default function AdminMembersPage() {
                   <tbody className="divide-y divide-white/5">
                     {loading ? (
                       <tr>
-                        <td colSpan="6" className="p-8 text-center text-text-secondary">Loading...</td>
+                        <td colSpan="6" className="p-8 text-center text-text-secondary">
+                          <div className="flex justify-center">
+                            <Loader />
+                          </div>
+                        </td>
                       </tr>
                     ) : members.length === 0 ? (
                       <tr>

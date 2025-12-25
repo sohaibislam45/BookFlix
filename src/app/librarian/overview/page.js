@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Link from 'next/link';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import Loader from '@/components/Loader';
 
 export default function LibrarianOverviewPage() {
   const { userData } = useAuth();
@@ -271,7 +272,9 @@ export default function LibrarianOverviewPage() {
                       {loading ? (
                         <tr>
                           <td colSpan="4" className="px-6 py-8 text-center text-white/40">
-                            Loading...
+                            <div className="flex justify-center">
+                              <Loader />
+                            </div>
                           </td>
                         </tr>
                       ) : filteredActivity.length === 0 ? (
@@ -414,7 +417,11 @@ export default function LibrarianOverviewPage() {
                 </div>
                 <div className="flex flex-col gap-4">
                   {loading ? (
-                    <div className="text-center py-4 text-white/40 text-sm">Loading...</div>
+                    <div className="text-center py-4 text-white/40 text-sm">
+                      <div className="flex justify-center">
+                        <Loader />
+                      </div>
+                    </div>
                   ) : stats.newMembers.length === 0 ? (
                     <div className="text-center py-4 text-white/40 text-sm">No new members</div>
                   ) : (

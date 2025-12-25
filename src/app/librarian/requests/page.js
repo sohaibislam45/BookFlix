@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import Link from 'next/link';
+import Loader from '@/components/Loader';
 
 export default function LibrarianRequestsPage() {
   const { userData } = useAuth();
@@ -257,7 +258,11 @@ export default function LibrarianRequestsPage() {
           {activeTab === 'reservations' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-12">
               {loading ? (
-                <div className="col-span-full text-center py-12 text-white/40">Loading reservations...</div>
+                <div className="col-span-full text-center py-12 text-white/40">
+                  <div className="flex justify-center">
+                    <Loader />
+                  </div>
+                </div>
               ) : filteredReservations.length === 0 ? (
                 <div className="col-span-full text-center py-12 text-white/40">
                   No {searchQuery ? 'matching ' : ''}reservations found

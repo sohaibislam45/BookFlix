@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import Link from 'next/link';
+import Loader from '@/components/Loader';
 
 export default function AdminBooksPage() {
   const { userData } = useAuth();
@@ -187,7 +188,11 @@ export default function AdminBooksPage() {
               <tbody className="divide-y divide-white/5">
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">Loading...</td>
+                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">
+                      <div className="flex justify-center">
+                        <Loader />
+                      </div>
+                    </td>
                   </tr>
                 ) : books.length === 0 ? (
                   <tr>

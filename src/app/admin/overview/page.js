@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import { formatDate, formatCurrency } from '@/lib/utils';
+import Loader from '@/components/Loader';
 
 export default function AdminOverviewPage() {
   const { userData } = useAuth();
@@ -281,7 +282,11 @@ export default function AdminOverviewPage() {
                   <tbody className="divide-y divide-white/5">
                     {loading ? (
                       <tr>
-                        <td colSpan="4" className="p-4 text-center text-text-secondary">Loading...</td>
+                        <td colSpan="4" className="p-4 text-center text-text-secondary">
+                          <div className="flex justify-center">
+                            <Loader />
+                          </div>
+                        </td>
                       </tr>
                     ) : stats.recentActivity.length === 0 ? (
                       <tr>

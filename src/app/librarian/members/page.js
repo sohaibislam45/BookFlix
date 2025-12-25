@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Link from 'next/link';
+import Loader from '@/components/Loader';
 
 export default function LibrarianMembersPage() {
   const { userData } = useAuth();
@@ -147,7 +148,9 @@ export default function LibrarianMembersPage() {
                 {loading ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-text-secondary">
-                      Loading members...
+                      <div className="flex justify-center">
+                        <Loader />
+                      </div>
                     </td>
                   </tr>
                 ) : filteredMembers.length === 0 ? (

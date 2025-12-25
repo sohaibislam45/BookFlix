@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import Loader from '@/components/Loader';
 
 export default function AdminFinancePage() {
   const { userData } = useAuth();
@@ -253,7 +254,11 @@ export default function AdminFinancePage() {
                   <tbody className="divide-y divide-white/5">
                     {loading ? (
                       <tr>
-                        <td colSpan="8" className="p-4 text-center text-text-secondary">Loading...</td>
+                        <td colSpan="8" className="p-4 text-center text-text-secondary">
+                          <div className="flex justify-center">
+                            <Loader />
+                          </div>
+                        </td>
                       </tr>
                     ) : transactions.length === 0 ? (
                       <tr>

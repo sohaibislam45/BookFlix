@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import Loader from '@/components/Loader';
 
 export default function MemberOverviewPage() {
   const { userData } = useAuth();
@@ -147,8 +148,9 @@ export default function MemberOverviewPage() {
           </div>
           {loading ? (
             <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-              <p className="text-lg">Loading...</p>
+              <div className="flex justify-center mb-3">
+                <Loader />
+              </div>
             </div>
           ) : stats.activeBorrowings.length === 0 && stats.overdueBorrowings.length === 0 ? (
             <div className="text-center py-12 text-text-secondary">

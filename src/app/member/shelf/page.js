@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
+import Loader from '@/components/Loader';
 
 export default function MyShelfPage() {
   const { userData } = useAuth();
@@ -164,8 +165,9 @@ export default function MyShelfPage() {
 
           {loading ? (
             <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-              <p className="text-lg">Loading...</p>
+              <div className="flex justify-center mb-3">
+                <Loader />
+              </div>
             </div>
           ) : displayBorrowings().length === 0 ? (
             <div className="text-center py-12 text-text-secondary">

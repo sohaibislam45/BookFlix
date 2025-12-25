@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import Loader from './Loader';
 
 export default function NotificationBell() {
   const { userData } = useAuth();
@@ -180,8 +181,9 @@ export default function NotificationBell() {
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <div className="p-8 text-center text-text-secondary">
-                <span className="material-symbols-outlined animate-spin text-3xl mb-2">refresh</span>
-                <p>Loading...</p>
+                <div className="flex justify-center mb-2">
+                  <Loader />
+                </div>
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-text-secondary">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RESERVATION_STATUS } from '@/lib/constants';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
+import Loader from '@/components/Loader';
 
 export default function ReservationsPage() {
   const { userData } = useAuth();
@@ -159,8 +160,9 @@ export default function ReservationsPage() {
 
         {loading ? (
           <div className="text-center py-12 text-text-secondary">
-            <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-            <p className="text-lg">Loading reservations...</p>
+            <div className="flex justify-center mb-3">
+              <Loader />
+            </div>
           </div>
         ) : (
           <>

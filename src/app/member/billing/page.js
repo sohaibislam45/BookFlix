@@ -415,8 +415,9 @@ export default function BillingPage() {
 
           {loading ? (
             <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-              <p className="text-lg">Loading fines...</p>
+              <div className="flex justify-center mb-3">
+                <Loader />
+              </div>
             </div>
           ) : fines.length === 0 ? (
             <div className="text-center py-12 text-text-secondary rounded-xl bg-surface-dark border border-[#3c2348]">
@@ -519,8 +520,9 @@ export default function BillingPage() {
 
           {loading ? (
             <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-              <p className="text-lg">Loading payments...</p>
+              <div className="flex justify-center mb-3">
+                <Loader />
+              </div>
             </div>
           ) : payments.length === 0 ? (
             <div className="text-center py-12 text-text-secondary rounded-xl bg-surface-dark border border-[#3c2348]">

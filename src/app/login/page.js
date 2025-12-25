@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleOverviewRoute } from '@/lib/utils';
+import Loader from '@/components/Loader';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -328,7 +329,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? <Loader /> : 'Sign In'}
             </button>
           </form>
 

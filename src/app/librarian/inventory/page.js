@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Link from 'next/link';
+import Loader from '@/components/Loader';
 
 export default function LibrarianInventoryPage() {
   const { userData } = useAuth();
@@ -253,7 +254,9 @@ export default function LibrarianInventoryPage() {
                   {loading ? (
                     <tr>
                       <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
-                        Loading books...
+                        <div className="flex justify-center">
+                          <Loader />
+                        </div>
                       </td>
                     </tr>
                   ) : books.length === 0 ? (

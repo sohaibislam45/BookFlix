@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { showSuccess, showError, showConfirm, showInfo } from '@/lib/swal';
+import Loader from '@/components/Loader';
 
 function BrowseContent() {
   const { userData } = useAuth();
@@ -279,8 +280,9 @@ function BrowseContent() {
 
           {loading && books.length === 0 ? (
             <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-              <p className="text-lg">Loading books...</p>
+              <div className="flex justify-center mb-3">
+                <Loader />
+              </div>
             </div>
           ) : books.length === 0 ? (
             <div className="text-center py-12 text-text-secondary">
@@ -398,8 +400,9 @@ export default function BrowsePage() {
     <Suspense fallback={
       <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-20">
         <div className="max-w-[1440px] mx-auto w-full text-center py-12 text-text-secondary">
-          <span className="material-symbols-outlined text-5xl mb-3 opacity-50 animate-spin">refresh</span>
-          <p className="text-lg">Loading...</p>
+          <div className="flex justify-center mb-3">
+            <Loader />
+          </div>
         </div>
       </div>
     }>
