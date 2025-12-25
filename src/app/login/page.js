@@ -135,7 +135,7 @@ export default function LoginPage() {
             </div>
 
             <button
-              className="w-full h-10 mt-2 bg-primary hover:bg-[#9019cc] text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(170,31,239,0.4)] hover:shadow-[0_0_20px_rgba(170,31,239,0.6)] transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(170,31,239,0.4)] hover:shadow-[0_0_20px_rgba(170,31,239,0.6)] transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
               disabled={loading}
             >

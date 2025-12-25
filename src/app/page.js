@@ -21,11 +21,14 @@ export default function Home() {
             <span className="material-symbols-outlined text-3xl text-primary">auto_stories</span>
             <h1 className="text-white text-2xl font-black tracking-tighter">Bookflix</h1>
           </Link>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <button className="text-primary hover:text-primary-hover transition-colors p-2 rounded-md hover:bg-primary/10">
+              <span className="material-symbols-outlined text-xl">search</span>
+            </button>
             {user ? (
               <Link
                 href="/dashboard"
-                className="bg-primary hover:bg-[#9216d1] text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
+                className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
               >
                 Dashboard
               </Link>
@@ -38,7 +41,7 @@ export default function Home() {
                   Sign In
                 </Link>
                 <button
-                  className="bg-primary hover:bg-[#9216d1] text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
+                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
                   onClick={togglePricingModal}
                 >
                   Join Now
@@ -64,7 +67,7 @@ export default function Home() {
         <div className="relative z-20 w-full max-w-4xl px-4 flex flex-col items-center text-center mt-10">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 drop-shadow-xl">
             Your Library,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-300">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#aa1fef] to-[#c084fc]">
               Reimagined.
             </span>
           </h1>
@@ -73,7 +76,7 @@ export default function Home() {
           </p>
           <div className="w-full max-w-2xl group">
             <label className="glass-panel flex items-center w-full h-16 rounded-full px-2 transition-all group-focus-within:bg-black/80 group-focus-within:border-primary/50">
-              <div className="pl-4 pr-2 text-gray-400 group-focus-within:text-primary transition-colors">
+              <div className="pl-4 pr-2 text-primary transition-colors">
                 <span className="material-symbols-outlined text-2xl">search</span>
               </div>
               <input
@@ -81,7 +84,8 @@ export default function Home() {
                 placeholder="Search by Title, Author, or ISBN..."
                 type="text"
               />
-              <button className="hidden sm:flex items-center justify-center bg-primary hover:bg-[#9216d1] text-white rounded-full h-12 px-6 font-semibold ml-2 transition-all">
+              <button className="hidden sm:flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white rounded-full h-12 px-6 font-semibold ml-2 transition-all shadow-lg shadow-primary/30">
+                <span className="material-symbols-outlined text-lg text-white">search</span>
                 Search
               </button>
             </label>
@@ -176,7 +180,7 @@ export default function Home() {
         <div className="relative rounded-3xl overflow-hidden mt-12 group">
           <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-[#121212]/60 backdrop-blur-xl">
+          <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl">
             <div className="max-w-2xl space-y-4">
               <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
                 Ready to Reimagine Your Reading?
@@ -308,7 +312,7 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity" onClick={togglePricingModal}></div>
           <div className="fixed inset-0 z-10 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-              <div className="relative transform overflow-hidden rounded-2xl bg-[#121212] border border-white/10 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-5xl">
+              <div className="relative transform overflow-hidden rounded-2xl bg-background-dark border border-white/10 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-5xl">
                 <div className="absolute top-4 right-4 z-20">
                   <button
                     className="text-gray-400 hover:text-white transition-colors"
@@ -325,7 +329,7 @@ export default function Home() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Free Plan */}
-                    <div className="rounded-xl border border-white/10 bg-[#1c1c1c] p-6 hover:border-primary/50 transition-colors flex flex-col">
+                    <div className="rounded-xl border border-white/10 bg-surface-dark p-6 hover:border-primary/50 transition-colors flex flex-col">
                       <h3 className="text-xl font-bold text-white">Free Plan</h3>
                       <div className="mt-4 flex items-baseline text-white">
                         <span className="text-4xl font-black tracking-tight">0 ৳</span>
@@ -362,7 +366,7 @@ export default function Home() {
                     </div>
 
                     {/* Monthly Premium */}
-                    <div className="rounded-xl border border-primary bg-[#22152e] p-6 relative flex flex-col transform md:-translate-y-2 shadow-[0_4px_20px_rgba(170,31,239,0.15)]">
+                    <div className="rounded-xl border border-primary bg-purple-200 p-6 relative flex flex-col transform md:-translate-y-2 shadow-[0_4px_20px_rgba(170,31,239,0.15)]">
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
                         Popular
                       </div>
@@ -395,14 +399,14 @@ export default function Home() {
                       </ul>
                       <Link
                         href="/register"
-                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-[#9216d1] transition-colors shadow-lg shadow-primary/25 text-center"
+                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-hover transition-colors shadow-lg shadow-primary/25 text-center"
                       >
                         Get Monthly
                       </Link>
                     </div>
 
                     {/* Yearly Premium */}
-                    <div className="rounded-xl border border-white/10 bg-[#1c1c1c] p-6 hover:border-primary/50 transition-colors flex flex-col">
+                    <div className="rounded-xl border border-white/10 bg-surface-dark p-6 hover:border-primary/50 transition-colors flex flex-col">
                       <h3 className="text-xl font-bold text-white">Yearly Premium</h3>
                       <div className="mt-4 flex flex-col text-white">
                         <div className="flex items-baseline">

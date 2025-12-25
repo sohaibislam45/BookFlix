@@ -9,7 +9,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#aa1fef',
+        primary: {
+          DEFAULT: '#aa1fef',
+          hover: '#9216d1',
+          light: '#b791ca',
+          dark: '#7000ff',
+        },
         'background-light': '#f7f6f8',
         'background-dark': '#121212',
         'surface-dark': '#1c1c1c',
@@ -17,6 +22,12 @@ module.exports = {
         'card-dark': '#2b1934',
         'border-dark': '#553267',
         'text-muted': '#b791ca',
+        purple: {
+          '50': '#3c2348',
+          '100': '#352140',
+          '200': '#22152e',
+          '300': '#1c1122',
+        },
       },
       fontFamily: {
         display: ['Inter', 'sans-serif'],

@@ -180,12 +180,12 @@ export default function RegisterPage() {
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-[10%] -left-[10%] w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] opacity-40 mix-blend-screen"></div>
-        <div className="absolute -bottom-[10%] -right-[10%] w-[600px] h-[600px] bg-[#3c2348]/40 rounded-full blur-[120px] opacity-40"></div>
+        <div className="absolute -bottom-[10%] -right-[10%] w-[600px] h-[600px] bg-purple-50/40 rounded-full blur-[120px] opacity-40"></div>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150"></div>
       </div>
 
       <div className="layout-container flex grow flex-col items-center justify-center p-4 py-12 md:py-16">
-        <div className="relative w-full max-w-[900px] flex flex-col rounded-2xl border border-border-dark bg-[#1c1122]/80 backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="relative w-full max-w-[900px] flex flex-col rounded-2xl border border-border-dark bg-purple-300/80 backdrop-blur-xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex flex-col items-center justify-center pt-10 pb-6 px-6 text-center z-10">
             <div className="flex items-center gap-2 mb-4">
@@ -389,7 +389,7 @@ export default function RegisterPage() {
               {/* Submit Buttons */}
               <div className="flex flex-col items-center gap-4 mt-2">
                 <button
-                  className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 bg-primary hover:bg-[#921acc] transition-colors text-white text-base font-bold leading-normal tracking-wide shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 bg-primary hover:bg-primary-hover transition-colors text-white text-base font-bold leading-normal tracking-wide shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   type="submit"
                   disabled={loading || uploading}
                 >
@@ -398,7 +398,7 @@ export default function RegisterPage() {
 
                 {!completeRegistration && (
                   <button
-                    className="relative flex w-full cursor-pointer items-center justify-center gap-3 overflow-hidden rounded-xl h-14 bg-card-dark border border-border-dark hover:bg-[#352140] hover:border-primary/30 transition-all duration-200 text-white text-base font-medium leading-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative flex w-full cursor-pointer items-center justify-center gap-3 overflow-hidden rounded-xl h-14 bg-card-dark border border-border-dark hover:bg-purple-100 hover:border-primary/30 transition-all duration-200 text-white text-base font-medium leading-normal disabled:opacity-50 disabled:cursor-not-allowed"
                     type="button"
                     onClick={handleGoogleSignUp}
                     disabled={loading || uploading}

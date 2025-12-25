@@ -11,6 +11,46 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Primary Colors */
+  --color-primary: #aa1fef;
+  --color-primary-hover: #9216d1;
+  --color-primary-light: #b791ca;
+  --color-primary-dark: #7000ff;
+  
+  /* Background Colors */
+  --color-background-light: #f7f6f8;
+  --color-background-dark: #121212;
+  
+  /* Surface Colors */
+  --color-surface-dark: #1c1c1c;
+  --color-surface-hover: #2a2a2a;
+  
+  /* Card Colors */
+  --color-card-dark: #2b1934;
+  --color-border-dark: #553267;
+  
+  /* Text Colors */
+  --color-text-muted: #b791ca;
+  
+  /* Purple Variants */
+  --color-purple-50: #3c2348;
+  --color-purple-100: #352140;
+  --color-purple-200: #22152e;
+  --color-purple-300: #1c1122;
+  
+  /* Font Families */
+  --font-display: 'Inter', sans-serif;
+  
+  /* Border Radius */
+  --radius: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+  
+  /* Background Images */
+  --image-hero-gradient: linear-gradient(to bottom, rgba(18,18,18,0.3) 0%, rgba(18,18,18,0.8) 50%, rgba(18,18,18,1) 100%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +66,25 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
+/* Material Symbols Icons */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
 /* Custom scrollbar */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -38,7 +97,7 @@ body {
 
 /* Glass panel effect */
 .glass-panel {
-  background: rgba(30, 30, 30, 0.6);
+  background: rgba(28, 28, 28, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
