@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Category from '@/models/Category';
+import { handleApiError, validateRequiredFields, sanitizeInput } from '@/lib/apiErrorHandler';
 
 export async function GET(request) {
   try {
@@ -10,7 +11,14 @@ export async function GET(request) {
     const isActive = searchParams.get('isActive');
 
     const query = {};
-    if (isActive !== null) {
+    if (isActive !== null && isActive !== undefined) {
+      // Validate boolean string
+      if (isActive !== 'true' && isActive !== 'false') {
+        return NextResponse.json(
+          { error: 'isActive must be "true" or "false"' },
+          { status: 400 }
+        );
+      }
       query.isActive = isActive === 'true';
     }
 
@@ -20,11 +28,7 @@ export async function GET(request) {
 
     return NextResponse.json(categories, { status: 200 });
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch categories', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch categories');
   }
 }
 
@@ -32,21 +36,64 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
     const { name, description, icon } = body;
 
-    if (!name) {
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['name']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate and sanitize name
+    const nameSanitized = sanitizeInput(name, 100);
+    if (!nameSanitized || nameSanitized.length < 1) {
       return NextResponse.json(
-        { error: 'Name is required' },
+        { error: 'Name is required and must be at least 1 character' },
+        { status: 400 }
+      );
+    }
+
+    if (nameSanitized.length > 100) {
+      return NextResponse.json(
+        { error: 'Name must be no more than 100 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Validate description length if provided
+    if (description && description.length > 500) {
+      return NextResponse.json(
+        { error: 'Description must be no more than 500 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Validate icon length if provided
+    if (icon && icon.length > 50) {
+      return NextResponse.json(
+        { error: 'Icon must be no more than 50 characters' },
         { status: 400 }
       );
     }
 
     // Check if category already exists
+    const nameLower = nameSanitized.toLowerCase();
+    const slug = nameLower.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
     const existingCategory = await Category.findOne({ 
       $or: [
-        { name: name.toLowerCase() },
-        { slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
+        { name: nameLower },
+        { slug: slug }
       ]
     });
 
@@ -59,9 +106,10 @@ export async function POST(request) {
 
     // Create new category
     const category = new Category({
-      name: name.toLowerCase(),
-      description,
-      icon: icon || 'menu_book',
+      name: nameLower,
+      slug: slug,
+      description: description ? sanitizeInput(description, 500) : undefined,
+      icon: icon ? sanitizeInput(icon, 50) : 'menu_book',
     });
 
     await category.save();
@@ -71,11 +119,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating category:', error);
-    return NextResponse.json(
-      { error: 'Failed to create category', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create category');
   }
 }
 

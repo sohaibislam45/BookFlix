@@ -6,7 +6,7 @@ import BookCopy from '@/models/BookCopy';
 import User from '@/models/User';
 import Borrowing from '@/models/Borrowing';
 import { RESERVATION_STATUS, BOOK_STATUS, BORROWING_STATUS, RESERVATION_EXPIRY_DAYS } from '@/lib/constants';
-import { handleApiError } from '@/lib/apiErrorHandler';
+import { handleApiError, validatePaginationParams, normalizePaginationParams, validateObjectId, validateEnumValue, validateRequiredFields } from '@/lib/apiErrorHandler';
 
 // GET - List reservations (with filters)
 export async function GET(request) {
@@ -17,17 +17,41 @@ export async function GET(request) {
     const memberId = searchParams.get('memberId');
     const bookId = searchParams.get('bookId');
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+
+    // Validate and normalize pagination
+    const pagination = normalizePaginationParams(searchParams, { page: 1, limit: 20 });
+    const paginationError = validatePaginationParams(pagination, 100);
+    if (paginationError) {
+      return paginationError;
+    }
+    const { page, limit } = pagination;
 
     const query = {};
+    
+    // Validate memberId if provided
     if (memberId) {
+      const memberIdError = validateObjectId(memberId, 'Member ID');
+      if (memberIdError) {
+        return memberIdError;
+      }
       query.member = memberId;
     }
+    
+    // Validate bookId if provided
     if (bookId) {
+      const bookIdError = validateObjectId(bookId, 'Book ID');
+      if (bookIdError) {
+        return bookIdError;
+      }
       query.book = bookId;
     }
+    
+    // Validate status if provided
     if (status) {
+      const statusError = validateEnumValue(status, RESERVATION_STATUS, 'Status');
+      if (statusError) {
+        return statusError;
+      }
       query.status = status;
     }
 
@@ -54,11 +78,7 @@ export async function GET(request) {
       },
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching reservations:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch reservations', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch reservations');
   }
 }
 
@@ -67,14 +87,33 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { memberId, bookId } = body;
-
-    if (!memberId || !bookId) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: memberId, bookId' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
+    }
+
+    const { memberId, bookId } = body;
+
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['memberId', 'bookId']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate ObjectIds
+    const memberIdError = validateObjectId(memberId, 'Member ID');
+    if (memberIdError) {
+      return memberIdError;
+    }
+
+    const bookIdError = validateObjectId(bookId, 'Book ID');
+    if (bookIdError) {
+      return bookIdError;
     }
 
     // Validate member exists
@@ -175,11 +214,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating reservation:', error);
-    return NextResponse.json(
-      { error: 'Failed to create reservation', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create reservation');
   }
 }
 

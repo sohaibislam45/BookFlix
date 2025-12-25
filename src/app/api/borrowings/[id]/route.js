@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Borrowing from '@/models/Borrowing';
 import BookCopy from '@/models/BookCopy';
 import { BORROWING_STATUS, BOOK_STATUS } from '@/lib/constants';
+import { handleApiError, validateObjectId, validateRequiredFields } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
 
 // GET - Get single borrowing
@@ -12,11 +13,9 @@ export async function GET(request, { params }) {
 
     const { id } = params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid borrowing ID' },
-        { status: 400 }
-      );
+    const idError = validateObjectId(id, 'Borrowing ID');
+    if (idError) {
+      return idError;
     }
 
     const borrowing = await Borrowing.findById(id)
@@ -34,11 +33,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(borrowing, { status: 200 });
   } catch (error) {
-    console.error('Error fetching borrowing:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch borrowing', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch borrowing');
   }
 }
 
@@ -48,14 +43,44 @@ export async function PATCH(request, { params }) {
     await connectDB();
 
     const { id } = params;
-    const body = await request.json();
-    const { action, returnedBy } = body;
+    
+    const idError = validateObjectId(id, 'Borrowing ID');
+    if (idError) {
+      return idError;
+    }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Invalid borrowing ID' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
+    }
+
+    const { action, returnedBy } = body;
+
+    // Validate required action field
+    const validation = validateRequiredFields(body, ['action']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate action value
+    if (!['renew', 'return'].includes(action)) {
+      return NextResponse.json(
+        { error: 'Invalid action. Must be "renew" or "return"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate returnedBy ObjectId if provided
+    if (returnedBy) {
+      const returnedByError = validateObjectId(returnedBy, 'Returned By User ID');
+      if (returnedByError) {
+        return returnedByError;
+      }
     }
 
     const borrowing = await Borrowing.findById(id);
@@ -155,11 +180,7 @@ export async function PATCH(request, { params }) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error updating borrowing:', error);
-    return NextResponse.json(
-      { error: 'Failed to update borrowing', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'update borrowing');
   }
 }
 

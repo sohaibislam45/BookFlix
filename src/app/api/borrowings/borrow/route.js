@@ -6,7 +6,7 @@ import Book from '@/models/Book';
 import User from '@/models/User';
 import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS, NOTIFICATION_TYPES } from '@/lib/constants';
 import { notifyUser } from '@/lib/notifications';
-import { handleApiError } from '@/lib/apiErrorHandler';
+import { handleApiError, validateRequiredFields, validateObjectId } from '@/lib/apiErrorHandler';
 
 /**
  * Get user's borrowing rules based on subscription
@@ -46,14 +46,33 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { memberId, bookId } = body;
-
-    if (!memberId || !bookId) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: memberId, bookId' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
+    }
+
+    const { memberId, bookId } = body;
+
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['memberId', 'bookId']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate ObjectIds
+    const memberIdError = validateObjectId(memberId, 'Member ID');
+    if (memberIdError) {
+      return memberIdError;
+    }
+
+    const bookIdError = validateObjectId(bookId, 'Book ID');
+    if (bookIdError) {
+      return bookIdError;
     }
 
     // Validate member exists

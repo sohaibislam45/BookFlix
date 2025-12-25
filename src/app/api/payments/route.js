@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Payment from '@/models/Payment';
 import Fine from '@/models/Fine';
 import { PAYMENT_STATUS, FINE_STATUS } from '@/lib/constants';
+import { handleApiError, validatePaginationParams, normalizePaginationParams, validateObjectId, validateEnumValue, validateRequiredFields } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
 
 // GET - List payments (with filters)
@@ -14,17 +15,41 @@ export async function GET(request) {
     const memberId = searchParams.get('memberId');
     const fineId = searchParams.get('fineId');
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+
+    // Validate and normalize pagination
+    const pagination = normalizePaginationParams(searchParams, { page: 1, limit: 20 });
+    const paginationError = validatePaginationParams(pagination, 100);
+    if (paginationError) {
+      return paginationError;
+    }
+    const { page, limit } = pagination;
 
     const query = {};
-    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+    
+    // Validate memberId if provided
+    if (memberId) {
+      const memberIdError = validateObjectId(memberId, 'Member ID');
+      if (memberIdError) {
+        return memberIdError;
+      }
       query.member = memberId;
     }
-    if (fineId && mongoose.Types.ObjectId.isValid(fineId)) {
+    
+    // Validate fineId if provided
+    if (fineId) {
+      const fineIdError = validateObjectId(fineId, 'Fine ID');
+      if (fineIdError) {
+        return fineIdError;
+      }
       query.fine = fineId;
     }
-    if (status && Object.values(PAYMENT_STATUS).includes(status)) {
+    
+    // Validate status if provided
+    if (status) {
+      const statusError = validateEnumValue(status, PAYMENT_STATUS, 'Status');
+      if (statusError) {
+        return statusError;
+      }
       query.status = status;
     }
 
@@ -61,11 +86,7 @@ export async function GET(request) {
       },
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching payments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payments', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch payments');
   }
 }
 
@@ -74,21 +95,33 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { fineId, memberId } = body;
-
-    if (!fineId || !memberId) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: fineId, memberId' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
 
-    if (!mongoose.Types.ObjectId.isValid(fineId) || !mongoose.Types.ObjectId.isValid(memberId)) {
-      return NextResponse.json(
-        { error: 'Invalid fineId or memberId' },
-        { status: 400 }
-      );
+    const { fineId, memberId } = body;
+
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['fineId', 'memberId']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate ObjectIds
+    const fineIdError = validateObjectId(fineId, 'Fine ID');
+    if (fineIdError) {
+      return fineIdError;
+    }
+
+    const memberIdError = validateObjectId(memberId, 'Member ID');
+    if (memberIdError) {
+      return memberIdError;
     }
 
     // Find the fine
@@ -160,11 +193,7 @@ export async function POST(request) {
       // Note: Stripe payment intent will be created in the /api/payments/[id]/create-intent route
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating payment:', error);
-    return NextResponse.json(
-      { error: 'Failed to create payment', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create payment');
   }
 }
 

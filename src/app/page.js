@@ -23,6 +23,18 @@ export default function Home() {
       return;
     }
 
+    // Validate plan value
+    if (!plan || !['monthly', 'yearly'].includes(plan)) {
+      showError('Invalid Plan', 'Please select a valid subscription plan.');
+      return;
+    }
+
+    // Validate user ID
+    if (!userData._id) {
+      showError('User Error', 'User information is incomplete. Please try logging in again.');
+      return;
+    }
+
     try {
       setProcessingSubscription(true);
 

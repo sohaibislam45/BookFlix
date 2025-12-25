@@ -164,3 +164,110 @@ export function validateObjectId(id, fieldName = 'ID') {
   return null;
 }
 
+/**
+ * Validate pagination parameters
+ * @param {Object} params - Parameters object with page and limit
+ * @param {number} maxLimit - Maximum allowed limit
+ * @returns {Object|null} Error response or null if valid
+ */
+export function validatePaginationParams(params, maxLimit = 100) {
+  const { page, limit } = params;
+  
+  if (page !== undefined && page !== null) {
+    const pageNum = Number(page);
+    if (isNaN(pageNum) || pageNum < 1 || !Number.isInteger(pageNum)) {
+      return createErrorResponse(
+        'Page must be a positive integer',
+        400,
+        'INVALID_PAGE'
+      );
+    }
+  }
+  
+  if (limit !== undefined && limit !== null) {
+    const limitNum = Number(limit);
+    if (isNaN(limitNum) || limitNum < 1 || !Number.isInteger(limitNum)) {
+      return createErrorResponse(
+        'Limit must be a positive integer',
+        400,
+        'INVALID_LIMIT'
+      );
+    }
+    if (limitNum > maxLimit) {
+      return createErrorResponse(
+        `Limit cannot exceed ${maxLimit}`,
+        400,
+        'LIMIT_TOO_LARGE'
+      );
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Validate enum value
+ * @param {any} value - Value to validate
+ * @param {Array|Object} enumValues - Allowed enum values
+ * @param {string} fieldName - Name of the field
+ * @returns {Object|null} Error response or null if valid
+ */
+export function validateEnumValue(value, enumValues, fieldName = 'Field') {
+  if (value === null || value === undefined || value === '') {
+    return createErrorResponse(
+      `${fieldName} is required`,
+      400,
+      'MISSING_FIELD'
+    );
+  }
+  
+  const validValues = Array.isArray(enumValues) 
+    ? enumValues 
+    : Object.values(enumValues);
+  
+  if (!validValues.includes(value)) {
+    return createErrorResponse(
+      `Invalid ${fieldName}. Must be one of: ${validValues.join(', ')}`,
+      400,
+      'INVALID_ENUM_VALUE'
+    );
+  }
+  
+  return null;
+}
+
+/**
+ * Sanitize and normalize pagination params
+ * @param {URLSearchParams} searchParams - URL search parameters
+ * @param {Object} defaults - Default values
+ * @returns {Object} Normalized pagination params
+ */
+export function normalizePaginationParams(searchParams, defaults = { page: 1, limit: 20 }) {
+  const page = parseInt(searchParams.get('page')) || defaults.page;
+  const limit = parseInt(searchParams.get('limit')) || defaults.limit;
+  
+  // Ensure positive integers
+  const normalizedPage = Math.max(1, Math.floor(page));
+  const normalizedLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+  
+  return {
+    page: normalizedPage,
+    limit: normalizedLimit,
+  };
+}
+
+/**
+ * Sanitize string input
+ * @param {string} input - Input to sanitize
+ * @param {number} maxLength - Maximum length
+ * @returns {string} Sanitized string
+ */
+export function sanitizeInput(input, maxLength = null) {
+  if (typeof input !== 'string') return '';
+  let sanitized = input.trim();
+  if (maxLength && sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength);
+  }
+  return sanitized;
+}
+

@@ -5,6 +5,7 @@ import BookCopy from '@/models/BookCopy';
 import Book from '@/models/Book';
 import User from '@/models/User';
 import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS } from '@/lib/constants';
+import { handleApiError, validatePaginationParams, normalizePaginationParams, validateObjectId, validateEnumValue, validateRequiredFields } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
 
 /**
@@ -47,14 +48,32 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+
+    // Validate and normalize pagination
+    const pagination = normalizePaginationParams(searchParams, { page: 1, limit: 20 });
+    const paginationError = validatePaginationParams(pagination, 100);
+    if (paginationError) {
+      return paginationError;
+    }
+    const { page, limit } = pagination;
 
     const query = {};
+    
+    // Validate memberId if provided
     if (memberId) {
+      const memberIdError = validateObjectId(memberId, 'Member ID');
+      if (memberIdError) {
+        return memberIdError;
+      }
       query.member = memberId;
     }
+    
+    // Validate status if provided
     if (status) {
+      const statusError = validateEnumValue(status, BORROWING_STATUS, 'Status');
+      if (statusError) {
+        return statusError;
+      }
       query.status = status;
     }
 
@@ -82,11 +101,7 @@ export async function GET(request) {
       },
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching borrowings:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch borrowings', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch borrowings');
   }
 }
 
@@ -95,14 +110,33 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { memberId, bookId } = body;
-
-    if (!memberId || !bookId) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: memberId, bookId' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
+    }
+
+    const { memberId, bookId } = body;
+
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['memberId', 'bookId']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate ObjectIds
+    const memberIdError = validateObjectId(memberId, 'Member ID');
+    if (memberIdError) {
+      return memberIdError;
+    }
+
+    const bookIdError = validateObjectId(bookId, 'Book ID');
+    if (bookIdError) {
+      return bookIdError;
     }
 
     // Validate member exists
@@ -187,11 +221,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating borrowing:', error);
-    return NextResponse.json(
-      { error: 'Failed to create borrowing', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create borrowing');
   }
 }
 

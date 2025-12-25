@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Fine from '@/models/Fine';
 import { FINE_STATUS } from '@/lib/constants';
+import { handleApiError, validatePaginationParams, normalizePaginationParams, validateObjectId, validateEnumValue } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
-import { handleApiError } from '@/lib/apiErrorHandler';
 
 // GET - List fines (with filters)
 export async function GET(request) {
@@ -13,14 +13,32 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+
+    // Validate and normalize pagination
+    const pagination = normalizePaginationParams(searchParams, { page: 1, limit: 20 });
+    const paginationError = validatePaginationParams(pagination, 100);
+    if (paginationError) {
+      return paginationError;
+    }
+    const { page, limit } = pagination;
 
     const query = {};
-    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+    
+    // Validate memberId if provided
+    if (memberId) {
+      const memberIdError = validateObjectId(memberId, 'Member ID');
+      if (memberIdError) {
+        return memberIdError;
+      }
       query.member = memberId;
     }
-    if (status && Object.values(FINE_STATUS).includes(status)) {
+    
+    // Validate status if provided
+    if (status) {
+      const statusError = validateEnumValue(status, FINE_STATUS, 'Status');
+      if (statusError) {
+        return statusError;
+      }
       query.status = status;
     }
 
@@ -54,11 +72,7 @@ export async function GET(request) {
       },
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching fines:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch fines', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch fines');
   }
 }
 

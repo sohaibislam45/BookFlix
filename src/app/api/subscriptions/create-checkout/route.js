@@ -2,23 +2,32 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { stripe } from '@/lib/stripe';
-import mongoose from 'mongoose';
+import { handleApiError, validateRequiredFields, validateObjectId, validateEnumValue } from '@/lib/apiErrorHandler';
 
 // POST - Create Stripe Checkout session for subscription
 export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { userId, plan } = body;
-
-    if (!userId || !plan) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, plan' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
 
+    const { userId, plan } = body;
+
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['userId', 'plan']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate plan enum
     if (!['monthly', 'yearly'].includes(plan)) {
       return NextResponse.json(
         { error: 'Invalid plan. Must be "monthly" or "yearly"' },
@@ -26,11 +35,10 @@ export async function POST(request) {
       );
     }
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
-      );
+    // Validate userId ObjectId
+    const userIdError = validateObjectId(userId, 'User ID');
+    if (userIdError) {
+      return userIdError;
     }
 
     // Get user
@@ -121,11 +129,7 @@ export async function POST(request) {
       url: session.url,
     }, { status: 200 });
   } catch (error) {
-    console.error('Error creating subscription checkout session:', error);
-    return NextResponse.json(
-      { error: 'Failed to create checkout session', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create subscription checkout session');
   }
 }
 

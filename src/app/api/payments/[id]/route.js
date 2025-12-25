@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Payment from '@/models/Payment';
 import { PAYMENT_STATUS } from '@/lib/constants';
+import { handleApiError, validateObjectId } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
 
 // GET - Get single payment by ID
@@ -11,11 +12,9 @@ export async function GET(request, { params }) {
 
     const { id } = params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid payment ID' },
-        { status: 400 }
-      );
+    const idError = validateObjectId(id, 'Payment ID');
+    if (idError) {
+      return idError;
     }
 
     const payment = await Payment.findById(id)
@@ -42,11 +41,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({ payment }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching payment:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payment', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch payment');
   }
 }
 

@@ -5,6 +5,7 @@ import BookCopy from '@/models/BookCopy';
 import Borrowing from '@/models/Borrowing';
 import { RESERVATION_STATUS, BOOK_STATUS, BORROWING_STATUS, BORROWING_RULES, NOTIFICATION_TYPES } from '@/lib/constants';
 import { notifyUser } from '@/lib/notifications';
+import { handleApiError, validateObjectId, validateRequiredFields } from '@/lib/apiErrorHandler';
 
 // GET - Get a specific reservation
 export async function GET(request, { params }) {
@@ -12,6 +13,11 @@ export async function GET(request, { params }) {
     await connectDB();
 
     const { id } = params;
+
+    const idError = validateObjectId(id, 'Reservation ID');
+    if (idError) {
+      return idError;
+    }
 
     const reservation = await Reservation.findById(id)
       .populate('member', 'name email')
@@ -28,11 +34,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({ reservation }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching reservation:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch reservation', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch reservation');
   }
 }
 
@@ -42,8 +44,53 @@ export async function PATCH(request, { params }) {
     await connectDB();
 
     const { id } = params;
-    const body = await request.json();
+    
+    const idError = validateObjectId(id, 'Reservation ID');
+    if (idError) {
+      return idError;
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
     const { action, bookCopyId, returnedBy } = body;
+
+    // Validate required action field
+    const validation = validateRequiredFields(body, ['action']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate action value
+    if (!['cancel', 'markReady', 'complete'].includes(action)) {
+      return NextResponse.json(
+        { error: 'Invalid action. Must be "cancel", "markReady", or "complete"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate bookCopyId ObjectId if provided
+    if (bookCopyId) {
+      const bookCopyIdError = validateObjectId(bookCopyId, 'Book Copy ID');
+      if (bookCopyIdError) {
+        return bookCopyIdError;
+      }
+    }
+
+    // Validate returnedBy ObjectId if provided
+    if (returnedBy) {
+      const returnedByError = validateObjectId(returnedBy, 'Returned By User ID');
+      if (returnedByError) {
+        return returnedByError;
+      }
+    }
 
     const reservation = await Reservation.findById(id)
       .populate('member', 'name email subscription')
@@ -254,11 +301,7 @@ export async function PATCH(request, { params }) {
         );
     }
   } catch (error) {
-    console.error('Error updating reservation:', error);
-    return NextResponse.json(
-      { error: 'Failed to update reservation', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'update reservation');
   }
 }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Fine from '@/models/Fine';
 import { FINE_STATUS } from '@/lib/constants';
+import { handleApiError, validateObjectId, validateEnumValue, sanitizeInput } from '@/lib/apiErrorHandler';
 import mongoose from 'mongoose';
 
 // GET - Get single fine by ID
@@ -11,11 +12,9 @@ export async function GET(request, { params }) {
 
     const { id } = params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid fine ID' },
-        { status: 400 }
-      );
+    const idError = validateObjectId(id, 'Fine ID');
+    if (idError) {
+      return idError;
     }
 
     const fine = await Fine.findById(id)
@@ -46,11 +45,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({ fine }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching fine:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch fine', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch fine');
   }
 }
 
@@ -60,11 +55,18 @@ export async function PATCH(request, { params }) {
     await connectDB();
 
     const { id } = params;
-    const body = await request.json();
+    
+    const idError = validateObjectId(id, 'Fine ID');
+    if (idError) {
+      return idError;
+    }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Invalid fine ID' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
@@ -78,15 +80,37 @@ export async function PATCH(request, { params }) {
       );
     }
 
+    // Validate status if provided
+    if (body.status) {
+      const statusError = validateEnumValue(body.status, FINE_STATUS, 'Status');
+      if (statusError) {
+        return statusError;
+      }
+    }
+
     // Only allow updating status to waived
     if (body.status === FINE_STATUS.WAIVED && fine.status === FINE_STATUS.PENDING) {
       fine.status = FINE_STATUS.WAIVED;
       fine.waivedDate = new Date();
+      
+      // Validate waivedBy ObjectId if provided
       if (body.waivedBy) {
+        const waivedByError = validateObjectId(body.waivedBy, 'Waived By User ID');
+        if (waivedByError) {
+          return waivedByError;
+        }
         fine.waivedBy = body.waivedBy;
       }
+      
+      // Validate and sanitize notes if provided
       if (body.notes) {
-        fine.notes = body.notes;
+        if (typeof body.notes !== 'string' || body.notes.length > 500) {
+          return NextResponse.json(
+            { error: 'Notes must be a string with maximum 500 characters' },
+            { status: 400 }
+          );
+        }
+        fine.notes = sanitizeInput(body.notes, 500);
       }
       await fine.save();
 
@@ -100,15 +124,11 @@ export async function PATCH(request, { params }) {
     }
 
     return NextResponse.json(
-      { error: 'Invalid update operation' },
+      { error: 'Invalid update operation. Only status can be updated to "waived" for pending fines.' },
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error updating fine:', error);
-    return NextResponse.json(
-      { error: 'Failed to update fine', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'update fine');
   }
 }
 

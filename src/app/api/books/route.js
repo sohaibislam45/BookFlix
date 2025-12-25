@@ -3,19 +3,53 @@ import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import BookCopy from '@/models/BookCopy';
 import Category from '@/models/Category';
-import { handleApiError, validateRequiredFields } from '@/lib/apiErrorHandler';
+import { handleApiError, validateRequiredFields, validatePaginationParams, normalizePaginationParams, validateObjectId, sanitizeInput } from '@/lib/apiErrorHandler';
+import { isValidISBN, validateStringLength } from '@/lib/validation';
+import mongoose from 'mongoose';
 
 export async function GET(request) {
   try {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 12;
-    const search = searchParams.get('search') || '';
+    
+    // Validate and normalize pagination
+    const pagination = normalizePaginationParams(searchParams, { page: 1, limit: 12 });
+    const paginationError = validatePaginationParams(pagination, 100);
+    if (paginationError) {
+      return paginationError;
+    }
+    
+    const { page, limit } = pagination;
+    const search = sanitizeInput(searchParams.get('search') || '', 200);
     const category = searchParams.get('category');
     const sort = searchParams.get('sort') || 'createdAt';
     const order = searchParams.get('order') || 'desc';
+
+    // Validate sort field
+    const allowedSortFields = ['createdAt', 'title', 'author', 'rating', 'publishedDate'];
+    if (!allowedSortFields.includes(sort)) {
+      return NextResponse.json(
+        { error: `Invalid sort field. Must be one of: ${allowedSortFields.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate order
+    if (!['asc', 'desc'].includes(order)) {
+      return NextResponse.json(
+        { error: 'Invalid order. Must be "asc" or "desc"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate category ObjectId if provided
+    if (category) {
+      const categoryError = validateObjectId(category, 'Category');
+      if (categoryError) {
+        return categoryError;
+      }
+    }
 
     const query = { isActive: true };
 
@@ -91,7 +125,16 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
     const {
       title,
       author,
@@ -113,6 +156,30 @@ export async function POST(request) {
       return validation;
     }
 
+    // Validate and sanitize title
+    const titleSanitized = sanitizeInput(title, 500);
+    if (!titleSanitized || titleSanitized.length < 1) {
+      return NextResponse.json(
+        { error: 'Title is required and must be at least 1 character' },
+        { status: 400 }
+      );
+    }
+
+    // Validate and sanitize author
+    const authorSanitized = sanitizeInput(author, 200);
+    if (!authorSanitized || authorSanitized.length < 1) {
+      return NextResponse.json(
+        { error: 'Author is required and must be at least 1 character' },
+        { status: 400 }
+      );
+    }
+
+    // Validate category ObjectId
+    const categoryError = validateObjectId(category, 'Category');
+    if (categoryError) {
+      return categoryError;
+    }
+
     // Verify category exists
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
@@ -122,9 +189,18 @@ export async function POST(request) {
       );
     }
 
-    // Check if book with same ISBN already exists
+    // Validate ISBN format if provided
     if (isbn) {
-      const existingBook = await Book.findOne({ isbn });
+      const isbnSanitized = sanitizeInput(isbn, 20);
+      if (!isValidISBN(isbnSanitized)) {
+        return NextResponse.json(
+          { error: 'Invalid ISBN format. Must be 10 or 13 digits' },
+          { status: 400 }
+        );
+      }
+      
+      // Check if book with same ISBN already exists
+      const existingBook = await Book.findOne({ isbn: isbnSanitized });
       if (existingBook) {
         return NextResponse.json(
           { error: 'Book with this ISBN already exists' },
@@ -133,19 +209,107 @@ export async function POST(request) {
       }
     }
 
+    // Validate coverImage URL
+    if (coverImage) {
+      try {
+        new URL(coverImage);
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid cover image URL' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate publishedDate if provided
+    if (publishedDate) {
+      const date = new Date(publishedDate);
+      if (isNaN(date.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid published date format' },
+          { status: 400 }
+        );
+      }
+      // Check if date is not in the future
+      if (date > new Date()) {
+        return NextResponse.json(
+          { error: 'Published date cannot be in the future' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate pages if provided
+    if (pages !== undefined && pages !== null) {
+      const pagesNum = Number(pages);
+      if (isNaN(pagesNum) || pagesNum < 0 || !Number.isInteger(pagesNum)) {
+        return NextResponse.json(
+          { error: 'Pages must be a non-negative integer' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate copies
+    const copiesNum = Number(copies);
+    if (isNaN(copiesNum) || copiesNum < 1 || !Number.isInteger(copiesNum) || copiesNum > 100) {
+      return NextResponse.json(
+        { error: 'Copies must be a positive integer between 1 and 100' },
+        { status: 400 }
+      );
+    }
+
+    // Validate language if provided
+    if (language && typeof language !== 'string') {
+      return NextResponse.json(
+        { error: 'Language must be a string' },
+        { status: 400 }
+      );
+    }
+
+    // Validate tags if provided
+    if (tags && !Array.isArray(tags)) {
+      return NextResponse.json(
+        { error: 'Tags must be an array' },
+        { status: 400 }
+      );
+    }
+    if (tags && tags.length > 20) {
+      return NextResponse.json(
+        { error: 'Maximum 20 tags allowed' },
+        { status: 400 }
+      );
+    }
+
+    // Validate description length
+    if (description && description.length > 5000) {
+      return NextResponse.json(
+        { error: 'Description must be no more than 5000 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Validate publisher length
+    if (publisher && publisher.length > 200) {
+      return NextResponse.json(
+        { error: 'Publisher must be no more than 200 characters' },
+        { status: 400 }
+      );
+    }
+
     // Create new book
     const book = new Book({
-      title,
-      author,
-      isbn,
-      description,
+      title: titleSanitized,
+      author: authorSanitized,
+      isbn: isbn ? sanitizeInput(isbn, 20) : undefined,
+      description: description ? sanitizeInput(description, 5000) : undefined,
       coverImage,
       category,
       publishedDate: publishedDate ? new Date(publishedDate) : undefined,
-      publisher,
+      publisher: publisher ? sanitizeInput(publisher, 200) : undefined,
       language: language || 'en',
-      pages,
-      tags: tags || [],
+      pages: pages !== undefined && pages !== null ? Number(pages) : undefined,
+      tags: tags ? tags.slice(0, 20).map(tag => sanitizeInput(String(tag), 50).toLowerCase()) : [],
     });
 
     await book.save();

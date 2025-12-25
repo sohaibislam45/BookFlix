@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { USER_ROLES } from '@/lib/constants';
+import { handleApiError, validateRequiredFields, validateObjectId, validateEnumValue, sanitizeInput } from '@/lib/apiErrorHandler';
+import { isValidEmail, isValidPhone } from '@/lib/validation';
 
 // Route segment config
 export const dynamic = 'force-dynamic';
@@ -29,12 +31,65 @@ export async function POST(request) {
 
     console.log('[POST /api/users] Creating user with data:', { firebaseUid, email, name: !!name });
 
-    if (!firebaseUid || !email || !name) {
-      console.log('[POST /api/users] Missing required fields');
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['firebaseUid', 'email', 'name']);
+    if (validation) {
+      return validation;
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
       return NextResponse.json(
-        { error: 'Missing required fields', received: { firebaseUid: !!firebaseUid, email: !!email, name: !!name } },
+        { error: 'Invalid email format' },
         { status: 400 }
       );
+    }
+
+    // Validate and sanitize name
+    const nameSanitized = sanitizeInput(name, 200);
+    if (!nameSanitized || nameSanitized.length < 1) {
+      return NextResponse.json(
+        { error: 'Name is required and must be at least 1 character' },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone if provided
+    if (phone && !isValidPhone(phone)) {
+      return NextResponse.json(
+        { error: 'Invalid phone number format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate role if provided
+    if (role) {
+      const roleError = validateEnumValue(role, USER_ROLES, 'Role');
+      if (roleError) {
+        return roleError;
+      }
+    }
+
+    // Validate subscription type if provided
+    if (subscription && subscription.type) {
+      if (!['free', 'monthly', 'yearly'].includes(subscription.type)) {
+        return NextResponse.json(
+          { error: 'Invalid subscription type. Must be "free", "monthly", or "yearly"' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate profilePhoto URL if provided
+    if (profilePhoto) {
+      try {
+        new URL(profilePhoto);
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid profile photo URL' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if user already exists
@@ -54,20 +109,20 @@ export async function POST(request) {
       );
     }
 
-    // Clean address object - remove empty strings
+    // Clean and sanitize address object
     const cleanAddress = address ? {
-      division: address.division || undefined,
-      city: address.city || undefined,
-      area: address.area || undefined,
-      landmark: address.landmark || undefined,
+      division: address.division ? sanitizeInput(address.division, 100) : undefined,
+      city: address.city ? sanitizeInput(address.city, 100) : undefined,
+      area: address.area ? sanitizeInput(address.area, 100) : undefined,
+      landmark: address.landmark ? sanitizeInput(address.landmark, 200) : undefined,
     } : undefined;
 
     // Prepare user data
     const userData = {
-      firebaseUid,
+      firebaseUid: sanitizeInput(firebaseUid, 200),
       email: email.toLowerCase().trim(),
-      name: name.trim(),
-      phone: phone ? phone.trim() : undefined,
+      name: nameSanitized,
+      phone: phone ? sanitizeInput(phone, 20) : undefined,
       profilePhoto: profilePhoto || undefined,
       address: cleanAddress,
       role: role || USER_ROLES.MEMBER,
@@ -120,12 +175,10 @@ export async function POST(request) {
     console.error('[POST /api/users] Error stack:', error?.stack);
     
     // Handle Mongoose validation errors
+    // Handle Mongoose validation errors
     if (error?.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors || {}).map(err => err.message);
-      return NextResponse.json(
-        { error: 'Validation error', details: validationErrors.join(', ') },
-        { status: 400 }
-      );
+      return handleApiError(new Error(validationErrors.join(', ')), 'create user');
     }
 
     // Handle duplicate key errors
@@ -160,15 +213,8 @@ export async function POST(request) {
       );
     }
 
-    // For any other error, return a safe error message
-    // Don't expose internal error details in production
-    const errorMessage = error?.message || String(error) || 'Unknown error occurred';
-    console.error('[POST /api/users] Returning error response:', errorMessage);
-    
-    return NextResponse.json(
-      { error: 'Failed to create user', details: errorMessage },
-      { status: 500 }
-    );
+    // For any other error, use handleApiError
+    return handleApiError(error, 'create user');
   }
 }
 
@@ -193,6 +239,14 @@ export async function GET(request) {
       );
     }
 
+    // Validate email format if provided
+    if (email && !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
     const query = firebaseUid ? { firebaseUid } : { email };
     console.log('[GET /api/users] Query:', query);
 
@@ -212,12 +266,7 @@ export async function GET(request) {
     delete userObj.__v;
     return NextResponse.json(userObj, { status: 200 });
   } catch (error) {
-    console.error('[GET /api/users] Error:', error);
-    console.error('[GET /api/users] Error stack:', error.stack);
-    return NextResponse.json(
-      { error: 'Failed to fetch user', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch user');
   }
 }
 
