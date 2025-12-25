@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RESERVATION_STATUS } from '@/lib/constants';
+import { showSuccess, showError, showConfirm } from '@/lib/swal';
 
 export default function ReservationsPage() {
   const { userData } = useAuth();
@@ -46,7 +47,8 @@ export default function ReservationsPage() {
   };
 
   const handleCancel = async (reservationId) => {
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+    const result = await showConfirm('Cancel Reservation', 'Are you sure you want to cancel this reservation?');
+    if (!result.isConfirmed) return;
 
     try {
       setProcessing(reservationId);
@@ -57,21 +59,23 @@ export default function ReservationsPage() {
       });
 
       if (response.ok) {
+        showSuccess('Success!', 'Reservation cancelled successfully');
         await fetchReservations();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to cancel reservation');
+        showError('Error', error.error || 'Failed to cancel reservation');
       }
     } catch (error) {
       console.error('Error cancelling reservation:', error);
-      alert('Failed to cancel reservation');
+      showError('Error', 'Failed to cancel reservation');
     } finally {
       setProcessing(null);
     }
   };
 
   const handleComplete = async (reservationId) => {
-    if (!confirm('Claim this book and borrow it now?')) return;
+    const result = await showConfirm('Claim Book', 'Claim this book and borrow it now?');
+    if (!result.isConfirmed) return;
 
     try {
       setProcessing(reservationId);
@@ -82,15 +86,15 @@ export default function ReservationsPage() {
       });
 
       if (response.ok) {
-        alert('Book borrowed successfully!');
+        showSuccess('Success!', 'Book borrowed successfully!');
         await fetchReservations();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to claim book');
+        showError('Error', error.error || 'Failed to claim book');
       }
     } catch (error) {
       console.error('Error completing reservation:', error);
-      alert('Failed to claim book');
+      showError('Error', 'Failed to claim book');
     } finally {
       setProcessing(null);
     }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { showSuccess, showError, showConfirm, showInfo } from '@/lib/swal';
 
 export default function CirculationDeskPage() {
   const { userData } = useAuth();
@@ -66,12 +67,12 @@ export default function CirculationDeskPage() {
           }
         }
       } else {
-        alert('Member not found');
+        showInfo('Member Not Found', 'No member found with that email or ID');
         setMember(null);
       }
     } catch (error) {
       console.error('Error searching member:', error);
-      alert('Error searching member');
+      showError('Error', 'Error searching member');
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function CirculationDeskPage() {
       });
 
       if (response.ok) {
-        alert('Book checked out successfully');
+        showSuccess('Success!', 'Book checked out successfully');
         // Refresh member's borrowings
         const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
         if (borrowingsResponse.ok) {
@@ -98,11 +99,11 @@ export default function CirculationDeskPage() {
         setSearchQuery('');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to checkout book');
+        showError('Error', error.error || 'Failed to checkout book');
       }
     } catch (error) {
       console.error('Error checking out book:', error);
-      alert('Failed to checkout book');
+      showError('Error', 'Failed to checkout book');
     } finally {
       setProcessing(false);
     }
@@ -118,7 +119,7 @@ export default function CirculationDeskPage() {
       });
 
       if (response.ok) {
-        alert('Book returned successfully');
+        showSuccess('Success!', 'Book returned successfully');
         // Refresh data
         if (member?._id) {
           const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
@@ -132,11 +133,11 @@ export default function CirculationDeskPage() {
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to return book');
+        showError('Error', error.error || 'Failed to return book');
       }
     } catch (error) {
       console.error('Error returning book:', error);
-      alert('Failed to return book');
+      showError('Error', 'Failed to return book');
     } finally {
       setProcessing(false);
     }
@@ -219,7 +220,8 @@ export default function CirculationDeskPage() {
   };
 
   const handleMarkReady = async (reservationId, bookId) => {
-    if (!confirm('Mark this reservation as ready? An available copy will be reserved for the member.')) return;
+    const result = await showConfirm('Mark Reservation Ready', 'Mark this reservation as ready? An available copy will be reserved for the member.');
+    if (!result.isConfirmed) return;
 
     try {
       setProcessing(true);
@@ -231,25 +233,26 @@ export default function CirculationDeskPage() {
       });
 
       if (response.ok) {
-        alert('Reservation marked as ready');
+        showSuccess('Success!', 'Reservation marked as ready');
         await fetchReservations();
         if (reservationBookSearch) {
           searchBookForReservations();
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to mark reservation as ready');
+        showError('Error', error.error || 'Failed to mark reservation as ready');
       }
     } catch (error) {
       console.error('Error marking reservation as ready:', error);
-      alert('Failed to mark reservation as ready');
+      showError('Error', 'Failed to mark reservation as ready');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleCompleteReservation = async (reservationId) => {
-    if (!confirm('Complete this reservation and create a borrowing?')) return;
+    const result = await showConfirm('Complete Reservation', 'Complete this reservation and create a borrowing?');
+    if (!result.isConfirmed) return;
 
     try {
       setProcessing(true);
@@ -260,18 +263,18 @@ export default function CirculationDeskPage() {
       });
 
       if (response.ok) {
-        alert('Reservation completed and book borrowed successfully');
+        showSuccess('Success!', 'Reservation completed and book borrowed successfully');
         await fetchReservations();
         if (reservationBookSearch) {
           searchBookForReservations();
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to complete reservation');
+        showError('Error', error.error || 'Failed to complete reservation');
       }
     } catch (error) {
       console.error('Error completing reservation:', error);
-      alert('Failed to complete reservation');
+      showError('Error', 'Failed to complete reservation');
     } finally {
       setProcessing(false);
     }

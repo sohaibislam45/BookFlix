@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
+import { showConfirm } from '@/lib/swal';
 
 export default function BillingPage() {
   const { userData } = useAuth();
@@ -121,7 +122,11 @@ export default function BillingPage() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription? It will remain active until the end of the current billing period.')) {
+    const result = await showConfirm(
+      'Cancel Subscription',
+      'Are you sure you want to cancel your subscription? It will remain active until the end of the current billing period.'
+    );
+    if (!result.isConfirmed) {
       return;
     }
 

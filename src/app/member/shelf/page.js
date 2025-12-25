@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { showSuccess, showError, showConfirm } from '@/lib/swal';
 
 export default function MyShelfPage() {
   const { userData } = useAuth();
@@ -59,21 +60,23 @@ export default function MyShelfPage() {
       });
 
       if (response.ok) {
+        showSuccess('Success!', 'Book renewed successfully!');
         await fetchBorrowings();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to renew book');
+        showError('Error', error.error || 'Failed to renew book');
       }
     } catch (error) {
       console.error('Error renewing book:', error);
-      alert('Failed to renew book');
+      showError('Error', 'Failed to renew book');
     } finally {
       setProcessing(null);
     }
   };
 
   const handleReturn = async (borrowingId) => {
-    if (!confirm('Are you sure you want to return this book?')) return;
+    const result = await showConfirm('Return Book', 'Are you sure you want to return this book?');
+    if (!result.isConfirmed) return;
 
     try {
       setProcessing(borrowingId);
@@ -84,15 +87,16 @@ export default function MyShelfPage() {
       });
 
       if (response.ok) {
+        showSuccess('Success!', 'Book returned successfully!');
         await fetchBorrowings();
         router.push('/member/shelf');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to return book');
+        showError('Error', error.error || 'Failed to return book');
       }
     } catch (error) {
       console.error('Error returning book:', error);
-      alert('Failed to return book');
+      showError('Error', 'Failed to return book');
     } finally {
       setProcessing(null);
     }

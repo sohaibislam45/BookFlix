@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { showSuccess, showError, showConfirm, showInfo } from '@/lib/swal';
 
 function BrowseContent() {
   const { userData } = useAuth();
@@ -114,31 +115,32 @@ function BrowseContent() {
 
   const handleBorrow = async (bookId) => {
     if (!userData?._id) {
-      alert('Please log in to borrow books');
+      showInfo('Login Required', 'Please log in to borrow books');
       return;
     }
 
-    if (!confirm('Borrow this book?')) return;
+    const result = await showConfirm('Borrow Book', 'Are you sure you want to borrow this book?');
+    if (!result.isConfirmed) return;
 
     try {
       setBorrowing(true);
-      const response = await fetch('/api/borrowings', {
+      const response = await fetch('/api/borrowings/borrow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberId: userData._id, bookId }),
       });
 
       if (response.ok) {
-        alert('Book borrowed successfully!');
+        showSuccess('Success!', 'Book borrowed successfully!');
         // Refresh books to update available copies
         fetchBooks();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to borrow book');
+        showError('Error', error.error || 'Failed to borrow book');
       }
     } catch (error) {
       console.error('Error borrowing book:', error);
-      alert('Failed to borrow book');
+      showError('Error', 'Failed to borrow book');
     } finally {
       setBorrowing(false);
     }
@@ -146,11 +148,12 @@ function BrowseContent() {
 
   const handleReserve = async (bookId) => {
     if (!userData?._id) {
-      alert('Please log in to reserve books');
+      showInfo('Login Required', 'Please log in to reserve books');
       return;
     }
 
-    if (!confirm('Reserve this book? You will be added to the waitlist.')) return;
+    const result = await showConfirm('Reserve Book', 'Reserve this book? You will be added to the waitlist.');
+    if (!result.isConfirmed) return;
 
     try {
       setBorrowing(true);
@@ -162,16 +165,16 @@ function BrowseContent() {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Reservation created! Your queue position: #${data.reservation.queuePosition}`);
+        showSuccess('Reservation Created!', `Your queue position: #${data.reservation.queuePosition}`);
         // Refresh books to update available copies
         fetchBooks();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to reserve book');
+        showError('Error', error.error || 'Failed to reserve book');
       }
     } catch (error) {
       console.error('Error reserving book:', error);
-      alert('Failed to reserve book');
+      showError('Error', 'Failed to reserve book');
     } finally {
       setBorrowing(false);
     }

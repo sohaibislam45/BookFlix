@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
+import { showError } from '@/lib/swal';
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
@@ -50,7 +51,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Error creating subscription checkout:', err);
-      alert(err.message || 'Failed to start subscription. Please try again.');
+      showError('Subscription Error', err.message || 'Failed to start subscription. Please try again.');
       setProcessingSubscription(false);
     }
   };
