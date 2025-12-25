@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { LOCATION_DATA } from '@/lib/locationData';
+import { getRoleOverviewRoute } from '@/lib/utils';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -140,19 +141,59 @@ export default function RegisterPage() {
         // User already authenticated via Google, just save to MongoDB
         firebaseUser = user;
       } else {
-        // Create Firebase account
-        const result = await signUp(formData.email, formData.password, formData.name);
-        if (!result.success) {
-          // Check if email is already in use
-          if (result.error && (result.error.includes('email-already-in-use') || result.error.includes('already in use'))) {
-            setError('already_registered');
-          } else {
-            setError(result.error || 'Failed to create account');
-          }
+        // Validate required fields
+        if (!formData.email || !formData.email.trim()) {
+          setError('Email is required.');
           setLoading(false);
           return;
         }
-        firebaseUser = result.user;
+
+        if (!formData.password || !formData.password.trim()) {
+          setError('Password is required.');
+          setLoading(false);
+          return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+          setError('Please enter a valid email address.');
+          setLoading(false);
+          return;
+        }
+
+        // Validate password before attempting signup
+        if (formData.password.length < 6) {
+          setError('Password must be at least 6 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        // Create Firebase account
+        try {
+          const result = await signUp(formData.email.trim(), formData.password, formData.name?.trim());
+          if (!result.success) {
+            // Check if email is already in use
+            if (result.code === 'auth/email-already-in-use' || 
+                result.error?.includes('email-already-in-use') || 
+                result.error?.includes('already in use') || 
+                result.error?.includes('already registered') ||
+                result.error?.includes('EMAIL_EXISTS')) {
+              setError('already_registered');
+            } else {
+              // Display the user-friendly error message
+              setError(result.error || 'Failed to create account. Please check your email and password.');
+            }
+            setLoading(false);
+            return;
+          }
+          firebaseUser = result.user;
+        } catch (signupError) {
+          console.error('Signup error:', signupError);
+          setError(signupError.message || 'Failed to create account. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
 
       // Save user to MongoDB
@@ -194,7 +235,16 @@ export default function RegisterPage() {
         throw new Error(errorMessage);
       }
 
-      router.push('/dashboard');
+      // Fetch user data to get role for navigation
+      const userResponse = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const role = userData.role || 'member';
+        router.push(getRoleOverviewRoute(role));
+      } else {
+        // Fallback to dashboard if user data fetch fails
+        router.push('/dashboard');
+      }
     } catch (error) {
       console.error('Registration error:', error);
       setError(error.message || 'Failed to register. Please try again.');
@@ -270,12 +320,12 @@ export default function RegisterPage() {
           {/* Form */}
           <div className="layout-content-container flex flex-col w-full p-6 md:p-10 md:pt-2">
             {error && (
-              <div className={`${error === 'already_registered' ? 'bg-blue-500/20 border-blue-500/50 text-blue-200' : 'bg-red-500/20 border-red-500/50 text-red-200'} px-4 py-3 rounded-lg text-sm mb-4`}>
-                {error === 'already_registered' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-                      info
-                    </span>
+              <div className={`${error === 'already_registered' ? 'bg-blue-500/20 border-blue-500/50 text-blue-200' : 'bg-red-500/20 border-red-500/50 text-red-200'} px-4 py-3 rounded-lg text-sm mb-4 flex items-start gap-2`}>
+                <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }}>
+                  {error === 'already_registered' ? 'info' : 'error'}
+                </span>
+                <div className="flex-1">
+                  {error === 'already_registered' ? (
                     <span>
                       You are already registered. Please{' '}
                       <Link className="text-primary hover:text-white font-medium transition-colors underline" href="/login">
@@ -283,10 +333,10 @@ export default function RegisterPage() {
                       </Link>
                       {' '}instead.
                     </span>
-                  </div>
-                ) : (
-                  error
-                )}
+                  ) : (
+                    <span>{error}</span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -377,6 +427,7 @@ export default function RegisterPage() {
                         value={formData.password}
                         onChange={handleInputChange}
                         required
+                        minLength={6}
                         disabled={loading}
                       />
                       <div
@@ -388,6 +439,9 @@ export default function RegisterPage() {
                         </span>
                       </div>
                     </div>
+                    {formData.password && formData.password.length < 6 && (
+                      <p className="text-xs text-red-400 mt-1 ml-1">Password must be at least 6 characters</p>
+                    )}
                   </label>
                 )}
 

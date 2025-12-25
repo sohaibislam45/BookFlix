@@ -35,9 +35,13 @@ export default function AuthProvider({ children }) {
         setUser(firebaseUser);
         // Fetch user data from MongoDB
         try {
+          console.log('[AuthContext] Fetching user from MongoDB with firebaseUid:', firebaseUser.uid);
           const response = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
+          console.log('[AuthContext] Response status:', response.status);
+          
           if (response.ok) {
             const data = await response.json();
+            console.log('[AuthContext] User found in MongoDB');
             // If userData doesn't have profilePhoto but Firebase user has photoURL, update it
             if (!data.profilePhoto && firebaseUser.photoURL) {
               // Update user profile photo in MongoDB
@@ -53,7 +57,7 @@ export default function AuthProvider({ children }) {
                   data.profilePhoto = firebaseUser.photoURL;
                 }
               } catch (error) {
-                console.error('Error updating profile photo:', error);
+                console.error('[AuthContext] Error updating profile photo:', error);
               }
             }
             // Ensure profilePhoto is set from Firebase if MongoDB doesn't have it
@@ -61,8 +65,21 @@ export default function AuthProvider({ children }) {
               data.profilePhoto = firebaseUser.photoURL;
             }
             setUserData(data);
+          } else if (response.status === 404) {
+            // User doesn't exist in MongoDB yet - this is expected for new logins
+            // The login handler will create the user, so we just use fallback data here
+            console.log('[AuthContext] User not found in MongoDB (404) - using fallback data');
+            const fallbackData = {
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email,
+            };
+            if (firebaseUser.photoURL) {
+              fallbackData.profilePhoto = firebaseUser.photoURL;
+            }
+            setUserData(fallbackData);
           } else {
-            // User doesn't exist in MongoDB yet - create userData from Firebase
+            // Other error
+            console.error('[AuthContext] Error fetching user data, status:', response.status);
             const fallbackData = {
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               email: firebaseUser.email,
@@ -73,7 +90,7 @@ export default function AuthProvider({ children }) {
             setUserData(fallbackData);
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error('[AuthContext] Error fetching user data:', error);
           // Fallback to Firebase user data if MongoDB fetch fails
           const fallbackData = {
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
@@ -99,7 +116,59 @@ export default function AuthProvider({ children }) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return { success: true, user: userCredential.user };
     } catch (error) {
-      return { success: false, error: error.message };
+      // Log full error for debugging
+      console.error('Firebase signin error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      // Provide user-friendly error messages based on error code
+      let errorMessage = 'Failed to sign in. Please try again.';
+      
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'This account has been disabled. Please contact support.';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed login attempts. Please try again later or reset your password.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+            break;
+          case 'auth/operation-not-allowed':
+            errorMessage = 'Email/password sign-in is not enabled. Please contact support.';
+            break;
+          case 'auth/invalid-api-key':
+            errorMessage = 'Authentication service error. Please contact support.';
+            break;
+          default:
+            // For other errors, try to extract meaningful message
+            if (error.message) {
+              if (error.message.includes('INVALID_LOGIN_CREDENTIALS')) {
+                errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+              } else if (error.message.includes('EMAIL_NOT_FOUND')) {
+                errorMessage = 'No account found with this email address. Please sign up instead.';
+              } else if (error.message.includes('INVALID_PASSWORD')) {
+                errorMessage = 'Invalid password. Please try again or reset your password.';
+              } else {
+                errorMessage = `Sign in failed: ${error.message}`;
+              }
+            }
+        }
+      } else if (error.message) {
+        // Fallback to error message if no code
+        errorMessage = error.message;
+      }
+      
+      return { success: false, error: errorMessage, code: error.code || 'unknown' };
     }
   };
 
@@ -111,7 +180,64 @@ export default function AuthProvider({ children }) {
       }
       return { success: true, user: userCredential.user };
     } catch (error) {
-      return { success: false, error: error.message };
+      // Log full error for debugging
+      console.error('Firebase signup error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      // Provide user-friendly error messages based on error code
+      let errorMessage = 'Failed to create account. Please try again.';
+      
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'This email is already registered. Please sign in instead.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password should be at least 6 characters long.';
+            break;
+          case 'auth/operation-not-allowed':
+            errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+            break;
+          case 'auth/invalid-api-key':
+            errorMessage = 'Authentication service error. Please contact support.';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many requests. Please try again later.';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'This account has been disabled. Please contact support.';
+            break;
+          default:
+            // For 400 Bad Request or other errors, try to extract meaningful message
+            if (error.message) {
+              if (error.message.includes('EMAIL_EXISTS')) {
+                errorMessage = 'This email is already registered. Please sign in instead.';
+              } else if (error.message.includes('INVALID_EMAIL')) {
+                errorMessage = 'Please enter a valid email address.';
+              } else if (error.message.includes('WEAK_PASSWORD')) {
+                errorMessage = 'Password should be at least 6 characters long.';
+              } else if (error.message.includes('MISSING_PASSWORD')) {
+                errorMessage = 'Password is required.';
+              } else if (error.message.includes('MISSING_EMAIL')) {
+                errorMessage = 'Email is required.';
+              } else {
+                errorMessage = `Registration failed: ${error.message}`;
+              }
+            }
+        }
+      } else if (error.message) {
+        // Fallback to error message if no code
+        errorMessage = error.message;
+      }
+      
+      return { success: false, error: errorMessage, code: error.code || 'unknown' };
     }
   };
 

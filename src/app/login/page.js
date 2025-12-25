@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { getRoleOverviewRoute } from '@/lib/utils';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,41 +19,215 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const result = await signIn(email, password);
-    
-    if (result.success) {
-      router.push('/dashboard');
-    } else {
-      setError(result.error || 'Failed to sign in');
+    try {
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        // Fetch user data to get role for navigation
+        try {
+          console.log('[Login] Fetching user from MongoDB with firebaseUid:', result.user.uid);
+          let response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
+          console.log('[Login] Response status:', response.status);
+          
+          // If user doesn't exist in MongoDB, create them automatically
+          if (response.status === 404) {
+            console.warn('[Login] User not found in MongoDB (404), creating user automatically...');
+            console.log('[Login] Creating user with data:', {
+              firebaseUid: result.user.uid,
+              email: result.user.email,
+              name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+            });
+            
+            const createResponse = await fetch('/api/users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                firebaseUid: result.user.uid,
+                email: result.user.email?.toLowerCase().trim() || result.user.email,
+                name: (result.user.displayName || result.user.email?.split('@')[0] || 'User').trim(),
+                profilePhoto: result.user.photoURL || null,
+                role: 'member',
+                subscription: {
+                  type: 'free',
+                  status: 'active',
+                },
+              }),
+            });
+            
+            console.log('[Login] Create user response status:', createResponse.status);
+            
+            if (createResponse.ok) {
+              const newUserData = await createResponse.json();
+              console.log('[Login] User data received:', newUserData);
+              // API returns { message, user } structure
+              // Handle both "created" (201) and "already exists" (200) cases
+              const user = newUserData.user || newUserData;
+              const role = user?.role || 'member';
+              console.log('[Login] Navigating to role overview:', getRoleOverviewRoute(role));
+              router.push(getRoleOverviewRoute(role));
+            } else {
+              // If creation fails, try to fetch user anyway
+              const errorData = await createResponse.json().catch(() => ({}));
+              console.error('[Login] Failed to create user in MongoDB');
+              console.error('[Login] Error details:', errorData);
+              
+              // Try to fetch user as fallback
+              console.log('[Login] Attempting to fetch user data as fallback...');
+              const fetchResponse = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
+              if (fetchResponse.ok) {
+                const userData = await fetchResponse.json();
+                const role = userData.role || 'member';
+                console.log('[Login] User found, navigating to role overview:', getRoleOverviewRoute(role));
+                router.push(getRoleOverviewRoute(role));
+              } else {
+                console.log('[Login] Navigating to member overview as fallback');
+                router.push('/member/overview');
+              }
+            }
+          } else if (response.ok) {
+            const userData = await response.json();
+            console.log('[Login] User found in MongoDB:', { email: userData.email, role: userData.role });
+            const role = userData.role || 'member';
+            // Navigate to role-based overview page
+            console.log('[Login] Navigating to role overview:', getRoleOverviewRoute(role));
+            router.push(getRoleOverviewRoute(role));
+          } else {
+            // Other error - still navigate to member overview
+            console.error('[Login] Error fetching user data, status:', response.status);
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('[Login] Error response:', errorText);
+            router.push('/member/overview');
+          }
+        } catch (error) {
+          console.error('[Login] Error fetching user data:', error);
+          console.error('[Login] Error stack:', error.stack);
+          // Fallback to member overview on error
+          router.push('/member/overview');
+        }
+        // Don't set loading to false here - navigation will handle it
+      } else {
+        // Display the user-friendly error message from AuthContext
+        setError(result.error || 'Failed to sign in. Please try again.');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
 
-    const result = await signInWithGoogle();
-    
-    if (result.success) {
-      // Check if user exists in MongoDB, if not redirect to complete registration
-      try {
-        const response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
-        if (!response.ok) {
-          router.push('/register?complete=true');
-        } else {
-          router.push('/dashboard');
+    try {
+      const result = await signInWithGoogle();
+      
+      if (result.success) {
+        // Check if user exists in MongoDB, if not create them automatically
+        try {
+          console.log('[Google Login] Fetching user from MongoDB with firebaseUid:', result.user.uid);
+          let response = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
+          console.log('[Google Login] Response status:', response.status);
+          
+          // If user doesn't exist in MongoDB, create them automatically
+          if (response.status === 404) {
+            console.warn('[Google Login] User not found in MongoDB (404), creating user automatically...');
+            console.log('[Google Login] Creating user with data:', {
+              firebaseUid: result.user.uid,
+              email: result.user.email,
+              name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+            });
+            
+            const createResponse = await fetch('/api/users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                firebaseUid: result.user.uid,
+                email: result.user.email?.toLowerCase().trim() || result.user.email,
+                name: (result.user.displayName || result.user.email?.split('@')[0] || 'User').trim(),
+                profilePhoto: result.user.photoURL || null,
+                role: 'member',
+                subscription: {
+                  type: 'free',
+                  status: 'active',
+                },
+              }),
+            });
+            
+            console.log('[Google Login] Create user response status:', createResponse.status);
+            
+            if (createResponse.ok) {
+              const newUserData = await createResponse.json();
+              console.log('[Google Login] User data received:', newUserData);
+              // API returns { message, user } structure
+              // Handle both "created" (201) and "already exists" (200) cases
+              const user = newUserData.user || newUserData;
+              const role = user?.role || 'member';
+              console.log('[Google Login] Navigating to role overview:', getRoleOverviewRoute(role));
+              router.push(getRoleOverviewRoute(role));
+            } else {
+              // Log the error details for debugging
+              try {
+                const errorData = await createResponse.json();
+                console.error('[Google Login] User creation failed:', errorData);
+              } catch (e) {
+                console.error('[Google Login] User creation failed with status:', createResponse.status, 'Could not parse error response');
+              }
+              
+              // If creation fails, try to fetch user anyway in case they exist
+              // (user might have been created by another request or already exists)
+              console.log('[Google Login] User creation returned non-OK status, checking if user exists...');
+              const fetchResponse = await fetch(`/api/users?firebaseUid=${result.user.uid}`);
+              if (fetchResponse.ok) {
+                const userData = await fetchResponse.json();
+                const role = userData.role || 'member';
+                console.log('[Google Login] User found after creation failed, navigating to role overview:', getRoleOverviewRoute(role));
+                router.push(getRoleOverviewRoute(role));
+              } else {
+                // If Firebase auth succeeded but user creation/lookup failed,
+                // still redirect to member dashboard since user is authenticated
+                // The user can complete their profile later if needed
+                console.log('[Google Login] Firebase auth succeeded but user not in MongoDB. Redirecting to member dashboard.');
+                router.push('/member/overview');
+              }
+            }
+          } else if (response.ok) {
+            // Fetch user data to get role for navigation
+            const userData = await response.json();
+            console.log('[Google Login] User found in MongoDB:', { email: userData.email, role: userData.role });
+            const role = userData.role || 'member';
+            console.log('[Google Login] Navigating to role overview:', getRoleOverviewRoute(role));
+            router.push(getRoleOverviewRoute(role));
+          } else {
+            // Other error - if Firebase auth succeeded, redirect to dashboard anyway
+            console.error('[Google Login] Error fetching user data, status:', response.status);
+            // Since Firebase authentication succeeded, redirect to member dashboard
+            // User can complete profile later if needed
+            console.log('[Google Login] Firebase auth succeeded. Redirecting to member dashboard.');
+            router.push('/member/overview');
+          }
+        } catch (error) {
+          console.error('[Google Login] Error checking user:', error);
+          // Since Firebase authentication succeeded, redirect to member dashboard
+          // User can complete profile later if needed
+          console.log('[Google Login] Firebase auth succeeded. Redirecting to member dashboard.');
+          router.push('/member/overview');
         }
-      } catch (error) {
-        console.error('Error checking user:', error);
-        router.push('/register?complete=true');
+      } else {
+        setError(result.error || 'Failed to sign in with Google');
+        setLoading(false);
       }
-    } else {
-      setError(result.error || 'Failed to sign in with Google');
+    } catch (error) {
+      console.error('[Google Login] Unexpected error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -88,8 +263,11 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+              <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }}>
+                error
+              </span>
+              <span className="flex-1">{error}</span>
             </div>
           )}
 
@@ -188,7 +366,7 @@ export default function LoginPage() {
                 />
               </svg>
               <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
-                Google
+                Sign in with Google
               </span>
             </button>
           </div>
