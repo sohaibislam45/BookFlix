@@ -6,11 +6,20 @@ import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import { showError } from '@/lib/swal';
+import { USER_ROLES } from '@/lib/constants';
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const { user, userData } = useAuth();
+
+  // Determine if user is a general member (member role, not premium, not admin/librarian)
+  const isGeneralMember = user && userData && 
+    userData.role === USER_ROLES.MEMBER &&
+    (!userData.subscription?.type || 
+     userData.subscription.type === 'free' || 
+     userData.subscription.status !== 'active' ||
+     !['monthly', 'yearly'].includes(userData.subscription.type));
 
   const togglePricingModal = () => {
     setPricingModalOpen(!pricingModalOpen);
@@ -271,8 +280,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CTA Section */}
-        {!user && (
+        {/* CTA Section - Show for general members and non-logged-in users */}
+        {(isGeneralMember || !user) && (
           <div className="relative rounded-3xl overflow-hidden mt-12 group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
