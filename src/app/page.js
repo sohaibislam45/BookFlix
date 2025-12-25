@@ -22,9 +22,6 @@ export default function Home() {
             <h1 className="text-white text-2xl font-black tracking-tighter">Bookflix</h1>
           </Link>
           <div className="flex items-center gap-4">
-            <button className="text-primary hover:text-primary-hover transition-colors p-2 rounded-md hover:bg-primary/10">
-              <span className="material-symbols-outlined text-xl">search</span>
-            </button>
             {user ? (
               <Link
                 href="/dashboard"

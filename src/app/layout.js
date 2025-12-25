@@ -9,8 +9,12 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "BookFlix - Online Library Management",
-  description: "An online library management system with role-based dashboards",
+  title: "BookFlix - Your Digital Library Reimagined",
+  description: "Reserve online, pick up in-store, or get it delivered. The modern library experience with 15k+ books, audiobooks, and premium subscriptions.",
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-icon.svg',
+  },
   other: {
     'material-symbols': 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap',
   },
