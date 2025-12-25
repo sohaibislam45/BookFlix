@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { uploadImageToImgBB } from '@/lib/imgbb';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -31,7 +30,7 @@ export default function RegisterPage() {
   const completeRegistration = searchParams.get('complete') === 'true';
 
   // If user is already logged in and completing registration
-  useState(() => {
+  useEffect(() => {
     if (completeRegistration && user) {
       setFormData(prev => ({
         ...prev,
@@ -63,8 +62,20 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const { url } = await uploadImageToImgBB(file);
-      setProfilePhotoUrl(url);
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+      setProfilePhotoUrl(data.url);
     } catch (error) {
       setError('Failed to upload image. Please try again.');
       setProfilePhoto(null);

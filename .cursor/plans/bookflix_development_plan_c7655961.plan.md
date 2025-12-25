@@ -7,7 +7,7 @@ todos:
     status: completed
   - id: phase1-auth
     content: "Phase 1: Implement Firebase authentication, create User model, build login/register pages, setup AuthContext and protected routes"
-    status: pending
+    status: completed
     dependencies:
       - phase0-setup
   - id: phase2-books

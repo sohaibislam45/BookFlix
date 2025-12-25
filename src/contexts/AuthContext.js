@@ -35,7 +35,7 @@ export default function AuthProvider({ children }) {
         setUser(firebaseUser);
         // Fetch user data from MongoDB
         try {
-          const response = await fetch(`/api/users/${firebaseUser.uid}`);
+          const response = await fetch(`/api/users?firebaseUid=${firebaseUser.uid}`);
           if (response.ok) {
             const data = await response.json();
             setUserData(data);
