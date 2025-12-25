@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LOCATION_DATA } from '@/lib/locationData';
 import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
+import { isValidEmail, validatePassword, isValidPhone, validateForm } from '@/lib/validation';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -26,6 +27,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const fileInputRef = useRef(null);
   const { signUp, signInWithGoogle, user } = useAuth();
   const router = useRouter();
@@ -127,9 +129,33 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
     if (!termsAccepted) {
       setError('Please accept the Terms & Conditions and Privacy Policy');
+      return;
+    }
+
+    // Client-side validation
+    const validationRules = {
+      name: { required: true, label: 'Name', minLength: 2 },
+      email: { required: true, label: 'Email', email: true },
+      password: { required: true, label: 'Password', password: true },
+      phone: { required: false, label: 'Phone', custom: (value) => {
+        if (value && !isValidPhone(value)) {
+          return { isValid: false, message: 'Please enter a valid phone number' };
+        }
+        return { isValid: true };
+      }},
+      division: { required: true, label: 'Division' },
+      city: { required: true, label: 'City' },
+      area: { required: true, label: 'Area' },
+    };
+
+    const validation = validateForm(formData, validationRules);
+    if (!validation.isValid) {
+      setFieldErrors(validation.errors);
+      setError('Please fix the errors below');
       return;
     }
 
@@ -142,7 +168,7 @@ export default function RegisterPage() {
         // User already authenticated via Google, just save to MongoDB
         firebaseUser = user;
       } else {
-        // Validate required fields
+        // Additional validation
         if (!formData.email || !formData.email.trim()) {
           setError('Email is required.');
           setLoading(false);

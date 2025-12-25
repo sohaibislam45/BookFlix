@@ -6,6 +6,7 @@ import BookCopy from '@/models/BookCopy';
 import User from '@/models/User';
 import Borrowing from '@/models/Borrowing';
 import { RESERVATION_STATUS, BOOK_STATUS, BORROWING_STATUS, RESERVATION_EXPIRY_DAYS } from '@/lib/constants';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 // GET - List reservations (with filters)
 export async function GET(request) {

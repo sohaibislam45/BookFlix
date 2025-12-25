@@ -6,18 +6,39 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
+import { isValidEmail, validatePassword } from '@/lib/validation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const { signIn, signInWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
+
+    // Client-side validation
+    const errors = {};
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!isValidEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (!password) {
+      errors.password = 'Password is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -264,8 +285,8 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-              <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }}>
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm flex items-start gap-2" role="alert" aria-live="polite">
+              <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '20px' }} aria-hidden="true">
                 error
               </span>
               <span className="flex-1">{error}</span>
@@ -284,24 +305,39 @@ export default function LoginPage() {
                   </span>
                 </div>
                 <input
-                  className="w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                  className={`w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border ${
+                    fieldErrors.email ? 'border-red-500/50' : 'border-white/10'
+                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm`}
                   id="email"
                   type="email"
                   placeholder="user@library.edu"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) {
+                      setFieldErrors(prev => ({ ...prev, email: '' }));
+                    }
+                  }}
                   required
                   disabled={loading}
+                  aria-invalid={!!fieldErrors.email}
+                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                  autoComplete="email"
                 />
               </div>
+              {fieldErrors.email && (
+                <p id="email-error" className="text-red-400 text-xs mt-1 ml-1" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider" htmlFor="password">
-                  Password
+                  Password <span className="text-red-400" aria-label="required">*</span>
                 </label>
-                <Link className="text-xs font-medium text-primary hover:text-primary/80 transition-colors" href="#">
+                <Link className="text-xs font-medium text-primary hover:text-primary/80 transition-colors" href="#" aria-label="Forgot password?">
                   Forgot password?
                 </Link>
               </div>
@@ -312,22 +348,50 @@ export default function LoginPage() {
                   </span>
                 </div>
                 <input
-                  className="w-full h-10 pl-10 pr-4 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                  className={`w-full h-10 pl-10 pr-10 rounded-lg bg-white/5 border ${
+                    fieldErrors.password ? 'border-red-500/50' : 'border-white/10'
+                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm`}
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) {
+                      setFieldErrors(prev => ({ ...prev, password: '' }));
+                    }
+                  }}
                   required
                   disabled={loading}
+                  aria-invalid={!!fieldErrors.password}
+                  aria-describedby={fieldErrors.password ? 'password-error' : undefined}
+                  autoComplete="current-password"
                 />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-white transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={0}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
               </div>
+              {fieldErrors.password && (
+                <p id="password-error" className="text-red-400 text-xs mt-1 ml-1" role="alert">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             <button
               className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(170,31,239,0.4)] hover:shadow-[0_0_20px_rgba(170,31,239,0.6)] transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
               disabled={loading}
+              aria-busy={loading}
+              aria-label={loading ? 'Signing in...' : 'Sign in'}
             >
               {loading ? <Loader /> : 'Sign In'}
             </button>

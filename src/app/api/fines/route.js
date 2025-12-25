@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Fine from '@/models/Fine';
 import { FINE_STATUS } from '@/lib/constants';
 import mongoose from 'mongoose';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 // GET - List fines (with filters)
 export async function GET(request) {
