@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,10 @@ export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const { user, userData } = useAuth();
+  const [isVisible, setIsVisible] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const statsRef = useRef(null);
+  const sectionsRef = useRef([]);
 
   // Determine if user is a general member (member role, not premium, not admin/librarian)
   const isGeneralMember = user && userData && 
@@ -20,6 +24,52 @@ export default function Home() {
      userData.subscription.type === 'free' || 
      userData.subscription.status !== 'active' ||
      !['monthly', 'yearly'].includes(userData.subscription.type));
+
+  // Handle scroll for parallax and visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+      
+      // Check if stats section is visible
+      if (statsRef.current) {
+        const rect = statsRef.current.getBoundingClientRect();
+        const isInView = rect.top < window.innerHeight && rect.bottom > 0;
+        if (isInView && !isVisible) {
+          setIsVisible(true);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check on mount
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isVisible]);
+
+  // Intersection Observer for section animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-fade-in-up');
+            entry.target.style.opacity = '1';
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    sectionsRef.current.forEach((section) => {
+      if (section) observer.observe(section);
+    });
+
+    return () => {
+      sectionsRef.current.forEach((section) => {
+        if (section) observer.unobserve(section);
+      });
+    };
+  }, []);
 
   const togglePricingModal = () => {
     setPricingModalOpen(!pricingModalOpen);
@@ -81,9 +131,9 @@ export default function Home() {
   return (
     <div className="relative min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden">
       {/* Header */}
-      <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 to-transparent">
+      <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 to-transparent animate-slide-down">
         <div className="max-w-[1400px] mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer">
+          <Link href="/" className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
             <span className="material-symbols-outlined text-3xl text-primary">auto_stories</span>
             <h1 className="text-white text-2xl font-black tracking-tighter">Bookflix</h1>
           </Link>
@@ -99,7 +149,7 @@ export default function Home() {
                   Sign In
                 </Link>
                 <button
-                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)]"
+                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)] hover:scale-105 active:scale-95"
                   onClick={togglePricingModal}
                 >
                   Join Now
@@ -118,23 +168,24 @@ export default function Home() {
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCyDl6Ydl0fjXvdPpWK70bp9YmcxzROe9R8B6O9TQ2RHas7rIWvoNAiylNrZwXf5bUdZGXamxLoHuaQ6W8Bghg0P3g8gRItLPO2U5PyBQKtQJCliTZOoeKK07Lak-RZlAWwVY-ldaPqTLQjxA7ME5uUi7BYhpK77Lc8Q9VyHVgpud7xSs_yJJZXvzl0mYJGkHIfbClEDgxpjOWWJkeSUcva2YiDmLH7plqW280-oEaVwdPcclydgX074xXCDbGwVreuqDKEIqc1kY"
             alt="Library bookshelf background"
             fill
-            className="object-cover opacity-20 blur-sm scale-110"
+            className="object-cover opacity-20 blur-sm scale-110 transition-transform duration-1000"
+            style={{ transform: `translateY(${scrollY * 0.3}px) scale(1.1)` }}
             priority
             quality={75}
           />
         </div>
         <div className="relative z-20 w-full max-w-4xl px-4 flex flex-col items-center text-center mt-10">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 drop-shadow-xl">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 drop-shadow-xl animate-fade-in-up animation-delay-200">
             Your Library,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#aa1fef] to-[#c084fc]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#aa1fef] to-[#c084fc] animate-gradient-shift">
               Reimagined.
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl font-light">
+          <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl font-light animate-fade-in-up animation-delay-400">
             Reserve online, pick up in-store, or get it delivered directly to your doorstep.
           </p>
-          <div className="w-full max-w-2xl group">
-            <label className="glass-panel flex items-center w-full h-16 rounded-full px-2 transition-all group-focus-within:bg-black/80 group-focus-within:border-primary/50">
+          <div className="w-full max-w-2xl group animate-fade-in-up animation-delay-600">
+            <label className="glass-panel flex items-center w-full h-16 rounded-full px-2 transition-all group-focus-within:bg-black/80 group-focus-within:border-primary/50 group-focus-within:scale-105 duration-300">
               <div className="pl-4 pr-2 text-primary transition-colors">
                 <span className="material-symbols-outlined text-2xl">search</span>
               </div>
@@ -143,7 +194,7 @@ export default function Home() {
                 placeholder="Search by Title, Author, or ISBN..."
                 type="text"
               />
-              <button className="hidden sm:flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white rounded-full h-12 px-6 font-semibold ml-2 transition-all shadow-lg shadow-primary/30">
+              <button className="hidden sm:flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white rounded-full h-12 px-6 font-semibold ml-2 transition-all shadow-lg shadow-primary/30 hover:scale-105 active:scale-95">
                 <span className="material-symbols-outlined text-lg text-white">search</span>
                 Search
               </button>
@@ -155,31 +206,35 @@ export default function Home() {
       {/* Main Content */}
       <main className="relative z-20 -mt-32 pb-20 space-y-12 px-6 md:px-12 max-w-[1600px] mx-auto w-full">
         {/* Stats */}
-        <div className="glass-panel w-full rounded-2xl p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8">
+        <div 
+          ref={statsRef}
+          className="glass-panel w-full rounded-2xl p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0 transition-opacity duration-1000"
+          style={{ opacity: isVisible ? 1 : 0 }}
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10">
-            <div className="flex flex-col items-center justify-center text-center p-2">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">15k+</span>
+            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-100">
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '15k+' : '0'}</span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">auto_stories</span>
                 Books
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">1.2k</span>
+            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-200">
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '1.2k' : '0'}</span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">headphones</span>
                 Audiobooks
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">50+</span>
+            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-300">
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '50+' : '0'}</span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">domain</span>
                 Libraries
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">24/7</span>
+            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-400">
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '24/7' : '0'}</span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">public</span>
                 Access
@@ -189,11 +244,14 @@ export default function Home() {
         </div>
 
         {/* Top Rated Section */}
-        <div className="flex flex-col gap-4">
+        <div 
+          ref={(el) => (sectionsRef.current[0] = el)}
+          className="flex flex-col gap-4 opacity-0"
+        >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Top Rated This Week</h2>
             <Link
-              className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1"
+              className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
               href="#"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -209,17 +267,21 @@ export default function Home() {
                 { title: 'Circe', author: 'Madeline Miller', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCcQ14wur7aXNUHMha0ihywimkm5eFnIFULpbXmpGjMRsBgObWnGgh-lCpSqfuh0aGmQ2kh95B1Zlstsj3WnQvnHwfI2Fs67_BQQMj5praIoTLGHQK9zhVIfPH38K18mo6ztzr6JbTS67UxQIEgEtpjwqh4iX8taRFEOktG8MwQy3ZPb85Myfr84I-EysYuvpCO2XDKhmOLCrjO0_qIiembo6zBHylSLvOzBbAuGClPKRBt_hL7dKG5sw5GcQCyNS_hPGe3OoE2fk0' },
                 { title: 'Dune', author: 'Frank Herbert', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWIVE_ktKG2xlUtm-Wy0J-C8iqaEYLd24D3PkutxrKZAK8zOdL9-tI0cklpaKL4nPZnkkqVXcLxOrXgsBRWpf92HO30ZcjXb8QjoTZ-whDUbxq-q--nsTosQ5CBkL_KvxLgAmrv5WyHjz5XZP1mDfbwMMshpVmrguPCAYc0RlyDqPxqnBmR1lI-Rz1jhixls6SX_cHZijkfRJVquW6QkMfr2tBpSeEoGK83EWOWjsIAq4UfInCr-6iH9taovNZT35bhB_hqiE_fHA' },
               ].map((book, index) => (
-                <div key={index} className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer">
-                  <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50">
+                <div 
+                  key={index} 
+                  className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
+                  style={{ animationDelay: `${700 + index * 100}ms` }}
+                >
+                  <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                     <Image
                       src={book.image}
                       alt={`${book.title} by ${book.author}`}
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
                       sizes="(max-width: 768px) 160px, 200px"
                     />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full transform hover:scale-105">
                         Details
                       </button>
                     </div>
@@ -235,11 +297,14 @@ export default function Home() {
         </div>
 
         {/* Fresh New Arrivals Section */}
-        <div className="flex flex-col gap-4">
+        <div 
+          ref={(el) => (sectionsRef.current[1] = el)}
+          className="flex flex-col gap-4 opacity-0"
+        >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Fresh New Arrivals</h2>
             <Link
-              className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1"
+              className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
               href="#"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -255,17 +320,21 @@ export default function Home() {
                 { title: 'The Song of Achilles', author: 'Madeline Miller', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCcQ14wur7aXNUHMha0ihywimkm5eFnIFULpbXmpGjMRsBgObWnGgh-lCpSqfuh0aGmQ2kh95B1Zlstsj3WnQvnHwfI2Fs67_BQQMj5praIoTLGHQK9zhVIfPH38K18mo6ztzr6JbTS67UxQIEgEtpjwqh4iX8taRFEOktG8MwQy3ZPb85Myfr84I-EysYuvpCO2XDKhmOLCrjO0_qIiembo6zBHylSLvOzBbAuGClPKRBt_hL7dKG5sw5GcQCyNS_hPGe3OoE2fk0' },
                 { title: 'A Court of Thorns and Roses', author: 'Sarah J. Maas', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWIVE_ktKG2xlUtm-Wy0J-C8iqaEYLd24D3PkutxrKZAK8zOdL9-tI0cklpaKL4nPZnkkqVXcLxOrXgsBRWpf92HO30ZcjXb8QjoTZ-whDUbxq-q--nsTosQ5CBkL_KvxLgAmrv5WyHjz5XZP1mDfbwMMshpVmrguPCAYc0RlyDqPxqnBmR1lI-Rz1jhixls6SX_cHZijkfRJVquW6QkMfr2tBpSeEoGK83EWOWjsIAq4UfInCr-6iH9taovNZT35bhB_hqiE_fHA' },
               ].map((book, index) => (
-                <div key={index} className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer">
-                  <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50">
+                <div 
+                  key={index} 
+                  className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
+                  style={{ animationDelay: `${800 + index * 100}ms` }}
+                >
+                  <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                     <Image
                       src={book.image}
                       alt={`${book.title} by ${book.author}`}
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
                       sizes="(max-width: 768px) 160px, 200px"
                     />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full transform hover:scale-105">
                         Details
                       </button>
                     </div>
@@ -282,10 +351,13 @@ export default function Home() {
 
         {/* CTA Section - Show for general members and non-logged-in users */}
         {(isGeneralMember || !user) && (
-          <div className="relative rounded-3xl overflow-hidden mt-12 group">
+          <div 
+            ref={(el) => (sectionsRef.current[2] = el)}
+            className="relative rounded-3xl overflow-hidden mt-12 group opacity-0"
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl">
+            <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl transform transition-all duration-500 hover:scale-[1.02]">
               <div className="max-w-2xl space-y-4">
                 <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
                   Ready to Reimagine Your Reading?
@@ -294,18 +366,18 @@ export default function Home() {
                   Join Bookflix today and get instant access to our curated collection. No late fees on the premium plan.
                 </p>
                 <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-gray-400 pt-2">
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 animate-pulse-slow">
                     <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
                     Cancel anytime
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 animate-pulse-slow" style={{ animationDelay: '0.5s' }}>
                     <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
                     Free 7-day trial
                   </span>
                 </div>
               </div>
               <button
-                className="shrink-0 bg-white text-black hover:bg-gray-100 px-10 py-5 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 flex items-center gap-2"
+                className="shrink-0 bg-white text-black hover:bg-gray-100 px-10 py-5 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 flex items-center gap-2 animate-bounce-subtle"
                 onClick={togglePricingModal}
               >
                 Get Started Now <span className="material-symbols-outlined">arrow_forward</span>
