@@ -33,6 +33,13 @@ export default function MemberSidebar() {
           <h1 className="text-white text-xl font-bold tracking-tight">Bookflix</h1>
         </div>
         <nav className="flex flex-col gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-surface-hover text-text-secondary hover:text-white"
+          >
+            <span className="material-symbols-outlined">home</span>
+            <p className="text-sm font-medium">Home</p>
+          </Link>
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (

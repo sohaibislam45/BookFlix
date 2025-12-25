@@ -39,6 +39,13 @@ export default function AdminSidebar() {
         <div className="px-4 py-2">
           <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Main Menu</p>
         </div>
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-white/60 hover:bg-white/5 hover:text-white"
+        >
+          <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">home</span>
+          <span className="text-sm font-medium">Home</span>
+        </Link>
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (

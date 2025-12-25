@@ -198,11 +198,7 @@ export default function Home() {
                       sizes="(max-width: 768px) 160px, 200px"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                      <button className="bg-white text-black font-bold py-2 px-4 rounded-sm text-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-1 mb-2">
-                        <span className="material-symbols-outlined text-sm fill-1">play_arrow</span>
-                        Preview
-                      </button>
-                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors">
+                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full">
                         Details
                       </button>
                     </div>
@@ -248,11 +244,7 @@ export default function Home() {
                       sizes="(max-width: 768px) 160px, 200px"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                      <button className="bg-white text-black font-bold py-2 px-4 rounded-sm text-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-1 mb-2">
-                        <span className="material-symbols-outlined text-sm fill-1">play_arrow</span>
-                        Preview
-                      </button>
-                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors">
+                      <button className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm hover:bg-primary/40 transition-colors w-full">
                         Details
                       </button>
                     </div>

@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
   const router = useRouter();
 

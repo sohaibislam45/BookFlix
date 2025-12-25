@@ -2,7 +2,6 @@ import Swal from 'sweetalert2';
 
 // Theme configuration matching BookFlix dark theme
 const themeConfig = {
-  colorScheme: 'dark',
   background: '#1c1c1c', // surface-dark
   backdrop: 'rgba(0, 0, 0, 0.8)',
   text: '#ffffff',
@@ -30,7 +29,6 @@ const customTheme = {
 
 // Configure Swal with theme
 const swalTheme = Swal.mixin({
-  colorScheme: 'dark',
   background: themeConfig.background,
   color: themeConfig.text,
   backdrop: `
