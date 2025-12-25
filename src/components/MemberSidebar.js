@@ -18,6 +18,7 @@ export default function MemberSidebar() {
     { href: '/member/shelf', label: 'My Shelf', icon: 'shelves' },
     { href: '/member/reservations', label: 'Reservations', icon: 'event_seat' },
     { href: '/member/billing', label: 'Billing & Profile', icon: 'receipt_long' },
+    { href: '/member/settings', label: 'Settings', icon: 'settings' },
   ];
 
   const subscriptionType = userData?.subscription?.type || 'free';

@@ -136,3 +136,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #aa1fef;
 }
+
+/* Toggle checkbox styles */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #aa1fef;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #aa1fef;
+}
