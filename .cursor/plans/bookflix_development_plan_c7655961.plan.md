@@ -32,7 +32,7 @@ todos:
       - phase4-reservations
   - id: phase6-premium
     content: "Phase 6: Create Subscription model, integrate Stripe subscriptions, build premium upgrade flow, enforce premium features"
-    status: pending
+    status: completed
     dependencies:
       - phase5-fines-payments
   - id: phase7-notifications

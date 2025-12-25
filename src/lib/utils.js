@@ -108,3 +108,48 @@ export function getRoleOverviewRoute(role) {
   }
 }
 
+/**
+ * Check if user has premium subscription
+ * @param {Object} user - User object with subscription property
+ * @returns {boolean} True if user has active premium subscription
+ */
+export function isPremium(user) {
+  if (!user || !user.subscription) {
+    return false;
+  }
+
+  const subscription = user.subscription;
+  const subscriptionType = subscription.type;
+  const subscriptionStatus = subscription.status;
+
+  // Check if subscription is premium type and active
+  if ((subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active') {
+    // Check if subscription hasn't expired
+    if (subscription.endDate) {
+      const endDate = new Date(subscription.endDate);
+      const now = new Date();
+      return now <= endDate;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get subscription type display name
+ * @param {string} subscriptionType - Subscription type (free, monthly, yearly)
+ * @returns {string} Display name for subscription type
+ */
+export function getSubscriptionDisplayName(subscriptionType) {
+  switch (subscriptionType) {
+    case 'monthly':
+      return 'Monthly Premium';
+    case 'yearly':
+      return 'Yearly Premium';
+    case 'free':
+    default:
+      return 'Free';
+  }
+}
+

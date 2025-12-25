@@ -3,19 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
 
 export default function BillingPage() {
   const { userData } = useAuth();
   const [fines, setFines] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(null);
+  const [processingSubscription, setProcessingSubscription] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     if (userData?._id) {
       fetchFines();
       fetchPayments();
+      fetchSubscription();
 
       // Check for payment success/cancel in URL params
       const params = new URLSearchParams(window.location.search);
@@ -25,6 +30,17 @@ export default function BillingPage() {
           fetchFines();
           fetchPayments();
         }, 1000);
+      }
+      if (params.get('subscription_success') === 'true') {
+        setSuccessMessage('Subscription activated successfully!');
+        fetchSubscription();
+        // Clear URL params
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      if (params.get('subscription_cancelled') === 'true') {
+        setError('Subscription checkout was cancelled.');
+        // Clear URL params
+        window.history.replaceState({}, '', window.location.pathname);
       }
     }
   }, [userData]);
@@ -52,6 +68,121 @@ export default function BillingPage() {
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
+    }
+  };
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await fetch(`/api/subscriptions?userId=${userData._id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data.subscription);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    }
+  };
+
+  const handleUpgradeSubscription = async (plan) => {
+    try {
+      setProcessingSubscription(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const response = await fetch('/api/subscriptions/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+          plan: plan,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+
+      const data = await response.json();
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error creating subscription checkout:', err);
+      setProcessingSubscription(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? It will remain active until the end of the current billing period.')) {
+      return;
+    }
+
+    try {
+      setProcessingSubscription(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const response = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to cancel subscription');
+      }
+
+      setSuccessMessage('Subscription will be cancelled at the end of the current period.');
+      fetchSubscription();
+      setProcessingSubscription(false);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error canceling subscription:', err);
+      setProcessingSubscription(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    try {
+      setProcessingSubscription(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const response = await fetch('/api/subscriptions/reactivate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reactivate subscription');
+      }
+
+      setSuccessMessage('Subscription reactivated successfully!');
+      fetchSubscription();
+      setProcessingSubscription(false);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error reactivating subscription:', err);
+      setProcessingSubscription(false);
     }
   };
 
@@ -131,6 +262,133 @@ export default function BillingPage() {
             <p className="text-alert-red text-sm">{error}</p>
           </div>
         )}
+
+        {successMessage && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+            <p className="text-emerald-400 text-sm">{successMessage}</p>
+          </div>
+        )}
+
+        {/* Subscription Management Section */}
+        <section className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">workspace_premium</span>
+              Subscription
+            </h3>
+          </div>
+
+          <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
+            {subscription && isPremium({ subscription }) ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Current Plan</p>
+                    <p className="text-2xl font-bold text-white">{getSubscriptionDisplayName(subscription.type)}</p>
+                    {subscription.subscription && (
+                      <p className="text-text-secondary text-sm mt-2">
+                        Renews on {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg">
+                    Active
+                  </div>
+                </div>
+
+                {subscription.subscription?.cancelAtPeriodEnd ? (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                    <p className="text-orange-400 text-sm mb-3">
+                      Your subscription will be cancelled at the end of the current period.
+                    </p>
+                    <button
+                      onClick={handleReactivateSubscription}
+                      disabled={processingSubscription}
+                      className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
+                    >
+                      {processingSubscription ? 'Processing...' : 'Reactivate Subscription'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={processingSubscription}
+                    className="bg-alert-red/10 hover:bg-alert-red/20 border border-alert-red/30 text-alert-red text-sm font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingSubscription ? 'Processing...' : 'Cancel Subscription'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Current Plan</p>
+                  <p className="text-2xl font-bold text-white">Free</p>
+                  <p className="text-text-secondary text-sm mt-2">
+                    Upgrade to Premium for enhanced borrowing privileges
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => handleUpgradeSubscription('monthly')}
+                    disabled={processingSubscription}
+                    className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {processingSubscription ? (
+                      <>
+                        <span className="material-symbols-outlined text-base animate-spin">refresh</span>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-base">workspace_premium</span>
+                        Upgrade to Monthly Premium
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleUpgradeSubscription('yearly')}
+                    disabled={processingSubscription}
+                    className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {processingSubscription ? (
+                      <>
+                        <span className="material-symbols-outlined text-base animate-spin">refresh</span>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-base">workspace_premium</span>
+                        Upgrade to Yearly Premium
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                  <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-2">Premium Benefits</p>
+                  <ul className="text-text-secondary text-sm space-y-1">
+                    <li className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                      Borrow up to 4 books at a time (vs 1 for free)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                      20-day borrowing period (vs 7 days for free)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                      Priority access to new releases
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Outstanding Fines Section */}
         <section className="flex flex-col gap-5">

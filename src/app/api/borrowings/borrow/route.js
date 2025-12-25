@@ -9,8 +9,9 @@ import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS } from '@/lib/constants'
 /**
  * Get user's borrowing rules based on subscription
  */
-function getUserBorrowingRules(subscriptionType) {
-  if (subscriptionType === 'monthly' || subscriptionType === 'yearly') {
+function getUserBorrowingRules(subscriptionType, subscriptionStatus) {
+  // Check if subscription is active premium
+  if ((subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active') {
     return BORROWING_RULES.PREMIUM;
   }
   return BORROWING_RULES.GENERAL;
@@ -19,8 +20,8 @@ function getUserBorrowingRules(subscriptionType) {
 /**
  * Check if user can borrow more books
  */
-async function canBorrow(userId, subscriptionType) {
-  const rules = getUserBorrowingRules(subscriptionType);
+async function canBorrow(userId, subscriptionType, subscriptionStatus) {
+  const rules = getUserBorrowingRules(subscriptionType, subscriptionStatus);
   const activeBorrowings = await Borrowing.countDocuments({
     member: userId,
     status: BORROWING_STATUS.ACTIVE,
@@ -31,8 +32,8 @@ async function canBorrow(userId, subscriptionType) {
 /**
  * Calculate due date based on subscription
  */
-function calculateDueDate(subscriptionType) {
-  const rules = getUserBorrowingRules(subscriptionType);
+function calculateDueDate(subscriptionType, subscriptionStatus) {
+  const rules = getUserBorrowingRules(subscriptionType, subscriptionStatus);
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + rules.MAX_DAYS);
   return dueDate;
@@ -64,8 +65,9 @@ export async function POST(request) {
 
     // Check if user can borrow more books
     const subscriptionType = member.subscription?.type || 'free';
-    if (!(await canBorrow(memberId, subscriptionType))) {
-      const rules = getUserBorrowingRules(subscriptionType);
+    const subscriptionStatus = member.subscription?.status || 'active';
+    if (!(await canBorrow(memberId, subscriptionType, subscriptionStatus))) {
+      const rules = getUserBorrowingRules(subscriptionType, subscriptionStatus);
       return NextResponse.json(
         {
           error: `Borrowing limit reached. You can borrow up to ${rules.MAX_BOOKS} book(s) at a time.`,
@@ -104,7 +106,7 @@ export async function POST(request) {
     }
 
     // Calculate due date
-    const dueDate = calculateDueDate(subscriptionType);
+    const dueDate = calculateDueDate(subscriptionType, subscriptionStatus);
 
     // Create borrowing
     const borrowing = new Borrowing({

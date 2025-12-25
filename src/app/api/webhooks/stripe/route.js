@@ -3,7 +3,10 @@ import { stripe } from '@/lib/stripe';
 import connectDB from '@/lib/db';
 import Payment from '@/models/Payment';
 import Fine from '@/models/Fine';
+import User from '@/models/User';
+import Subscription from '@/models/Subscription';
 import { PAYMENT_STATUS, FINE_STATUS } from '@/lib/constants';
+import mongoose from 'mongoose';
 
 // Configure runtime for Node.js (required for raw body access)
 export const runtime = 'nodejs';
@@ -137,30 +140,124 @@ async function handleCheckoutSessionCompleted(session) {
     return;
   }
   
-  // TODO: Handle subscription checkout sessions here (Phase 6)
-  // const userId = metadata?.userId;
-  // if (userId) {
-  //   await updateUserSubscription(userId, session.subscription);
-  // }
+  // Handle subscription checkout sessions
+  const userId = metadata?.userId;
+  const plan = metadata?.plan;
+  
+  if (userId && plan && session.subscription) {
+    try {
+      await handleSubscriptionCheckoutCompleted(userId, session.subscription, plan);
+    } catch (error) {
+      console.error('Error handling subscription checkout session completed:', error);
+      throw error;
+    }
+  }
 }
 
 async function handleSubscriptionUpdate(subscription) {
   console.log('Subscription updated:', subscription.id);
   
-  // TODO: Update user subscription in database
-  // Example:
-  // const customerId = subscription.customer;
-  // const status = subscription.status;
-  // await updateUserSubscriptionStatus(customerId, status);
+  try {
+    const customerId = subscription.customer;
+    const status = subscription.status;
+    const plan = subscription.items?.data[0]?.price?.recurring?.interval || 'monthly';
+    
+    // Find user by Stripe customer ID
+    const user = await User.findOne({ 'subscription.stripeCustomerId': customerId });
+    
+    if (!user) {
+      console.error(`User not found for customer ID: ${customerId}`);
+      return;
+    }
+
+    // Update or create subscription record
+    let subscriptionRecord = await Subscription.findOne({ 
+      stripeSubscriptionId: subscription.id 
+    });
+
+    if (!subscriptionRecord) {
+      subscriptionRecord = new Subscription({
+        user: user._id,
+        stripeSubscriptionId: subscription.id,
+        stripeCustomerId: customerId,
+        plan: plan === 'year' ? 'yearly' : 'monthly',
+        status: status,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+        canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+        trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
+        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+      });
+    } else {
+      subscriptionRecord.status = status;
+      subscriptionRecord.currentPeriodStart = new Date(subscription.current_period_start * 1000);
+      subscriptionRecord.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      subscriptionRecord.cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
+      subscriptionRecord.canceledAt = subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null;
+    }
+
+    await subscriptionRecord.save();
+
+    // Update user subscription
+    if (!user.subscription) {
+      user.subscription = {};
+    }
+    
+    user.subscription.type = plan === 'year' ? 'yearly' : 'monthly';
+    user.subscription.status = (status === 'active' || status === 'trialing') ? 'active' : 'cancelled';
+    user.subscription.startDate = subscriptionRecord.currentPeriodStart;
+    user.subscription.endDate = subscriptionRecord.currentPeriodEnd;
+    user.subscription.stripeSubscriptionId = subscription.id;
+    user.subscription.stripeCustomerId = customerId;
+    
+    await user.save();
+
+    console.log(`Subscription updated: User ${user._id}, Status: ${status}`);
+  } catch (error) {
+    console.error('Error handling subscription update:', error);
+    throw error;
+  }
 }
 
 async function handleSubscriptionDeleted(subscription) {
   console.log('Subscription deleted:', subscription.id);
   
-  // TODO: Remove premium status from user
-  // Example:
-  // const customerId = subscription.customer;
-  // await removeUserPremiumStatus(customerId);
+  try {
+    const customerId = subscription.customer;
+    
+    // Find user by Stripe customer ID
+    const user = await User.findOne({ 'subscription.stripeCustomerId': customerId });
+    
+    if (!user) {
+      console.error(`User not found for customer ID: ${customerId}`);
+      return;
+    }
+
+    // Update subscription record
+    const subscriptionRecord = await Subscription.findOne({ 
+      stripeSubscriptionId: subscription.id 
+    });
+
+    if (subscriptionRecord) {
+      subscriptionRecord.status = 'canceled';
+      subscriptionRecord.canceledAt = new Date();
+      await subscriptionRecord.save();
+    }
+
+    // Update user subscription to free
+    if (user.subscription) {
+      user.subscription.type = 'free';
+      user.subscription.status = 'expired';
+      user.subscription.endDate = new Date();
+      await user.save();
+    }
+
+    console.log(`Subscription deleted: User ${user._id}`);
+  } catch (error) {
+    console.error('Error handling subscription deleted:', error);
+    throw error;
+  }
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent) {
@@ -240,18 +337,115 @@ async function handlePaymentIntentFailed(paymentIntent) {
 async function handleInvoicePaymentSucceeded(invoice) {
   console.log('Invoice payment succeeded:', invoice.id);
   
-  // TODO: Handle successful invoice payment (e.g., renew subscription)
-  // Example:
-  // const subscriptionId = invoice.subscription;
-  // await renewUserSubscription(subscriptionId);
+  try {
+    const subscriptionId = invoice.subscription;
+    
+    if (!subscriptionId) {
+      console.log('No subscription ID in invoice, skipping');
+      return;
+    }
+
+    // Get subscription from Stripe to update our records
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await handleSubscriptionUpdate(stripeSubscription);
+
+    console.log(`Subscription renewed: ${subscriptionId}`);
+  } catch (error) {
+    console.error('Error handling invoice payment succeeded:', error);
+    throw error;
+  }
 }
 
 async function handleInvoicePaymentFailed(invoice) {
   console.log('Invoice payment failed:', invoice.id);
   
-  // TODO: Handle failed invoice payment
-  // Example:
-  // const subscriptionId = invoice.subscription;
-  // await handleSubscriptionPaymentFailure(subscriptionId);
+  try {
+    const subscriptionId = invoice.subscription;
+    
+    if (!subscriptionId) {
+      console.log('No subscription ID in invoice, skipping');
+      return;
+    }
+
+    // Get subscription from Stripe to update status
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await handleSubscriptionUpdate(stripeSubscription);
+
+    console.log(`Subscription payment failed: ${subscriptionId}`);
+  } catch (error) {
+    console.error('Error handling invoice payment failed:', error);
+    throw error;
+  }
+}
+
+// Handle subscription checkout session completed
+async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan) {
+  console.log('Subscription checkout completed:', subscriptionId);
+  
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID: ${userId}`);
+      return;
+    }
+
+    // Get subscription from Stripe
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error(`User not found: ${userId}`);
+      return;
+    }
+
+    // Create or update subscription record
+    let subscriptionRecord = await Subscription.findOne({ 
+      stripeSubscriptionId: subscriptionId 
+    });
+
+    const customerId = stripeSubscription.customer;
+    const status = stripeSubscription.status;
+
+    if (!subscriptionRecord) {
+      subscriptionRecord = new Subscription({
+        user: user._id,
+        stripeSubscriptionId: subscriptionId,
+        stripeCustomerId: customerId,
+        plan: plan === 'yearly' ? 'yearly' : 'monthly',
+        status: status,
+        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end || false,
+        trialStart: stripeSubscription.trial_start ? new Date(stripeSubscription.trial_start * 1000) : null,
+        trialEnd: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
+      });
+    } else {
+      subscriptionRecord.status = status;
+      subscriptionRecord.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
+      subscriptionRecord.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+      subscriptionRecord.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
+    }
+
+    await subscriptionRecord.save();
+
+    // Update user subscription
+    if (!user.subscription) {
+      user.subscription = {};
+    }
+    
+    user.subscription.type = plan;
+    user.subscription.status = (status === 'active' || status === 'trialing') ? 'active' : 'cancelled';
+    user.subscription.startDate = subscriptionRecord.currentPeriodStart;
+    user.subscription.endDate = subscriptionRecord.currentPeriodEnd;
+    user.subscription.stripeSubscriptionId = subscriptionId;
+    user.subscription.stripeCustomerId = customerId;
+    
+    await user.save();
+
+    console.log(`Subscription activated: User ${user._id}, Plan: ${plan}, Status: ${status}`);
+  } catch (error) {
+    console.error('Error handling subscription checkout completed:', error);
+    throw error;
+  }
 }
 

@@ -7,10 +7,52 @@ import UserProfile from '@/components/UserProfile';
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
-  const { user } = useAuth();
+  const [processingSubscription, setProcessingSubscription] = useState(false);
+  const { user, userData } = useAuth();
 
   const togglePricingModal = () => {
     setPricingModalOpen(!pricingModalOpen);
+  };
+
+  const handleUpgradeSubscription = async (plan) => {
+    if (!user || !userData) {
+      // Redirect to login if not logged in
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      setProcessingSubscription(true);
+
+      const response = await fetch('/api/subscriptions/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+          plan: plan,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+
+      const data = await response.json();
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err) {
+      console.error('Error creating subscription checkout:', err);
+      alert(err.message || 'Failed to start subscription. Please try again.');
+      setProcessingSubscription(false);
+    }
   };
 
   return (
@@ -390,12 +432,13 @@ export default function Home() {
                           Push & SMS notifications
                         </li>
                       </ul>
-                      <Link
-                        href="/register"
-                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-hover transition-colors shadow-lg shadow-primary/25 text-center"
+                      <button
+                        onClick={() => handleUpgradeSubscription('monthly')}
+                        disabled={processingSubscription}
+                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-primary/25"
                       >
-                        Get Monthly
-                      </Link>
+                        {processingSubscription ? 'Processing...' : user ? 'Get Monthly' : 'Sign Up for Monthly'}
+                      </button>
                     </div>
 
                     {/* Yearly Premium */}
@@ -430,12 +473,13 @@ export default function Home() {
                           Push, SMS & priority support
                         </li>
                       </ul>
-                      <Link
-                        href="/register"
-                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 transition-colors text-center"
+                      <button
+                        onClick={() => handleUpgradeSubscription('yearly')}
+                        disabled={processingSubscription}
+                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Get Yearly
-                      </Link>
+                        {processingSubscription ? 'Processing...' : user ? 'Get Yearly' : 'Sign Up for Yearly'}
+                      </button>
                     </div>
                   </div>
                 </div>

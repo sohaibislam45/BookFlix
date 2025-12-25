@@ -30,6 +30,10 @@ export const RESERVATION_EXPIRY_DAYS = 3; // Days to pick up reserved book
 // Subscription
 export const SUBSCRIPTION_PRICE = 9.99; // Monthly subscription price in USD
 export const SUBSCRIPTION_CURRENCY = 'usd';
+export const SUBSCRIPTION_PLANS = {
+  MONTHLY: 'monthly',
+  YEARLY: 'yearly',
+};
 
 // Book status
 export const BOOK_STATUS = {
