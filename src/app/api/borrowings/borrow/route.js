@@ -6,6 +6,7 @@ import Book from '@/models/Book';
 import User from '@/models/User';
 import { BORROWING_RULES, BORROWING_STATUS, BOOK_STATUS, NOTIFICATION_TYPES } from '@/lib/constants';
 import { notifyUser } from '@/lib/notifications';
+import { handleApiError } from '@/lib/apiErrorHandler';
 
 /**
  * Get user's borrowing rules based on subscription
@@ -151,11 +152,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating borrowing:', error);
-    return NextResponse.json(
-      { error: 'Failed to create borrowing', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create borrowing');
   }
 }
 

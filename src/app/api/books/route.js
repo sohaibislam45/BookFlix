@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import BookCopy from '@/models/BookCopy';
 import Category from '@/models/Category';
+import { handleApiError, validateRequiredFields } from '@/lib/apiErrorHandler';
 
 export async function GET(request) {
   try {
@@ -82,11 +83,7 @@ export async function GET(request) {
       },
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching books:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch books', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch books');
   }
 }
 
@@ -110,11 +107,10 @@ export async function POST(request) {
       copies = 1, // Number of copies to create
     } = body;
 
-    if (!title || !author || !coverImage || !category) {
-      return NextResponse.json(
-        { error: 'Missing required fields: title, author, coverImage, category' },
-        { status: 400 }
-      );
+    // Validate required fields
+    const validation = validateRequiredFields(body, ['title', 'author', 'coverImage', 'category']);
+    if (validation) {
+      return validation;
     }
 
     // Verify category exists
@@ -179,11 +175,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating book:', error);
-    return NextResponse.json(
-      { error: 'Failed to create book', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'create book');
   }
 }
 

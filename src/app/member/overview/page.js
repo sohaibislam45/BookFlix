@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
+import { CardSkeleton } from '@/components/LoadingSkeleton';
+import { showError } from '@/lib/swal';
+import EmptyState from '@/components/EmptyState';
 
 export default function MemberOverviewPage() {
   const { userData } = useAuth();
@@ -29,12 +32,17 @@ export default function MemberOverviewPage() {
     try {
       setLoading(true);
       const response = await fetch(`/api/member/stats?memberId=${userData._id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch statistics');
       }
+      
+      const data = await response.json();
+      setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      showError('Error Loading Stats', error.message || 'Failed to load your statistics. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -147,22 +155,17 @@ export default function MemberOverviewPage() {
             </Link>
           </div>
           {loading ? (
-            <div className="text-center py-12 text-text-secondary">
-              <div className="flex justify-center mb-3">
-                <Loader />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              <CardSkeleton count={4} />
             </div>
           ) : stats.activeBorrowings.length === 0 && stats.overdueBorrowings.length === 0 ? (
-            <div className="text-center py-12 text-text-secondary">
-              <span className="material-symbols-outlined text-5xl mb-3 opacity-50">auto_stories</span>
-              <p className="text-lg">No books currently borrowed</p>
-              <Link
-                href="/member/browse"
-                className="inline-block mt-4 text-primary hover:text-white transition-colors font-medium"
-              >
-                Browse our collection →
-              </Link>
-            </div>
+            <EmptyState
+              icon="auto_stories"
+              title="No books currently borrowed"
+              description="Start exploring our collection and borrow your first book!"
+              actionLabel="Browse Collection"
+              actionHref="/member/browse"
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {stats.overdueBorrowings.map((borrowing) => (

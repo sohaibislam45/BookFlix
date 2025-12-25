@@ -4,6 +4,7 @@ import Borrowing from '@/models/Borrowing';
 import Fine from '@/models/Fine';
 import { BORROWING_STATUS, FINE_STATUS } from '@/lib/constants';
 import mongoose from 'mongoose';
+import { handleApiError, validateObjectId } from '@/lib/apiErrorHandler';
 
 export async function GET(request) {
   try {
@@ -12,11 +13,10 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
 
-    if (!memberId || !mongoose.Types.ObjectId.isValid(memberId)) {
-      return NextResponse.json(
-        { error: 'Valid memberId is required' },
-        { status: 400 }
-      );
+    // Validate memberId
+    const idValidation = validateObjectId(memberId, 'Member ID');
+    if (idValidation) {
+      return idValidation;
     }
 
     // Get active borrowings
@@ -100,11 +100,7 @@ export async function GET(request) {
       overdueBorrowings: overdueWithDays,
     }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching member stats:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch member stats', details: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'fetch member statistics');
   }
 }
 
