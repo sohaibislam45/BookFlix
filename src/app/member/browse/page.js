@@ -2,15 +2,18 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
 function BrowseContent() {
+  const { userData } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [borrowing, setBorrowing] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
@@ -106,6 +109,38 @@ function BrowseContent() {
   const loadMore = () => {
     if (pagination.page < pagination.pages) {
       setPagination({ ...pagination, page: pagination.page + 1 });
+    }
+  };
+
+  const handleBorrow = async (bookId) => {
+    if (!userData?._id) {
+      alert('Please log in to borrow books');
+      return;
+    }
+
+    if (!confirm('Borrow this book?')) return;
+
+    try {
+      setBorrowing(true);
+      const response = await fetch('/api/borrowings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: userData._id, bookId }),
+      });
+
+      if (response.ok) {
+        alert('Book borrowed successfully!');
+        // Refresh books to update available copies
+        fetchBooks();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to borrow book');
+      }
+    } catch (error) {
+      console.error('Error borrowing book:', error);
+      alert('Failed to borrow book');
+    } finally {
+      setBorrowing(false);
     }
   };
 
@@ -245,7 +280,14 @@ function BrowseContent() {
                             {book.description || 'No description available'}
                           </p>
                           <div className="flex gap-2">
-                            <button className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 rounded transition-colors">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleBorrow(book._id);
+                              }}
+                              disabled={book.availableCopies === 0}
+                              className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                               {book.availableCopies > 0 ? 'Borrow' : 'Reserve'}
                             </button>
                             <button className="bg-white/10 hover:bg-white/20 text-white p-2 rounded transition-colors" title="Add to List">

@@ -17,7 +17,7 @@ todos:
       - phase1-auth
   - id: phase3-borrowing
     content: "Phase 3: Create Borrowing model, implement borrowing rules (1 book/7 days general, 4 books/20 days premium), build member overview and circulation desk"
-    status: pending
+    status: completed
     dependencies:
       - phase2-books
   - id: phase4-reservations
