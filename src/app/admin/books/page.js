@@ -21,6 +21,8 @@ export default function AdminBooksPage() {
     borrowed: 0,
     available: 0,
     lowStock: 0,
+    overdueBooks: 0,
+    pendingReservations: 0,
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -63,6 +65,8 @@ export default function AdminBooksPage() {
           borrowed: data.borrowedCopies || 0,
           available: data.availableCopies || 0,
           lowStock: data.lowStock || 0,
+          overdueBooks: data.overdueBooks || 0,
+          pendingReservations: data.pendingReservations || 0,
         });
       }
     } catch (error) {
@@ -392,7 +396,7 @@ export default function AdminBooksPage() {
               </div>
             </div>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
                 <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
                   <span className="material-symbols-outlined">library_books</span>
@@ -427,6 +431,24 @@ export default function AdminBooksPage() {
                 <div>
                   <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Low Stock</p>
                   <p className="text-2xl font-bold text-white">{stats.lowStock}</p>
+                </div>
+              </div>
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-red-500/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">schedule</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Overdue Books</p>
+                  <p className="text-2xl font-bold text-white">{stats.overdueBooks.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-yellow-500/50 transition-colors group cursor-pointer shadow-lg">
+                <div className="h-12 w-12 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">bookmark</span>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Pending Reservations</p>
+                  <p className="text-2xl font-bold text-white">{stats.pendingReservations.toLocaleString()}</p>
                 </div>
               </div>
             </div>

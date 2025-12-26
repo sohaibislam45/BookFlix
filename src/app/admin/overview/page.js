@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatCurrency, formatDateTime } from '@/lib/utils';
 import Loader from '@/components/Loader';
+import { BORROWING_STATUS, RESERVATION_STATUS, PAYMENT_STATUS } from '@/lib/constants';
 
 export default function AdminOverviewPage() {
   const { userData } = useAuth();
@@ -27,6 +28,7 @@ export default function AdminOverviewPage() {
     recentActivity: [],
   });
   const [loading, setLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState(new Set());
 
   useEffect(() => {
     fetchStats();
@@ -40,7 +42,26 @@ export default function AdminOverviewPage() {
       const response = await fetch('/api/admin/stats');
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        // Merge with defaults to ensure all fields exist
+        setStats(prev => ({
+          ...prev,
+          ...data,
+          activeMembers: data.activeMembers ?? prev.activeMembers ?? 0,
+          newMembersThisMonth: data.newMembersThisMonth ?? prev.newMembersThisMonth ?? 0,
+          totalRevenue: data.totalRevenue ?? prev.totalRevenue ?? 0,
+          revenueGrowth: data.revenueGrowth ?? prev.revenueGrowth ?? 0,
+          premiumUsers: data.premiumUsers ?? prev.premiumUsers ?? 0,
+          premiumPercentage: data.premiumPercentage ?? prev.premiumPercentage ?? 0,
+          systemUptime: data.systemUptime ?? prev.systemUptime ?? 99.99,
+          serverLoad: data.serverLoad ?? prev.serverLoad ?? 0,
+          totalBooks: data.totalBooks ?? prev.totalBooks ?? 0,
+          totalCopies: data.totalCopies ?? prev.totalCopies ?? 0,
+          borrowedCopies: data.borrowedCopies ?? prev.borrowedCopies ?? 0,
+          availableCopies: data.availableCopies ?? prev.availableCopies ?? 0,
+          monthlyRevenue: data.monthlyRevenue ?? prev.monthlyRevenue ?? [],
+          revenueBreakdown: data.revenueBreakdown ?? prev.revenueBreakdown ?? [],
+          recentActivity: data.recentActivity ?? prev.recentActivity ?? [],
+        }));
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -53,6 +74,169 @@ export default function AdminOverviewPage() {
     if (!date) return 'N/A';
     const days = Math.floor((new Date() - new Date(date)) / (1000 * 60 * 60 * 24));
     return `${days}d ago`;
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const getActivityIcon = (activityType) => {
+    switch (activityType) {
+      case 'borrowing':
+        return 'menu_book';
+      case 'payment':
+        return 'payments';
+      case 'reservation':
+        return 'bookmark';
+      case 'new_member':
+        return 'person_add';
+      default:
+        return 'event';
+    }
+  };
+
+  const getActivityLabel = (activityType) => {
+    switch (activityType) {
+      case 'borrowing':
+        return 'Book Borrowing';
+      case 'payment':
+        return 'Payment';
+      case 'reservation':
+        return 'Book Reservation';
+      case 'new_member':
+        return 'New Member';
+      default:
+        return 'Activity';
+    }
+  };
+
+  const getActivityIconBg = (activityType) => {
+    switch (activityType) {
+      case 'borrowing':
+        return 'bg-blue-500/20';
+      case 'payment':
+        return 'bg-success-green/20';
+      case 'reservation':
+        return 'bg-yellow-500/20';
+      case 'new_member':
+        return 'bg-primary/20';
+      default:
+        return 'bg-primary/20';
+    }
+  };
+
+  const getActivityIconColor = (activityType) => {
+    switch (activityType) {
+      case 'borrowing':
+        return 'text-blue-400';
+      case 'payment':
+        return 'text-success-green';
+      case 'reservation':
+        return 'text-yellow-400';
+      case 'new_member':
+        return 'text-primary';
+      default:
+        return 'text-primary';
+    }
+  };
+
+  const getStatusBadge = (activity) => {
+    const status = (activity?.status || '').toLowerCase();
+    const activityType = activity?.type || '';
+
+    // Borrowing status
+    if (activityType === 'borrowing') {
+      if (status === BORROWING_STATUS.ACTIVE) {
+        return {
+          label: 'Active',
+          className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        };
+      } else if (status === BORROWING_STATUS.RETURNED) {
+        return {
+          label: 'Returned',
+          className: 'bg-success-green/10 text-success-green border-success-green/20',
+        };
+      } else if (status === BORROWING_STATUS.OVERDUE) {
+        return {
+          label: 'Overdue',
+          className: 'bg-red-500/10 text-red-400 border-red-500/20',
+        };
+      }
+    }
+
+    // Payment status
+    if (activityType === 'payment') {
+      if (status === PAYMENT_STATUS.COMPLETED) {
+        return {
+          label: 'Completed',
+          className: 'bg-success-green/10 text-success-green border-success-green/20',
+        };
+      } else if (status === PAYMENT_STATUS.PENDING) {
+        return {
+          label: 'Pending',
+          className: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+        };
+      } else if (status === PAYMENT_STATUS.FAILED) {
+        return {
+          label: 'Failed',
+          className: 'bg-red-500/10 text-red-400 border-red-500/20',
+        };
+      } else if (status === PAYMENT_STATUS.REFUNDED) {
+        return {
+          label: 'Refunded',
+          className: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+        };
+      }
+    }
+
+    // Reservation status
+    if (activityType === 'reservation') {
+      if (status === RESERVATION_STATUS.PENDING) {
+        return {
+          label: 'Pending',
+          className: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+        };
+      } else if (status === RESERVATION_STATUS.READY) {
+        return {
+          label: 'Ready',
+          className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        };
+      } else if (status === RESERVATION_STATUS.COMPLETED) {
+        return {
+          label: 'Completed',
+          className: 'bg-success-green/10 text-success-green border-success-green/20',
+        };
+      } else if (status === RESERVATION_STATUS.EXPIRED) {
+        return {
+          label: 'Expired',
+          className: 'bg-red-500/10 text-red-400 border-red-500/20',
+        };
+      } else if (status === RESERVATION_STATUS.CANCELLED) {
+        return {
+          label: 'Cancelled',
+          className: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+        };
+      }
+    }
+
+    // New member status
+    if (activityType === 'new_member') {
+      return {
+        label: 'Completed',
+        className: 'bg-success-green/10 text-success-green border-success-green/20',
+      };
+    }
+
+    // Default
+    return {
+      label: status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown',
+      className: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    };
   };
 
   return (
@@ -102,7 +286,7 @@ export default function AdminOverviewPage() {
                 <div className="flex items-center gap-2">
                   <span className="flex items-center text-success-green bg-success-green/10 px-1.5 py-0.5 rounded text-xs font-bold">
                     <span className="material-symbols-outlined text-[14px]">trending_up</span>
-                    {stats.revenueGrowth}%
+                    {stats.revenueGrowth ?? 0}%
                   </span>
                   <span className="text-text-secondary text-xs">vs last month</span>
                 </div>
@@ -120,12 +304,12 @@ export default function AdminOverviewPage() {
               </div>
               <div className="z-10">
                 <p className="text-white text-3xl font-bold tracking-tight mb-1">
-                  {loading ? '...' : stats.activeMembers.toLocaleString()}
+                  {loading ? '...' : (stats.activeMembers ?? 0).toLocaleString()}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="flex items-center text-success-green bg-success-green/10 px-1.5 py-0.5 rounded text-xs font-bold">
                     <span className="material-symbols-outlined text-[14px]">person_add</span>
-                    +{stats.newMembersThisMonth}
+                    +{stats.newMembersThisMonth ?? 0}
                   </span>
                   <span className="text-text-secondary text-xs">new this month</span>
                 </div>
@@ -185,7 +369,7 @@ export default function AdminOverviewPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-white text-2xl font-bold">
-                    {loading ? '...' : formatCurrency(stats.monthlyRevenue[stats.monthlyRevenue.length - 1]?.total || 0)}
+                    {loading ? '...' : formatCurrency((stats.monthlyRevenue && stats.monthlyRevenue.length > 0) ? (stats.monthlyRevenue[stats.monthlyRevenue.length - 1]?.total || 0) : 0)}
                   </p>
                   <p className="text-success-green text-sm font-medium">This month so far</p>
                 </div>
@@ -193,9 +377,9 @@ export default function AdminOverviewPage() {
               <div className="flex-1 w-full min-h-[250px] relative">
                 {/* Simple chart visualization */}
                 <div className="h-full flex items-end justify-between gap-2">
-                  {stats.monthlyRevenue.slice(-6).map((month, index) => {
-                    const maxValue = Math.max(...stats.monthlyRevenue.map((m) => m.total), 1);
-                    const height = (month.total / maxValue) * 100;
+                  {(stats.monthlyRevenue || []).slice(-6).map((month, index) => {
+                    const maxValue = Math.max(...(stats.monthlyRevenue || []).map((m) => m?.total || 0), 1);
+                    const height = ((month?.total || 0) / maxValue) * 100;
                     return (
                       <div key={index} className="flex-1 flex flex-col items-center gap-2">
                         <div className="w-full flex flex-col items-center justify-end" style={{ height: '200px' }}>
@@ -223,9 +407,9 @@ export default function AdminOverviewPage() {
                 <div className="relative size-48 rounded-full flex items-center justify-center mb-6">
                   <div className="absolute inset-0 rounded-full" style={{
                     background: `conic-gradient(
-                      #aa1fef 0% ${stats.revenueBreakdown.find(r => r.type === 'subscription')?.percentage || 0}%,
-                      #10b981 ${stats.revenueBreakdown.find(r => r.type === 'subscription')?.percentage || 0}% ${(stats.revenueBreakdown.find(r => r.type === 'subscription')?.percentage || 0) + (stats.revenueBreakdown.find(r => r.type === 'fine')?.percentage || 0)}%,
-                      #facc15 ${(stats.revenueBreakdown.find(r => r.type === 'subscription')?.percentage || 0) + (stats.revenueBreakdown.find(r => r.type === 'fine')?.percentage || 0)}% 100%
+                      #aa1fef 0% ${(stats.revenueBreakdown || []).find(r => r?.type === 'subscription')?.percentage || 0}%,
+                      #10b981 ${(stats.revenueBreakdown || []).find(r => r?.type === 'subscription')?.percentage || 0}% ${((stats.revenueBreakdown || []).find(r => r?.type === 'subscription')?.percentage || 0) + ((stats.revenueBreakdown || []).find(r => r?.type === 'fine')?.percentage || 0)}%,
+                      #facc15 ${((stats.revenueBreakdown || []).find(r => r?.type === 'subscription')?.percentage || 0) + ((stats.revenueBreakdown || []).find(r => r?.type === 'fine')?.percentage || 0)}% 100%
                     )`
                   }}></div>
                   <div className="absolute inset-0 m-auto size-32 bg-card-dark rounded-full flex flex-col items-center justify-center shadow-inner">
@@ -235,25 +419,25 @@ export default function AdminOverviewPage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 mt-6">
-                {stats.revenueBreakdown.map((source, index) => (
+                {(stats.revenueBreakdown || []).map((source, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded-full"
                         style={{
                           backgroundColor:
-                            source.type === 'subscription'
+                            source?.type === 'subscription'
                               ? '#aa1fef'
-                              : source.type === 'fine'
+                              : source?.type === 'fine'
                               ? '#10b981'
                               : '#facc15',
                         }}
                       ></div>
                       <p className="text-text-secondary text-xs font-medium capitalize">
-                        {source.type === 'subscription' ? 'Premium Plan' : source.type === 'fine' ? 'Institutional' : 'Late Fees / Other'}
+                        {source?.type === 'subscription' ? 'Premium Plan' : source?.type === 'fine' ? 'Institutional' : 'Late Fees / Other'}
                       </p>
                     </div>
-                    <span className="text-white text-xs font-bold">{source.percentage.toFixed(0)}%</span>
+                    <span className="text-white text-xs font-bold">{(source.percentage ?? 0).toFixed(0)}%</span>
                   </div>
                 ))}
               </div>
@@ -288,36 +472,78 @@ export default function AdminOverviewPage() {
                           </div>
                         </td>
                       </tr>
-                    ) : stats.recentActivity.length === 0 ? (
+                    ) : !stats.recentActivity || stats.recentActivity.length === 0 ? (
                       <tr>
                         <td colSpan="4" className="p-4 text-center text-text-secondary">No recent activity</td>
                       </tr>
                     ) : (
-                      stats.recentActivity.slice(0, 5).map((activity) => (
-                        <tr key={activity._id} className="group hover:bg-white/5 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-8 rounded bg-primary/20 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-primary text-sm">badge</span>
+                      (stats.recentActivity || []).slice(0, 5).map((activity, index) => {
+                        const activityType = activity?.type || 'unknown';
+                        const icon = getActivityIcon(activityType);
+                        const label = getActivityLabel(activityType);
+                        const iconBg = getActivityIconBg(activityType);
+                        const iconColor = getActivityIconColor(activityType);
+                        const statusBadge = getStatusBadge(activity);
+                        const displayName = activity?.member || activity?.memberEmail || 'N/A';
+                        const additionalInfo = activityType === 'payment' && activity?.amount 
+                          ? ` • ${formatCurrency(activity.amount)}`
+                          : activityType === 'borrowing' && activity?.bookTitle
+                          ? ` • ${activity.bookTitle}`
+                          : activityType === 'reservation' && activity?.bookTitle
+                          ? ` • ${activity.bookTitle}`
+                          : '';
+
+                        const memberPhoto = activity?.memberPhoto;
+                        const memberName = activity?.member || 'Unknown';
+                        const activityKey = activity?._id || index;
+
+                        return (
+                          <tr key={activityKey} className="group hover:bg-white/5 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                {/* Activity Icon */}
+                                <div className={`size-8 rounded ${iconBg} flex items-center justify-center`}>
+                                  <span className={`material-symbols-outlined ${iconColor} text-sm`}>{icon}</span>
+                                </div>
+                                <span className="text-white font-medium text-sm">{label}</span>
                               </div>
-                              <span className="text-white font-medium text-sm">Borrowing Activity</span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-secondary text-sm">{activity.member}</span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-success-green/10 text-success-green border border-success-green/20">
-                              Completed
-                            </span>
-                          </td>
-                          <td className="p-4 text-right text-text-secondary text-sm">
-                            {formatDate(activity.createdAt)}
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                {/* User Profile Photo */}
+                                <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
+                                  {memberPhoto && memberPhoto.trim() !== '' && !imageErrors.has(activityKey) ? (
+                                    <img
+                                      src={`${memberPhoto}${memberPhoto.includes('?') ? '&' : '?'}t=${Date.now()}`}
+                                      alt={memberName}
+                                      className="w-full h-full rounded-full object-cover"
+                                      onError={() => {
+                                        setImageErrors(prev => new Set(prev).add(activityKey));
+                                      }}
+                                    />
+                                  ) : (
+                                    <span>{getInitials(memberName)}</span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-white text-sm font-medium">{displayName}</span>
+                                  {additionalInfo && (
+                                    <span className="text-text-secondary text-xs">{additionalInfo}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${statusBadge.className}`}>
+                                {statusBadge.label}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right text-text-secondary text-sm">
+                              {activity?.createdAt ? formatDateTime(activity.createdAt) : 'N/A'}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

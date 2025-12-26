@@ -14,6 +14,7 @@ export default function AdminFinancePage() {
     subscriptionARR: 0,
     payingMembers: 0,
     revenueGrowth: 0,
+    pendingFines: 0,
   });
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,7 @@ export default function AdminFinancePage() {
           subscriptionARR: (statsData.premiumUsers || 0) * 9.99 * 12,
           payingMembers: statsData.premiumUsers || 0,
           revenueGrowth: parseFloat(statsData.revenueGrowth || 0),
+          pendingFines: statsData.pendingFines || 0,
         });
       }
 
@@ -76,7 +78,7 @@ export default function AdminFinancePage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-card-dark border border-white/5 rounded-xl p-5 hover:border-primary/30 transition-colors shadow-sm relative overflow-hidden group">
               <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span className="material-symbols-outlined text-6xl text-primary">payments</span>
@@ -135,6 +137,21 @@ export default function AdminFinancePage() {
                   <span className="material-symbols-outlined text-[12px]">trending_up</span> 142
                 </span>
                 <span className="text-text-secondary">new this month</span>
+              </div>
+            </div>
+            <div className="bg-card-dark border border-white/5 rounded-xl p-5 hover:border-orange-500/30 transition-colors shadow-sm relative overflow-hidden group">
+              <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                <span className="material-symbols-outlined text-6xl text-orange-400">pending</span>
+              </div>
+              <p className="text-text-secondary text-sm font-medium mb-1">Pending Fines</p>
+              <div className="flex items-baseline gap-2 mb-2">
+                <h3 className="text-2xl font-bold text-white">{loading ? '...' : stats.pendingFines.toLocaleString()}</h3>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium border border-orange-500/20">
+                  <span className="material-symbols-outlined text-[12px]">info</span> Unpaid
+                </span>
+                <span className="text-text-secondary">requires action</span>
               </div>
             </div>
           </div>
