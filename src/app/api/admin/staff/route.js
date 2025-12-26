@@ -12,6 +12,32 @@ export async function GET(request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    // If userId is provided, return single staff member
+    if (userId) {
+      const idError = validateObjectId(userId, 'User ID');
+      if (idError) {
+        return idError;
+      }
+
+      const staffMember = await User.findOne({ 
+        _id: userId,
+        role: { $in: [USER_ROLES.LIBRARIAN, USER_ROLES.ADMIN] },
+      })
+        .select('name email profilePhoto role phone isActive createdAt updatedAt')
+        .lean();
+      
+      if (!staffMember) {
+        return NextResponse.json(
+          { error: 'Staff member not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({ staff: [staffMember], user: staffMember });
+    }
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
@@ -121,9 +147,9 @@ export async function POST(request) {
       );
     }
 
-    if (!role || !['librarian', 'admin', 'support'].includes(role)) {
+    if (!role || !['librarian', 'admin'].includes(role)) {
       return NextResponse.json(
-        { error: 'Valid role is required (librarian, admin, or support)' },
+        { error: 'Valid role is required (librarian or admin)' },
         { status: 400 }
       );
     }
@@ -149,8 +175,7 @@ export async function POST(request) {
     // You'll need to integrate Firebase Admin SDK to create users server-side
     const firebaseUid = `staff_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Map 'support' role to 'librarian' for now, or add it to USER_ROLES
-    const userRole = role === 'support' ? USER_ROLES.LIBRARIAN : role;
+    const userRole = role;
 
     // Create user in database
     const user = new User({
@@ -240,13 +265,13 @@ export async function PATCH(request) {
     }
 
     if (updates.role !== undefined) {
-      if (!['librarian', 'admin', 'support'].includes(updates.role)) {
+      if (!['librarian', 'admin'].includes(updates.role)) {
         return NextResponse.json(
-          { error: 'Invalid role. Must be librarian, admin, or support' },
+          { error: 'Invalid role. Must be librarian or admin' },
           { status: 400 }
         );
       }
-      const userRole = updates.role === 'support' ? USER_ROLES.LIBRARIAN : updates.role;
+      const userRole = updates.role;
       updateQuery.$set.role = userRole;
     }
 

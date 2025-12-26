@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import AddStaffModal from '@/components/AddStaffModal';
+import EditStaffModal from '@/components/EditStaffModal';
 import ManageRoleModal from '@/components/ManageRoleModal';
 import { formatDate } from '@/lib/utils';
 import Loader from '@/components/Loader';
@@ -22,6 +23,7 @@ export default function AdminStaffPage() {
   });
   const [imageErrors, setImageErrors] = useState(new Set());
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isManageRoleModalOpen, setIsManageRoleModalOpen] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -65,7 +67,8 @@ export default function AdminStaffPage() {
             activeToday: data.stats.activeToday || 0,
           });
         }
-        setImageErrors(new Set()); // Reset image errors when fetching new data
+        // Clear image errors to allow new images to load
+        setImageErrors(new Set());
       } else {
         const error = await response.json();
         showError('Error', error.error || 'Failed to fetch staff');
@@ -78,63 +81,9 @@ export default function AdminStaffPage() {
     }
   };
 
-  const handleEditStaff = async (staffId) => {
-    const staffMember = staff.find(s => s._id === staffId);
-    if (!staffMember) return;
-
-    // For now, show a simple edit dialog using SweetAlert
-    // In the future, you can create a full EditStaffModal component
-    const { default: Swal } = await import('sweetalert2');
-    const { value: formValues } = await Swal.fire({
-      title: 'Edit Staff Member',
-      html: `
-        <input id="swal-name" class="swal2-input" placeholder="Full Name" value="${staffMember.name || ''}">
-        <input id="swal-email" class="swal2-input" placeholder="Email" value="${staffMember.email || ''}" type="email">
-        <input id="swal-phone" class="swal2-input" placeholder="Phone" value="${staffMember.phone || ''}">
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: 'Update',
-      cancelButtonText: 'Cancel',
-      preConfirm: () => {
-        return {
-          name: document.getElementById('swal-name').value,
-          email: document.getElementById('swal-email').value,
-          phone: document.getElementById('swal-phone').value,
-        };
-      },
-    });
-
-    if (formValues) {
-      try {
-        const response = await fetch('/api/admin/staff', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: staffId,
-            updates: {
-              name: formValues.name,
-              email: formValues.email,
-              phone: formValues.phone,
-            },
-          }),
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          showSuccess('Staff Updated!', 'Staff member has been successfully updated.');
-          fetchStaff();
-          fetchActivities();
-        } else {
-          showError('Error', result.error || 'Failed to update staff member');
-        }
-      } catch (error) {
-        showError('Error', 'Failed to update staff member. Please try again.');
-      }
-    }
+  const handleEditStaff = (staffId) => {
+    setEditingStaffId(staffId);
+    setIsEditModalOpen(true);
   };
 
   const handleDeleteStaff = async (staffId, staffName) => {
@@ -342,12 +291,13 @@ export default function AdminStaffPage() {
                                   <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden">
                                     {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
                                       <img
-                                        src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}`}
+                                        src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}&t=${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
                                         alt={member.name}
                                         className="w-full h-full rounded-full object-cover"
                                         onError={(e) => {
                                           setImageErrors(prev => new Set(prev).add(member._id));
                                         }}
+                                        key={`${member._id}-${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
                                       />
                                     ) : (
                                       <span>{getInitials(member.name)}</span>
@@ -463,6 +413,32 @@ export default function AdminStaffPage() {
           fetchStaff();
           fetchActivities();
         }}
+      />
+
+      {/* Edit Staff Modal */}
+      <EditStaffModal 
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingStaffId(null);
+          // Clear image errors to allow refreshed images to load
+          setImageErrors(new Set());
+        }}
+        onStaffUpdated={() => {
+          // Clear image errors for the updated staff member specifically
+          if (editingStaffId) {
+            setImageErrors(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(editingStaffId);
+              return newSet;
+            });
+          } else {
+            setImageErrors(new Set());
+          }
+          fetchStaff();
+          fetchActivities();
+        }}
+        staffId={editingStaffId}
       />
 
       {/* Manage Role Modal */}

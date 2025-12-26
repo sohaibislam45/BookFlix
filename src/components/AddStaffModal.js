@@ -339,7 +339,6 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
                     <option disabled value="">Select a role</option>
                     <option value="librarian">Librarian</option>
                     <option value="admin">Administrator</option>
-                    <option value="support">Support Specialist</option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none group-focus-within:text-primary transition-colors">
                     <span className="material-symbols-outlined text-[24px]">expand_more</span>

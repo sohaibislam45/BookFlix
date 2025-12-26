@@ -59,7 +59,7 @@ export default function ManageRoleModal({ isOpen, onClose, onRoleUpdated }) {
 
       // Update local state
       setStaff(prev => prev.map(s => 
-        s._id === staffId ? { ...s, role: newRole === 'support' ? 'librarian' : newRole } : s
+        s._id === staffId ? { ...s, role: newRole } : s
       ));
 
       if (onRoleUpdated) {
@@ -77,7 +77,6 @@ export default function ManageRoleModal({ isOpen, onClose, onRoleUpdated }) {
     const labels = {
       admin: 'Administrator',
       librarian: 'Librarian',
-      support: 'Support Specialist',
     };
     return labels[role] || role;
   };
@@ -148,7 +147,6 @@ export default function ManageRoleModal({ isOpen, onClose, onRoleUpdated }) {
                         >
                           <option value="librarian">Librarian</option>
                           <option value="admin">Administrator</option>
-                          <option value="support">Support Specialist</option>
                         </select>
                         <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none text-lg">expand_more</span>
                       </div>
