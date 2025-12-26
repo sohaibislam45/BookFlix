@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
   try {
     await connectDB();
 
-    const { id } = params;
+    const { id } = await params;
 
     const idError = validateObjectId(id, 'Book ID');
     if (idError) {
@@ -59,7 +59,7 @@ export async function PATCH(request, { params }) {
   try {
     await connectDB();
 
-    const { id } = params;
+    const { id } = await params;
     
     const idError = validateObjectId(id, 'Book ID');
     if (idError) {
@@ -266,7 +266,7 @@ export async function DELETE(request, { params }) {
   try {
     await connectDB();
 
-    const { id } = params;
+    const { id } = await params;
 
     const idError = validateObjectId(id, 'Book ID');
     if (idError) {

@@ -6,6 +6,7 @@ import AdminHeader from '@/components/AdminHeader';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
 import AddBookModal from '@/components/AddBookModal';
+import EditBookModal from '@/components/EditBookModal';
 import { showError, showSuccess, showInput, showConfirm } from '@/lib/swal';
 import swalTheme from '@/lib/swal';
 import Swal from 'sweetalert2';
@@ -22,6 +23,8 @@ export default function AdminBooksPage() {
     lowStock: 0,
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingBookId, setEditingBookId] = useState(null);
   const [genres, setGenres] = useState([]);
   const [genresLoading, setGenresLoading] = useState(true);
 
@@ -86,8 +89,8 @@ export default function AdminBooksPage() {
   };
 
   const handleEditBook = (bookId) => {
-    // TODO: Implement edit book modal or navigate to edit page
-    showError('Coming Soon', 'Edit book functionality will be available soon.');
+    setEditingBookId(bookId);
+    setIsEditModalOpen(true);
   };
 
   const handleManageStock = async (bookId, bookTitle) => {
@@ -600,13 +603,25 @@ export default function AdminBooksPage() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors" title="Edit Details">
+                            <button 
+                              onClick={() => handleEditBook(book._id)}
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors" 
+                              title="Edit Details"
+                            >
                               <span className="material-symbols-outlined text-[18px]">edit</span>
                             </button>
-                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Manage Stock">
+                            <button 
+                              onClick={() => handleManageStock(book._id, book.title)}
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-blue-400 hover:bg-blue-500/10 transition-colors" 
+                              title="Manage Stock"
+                            >
                               <span className="material-symbols-outlined text-[18px]">inventory_2</span>
                             </button>
-                            <button className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete Book">
+                            <button 
+                              onClick={() => handleDeleteBook(book._id, book.title)}
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors" 
+                              title="Delete Book"
+                            >
                               <span className="material-symbols-outlined text-[18px]">delete</span>
                             </button>
                           </div>
@@ -653,6 +668,20 @@ export default function AdminBooksPage() {
           fetchBooks();
           fetchStats();
         }}
+      />
+
+      {/* Edit Book Modal */}
+      <EditBookModal 
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingBookId(null);
+        }}
+        onBookUpdated={() => {
+          fetchBooks();
+          fetchStats();
+        }}
+        bookId={editingBookId}
       />
     </>
   );
