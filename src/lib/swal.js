@@ -124,6 +124,9 @@ if (typeof window !== 'undefined') {
       color: ${themeConfig.text} !important;
       border-color: ${themeConfig.primary} !important;
     }
+    .swal2-actions {
+      gap: 5rem !important;
+    }
     .swal-input {
       background: #2a2a2a !important;
       border: 1px solid ${themeConfig.border} !important;
