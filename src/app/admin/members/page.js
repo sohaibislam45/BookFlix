@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import Loader from '@/components/Loader';
@@ -10,6 +11,7 @@ import swalTheme from '@/lib/swal';
 
 export default function AdminMembersPage() {
   const { userData } = useAuth();
+  const router = useRouter();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,58 +61,19 @@ export default function AdminMembersPage() {
     }
   };
 
-  const handleEdit = async (member) => {
-    const result = await showInput(
-      'Edit Member',
-      `Edit details for ${member.name}`,
-      {},
-      {
-        input: 'text',
-        inputLabel: 'Name',
-        inputValue: member.name,
-        inputPlaceholder: 'Enter member name',
-        confirmButtonText: 'Save',
-        cancelButtonText: 'Cancel',
-        inputValidator: (value) => {
-          if (!value || value.trim().length === 0) {
-            return 'Name cannot be empty';
-          }
-          return null;
-        },
-      }
-    );
-
-    if (result.isConfirmed && result.value) {
-      try {
-        const response = await fetch(`/api/admin/members?userId=${member._id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: result.value.trim() }),
-        });
-
-        if (response.ok) {
-          showSuccess('Member updated successfully');
-          fetchMembers();
-        } else {
-          showError('Failed to update member');
-        }
-      } catch (error) {
-        console.error('Error updating member:', error);
-        showError('Failed to update member');
-      }
-    }
+  const handleEdit = (member) => {
+    router.push(`/admin/members/${member._id}`);
   };
 
   const handleDelete = async (member) => {
     const result = await showConfirm(
-      'Deactivate Member',
-      `Are you sure you want to deactivate ${member.name}? This action can be reversed later.`,
+      'Delete Member Permanently',
+      `Are you sure you want to permanently delete ${member.name}? This action cannot be undone and will remove all data from the database.`,
       {
-        confirmButtonText: 'Yes, Deactivate',
+        confirmButtonText: 'Yes, Delete Permanently',
         cancelButtonText: 'Cancel',
         icon: 'warning',
+        confirmButtonColor: '#ef4444',
       }
     );
 
@@ -121,41 +84,46 @@ export default function AdminMembersPage() {
         });
 
         if (response.ok) {
-          showSuccess('Member deactivated successfully');
+          showSuccess('Member deleted permanently');
           fetchMembers();
         } else {
-          showError('Failed to deactivate member');
+          const data = await response.json();
+          showError('Failed to delete member', data.error || '');
         }
       } catch (error) {
-        console.error('Error deactivating member:', error);
-        showError('Failed to deactivate member');
+        console.error('Error deleting member:', error);
+        showError('Failed to delete member');
       }
     }
   };
 
   const handleUpgrade = async (member) => {
-    const currentTier = getTierInfo(member);
-    const result = await swalTheme.fire({
+    const isCurrentlyActive = member.isActive !== false;
+    
+    // First, ask if they want to activate or suspend
+    const actionResult = await swalTheme.fire({
       icon: 'question',
       iconColor: '#aa1fef',
-      title: 'Change Subscription Tier',
-      text: `Current tier: ${currentTier.label}. Select new tier for ${member.name}`,
+      title: 'Manage Member Status',
+      text: `Current status: ${isCurrentlyActive ? 'Active' : 'Suspended'}. What would you like to do?`,
       input: 'select',
       inputOptions: {
-        free: 'Standard (Free)',
-        monthly: 'Premium (Monthly)',
-        yearly: 'Premium (Yearly)',
+        activate: 'Activate User',
+        suspend: 'Suspend User',
       },
-      inputValue: currentTier.subscriptionType,
-      inputPlaceholder: 'Select tier',
+      inputValue: isCurrentlyActive ? 'suspend' : 'activate',
+      inputPlaceholder: 'Select action',
       showCancelButton: true,
-      confirmButtonText: 'Update',
+      confirmButtonText: 'Continue',
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#aa1fef',
       cancelButtonColor: '#3c2348',
     });
 
-    if (result.isConfirmed && result.value) {
+    if (!actionResult.isConfirmed) return;
+
+    if (actionResult.value === 'activate') {
+      // Activate user
       try {
         const response = await fetch(`/api/admin/members?userId=${member._id}`, {
           method: 'PATCH',
@@ -163,22 +131,86 @@ export default function AdminMembersPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            subscription: {
-              type: result.value,
-              status: result.value === 'free' ? 'active' : 'active',
+            userId: member._id,
+            updates: {
+              suspendedUntil: null,
+              isActive: true,
             },
           }),
         });
 
         if (response.ok) {
-          showSuccess('Subscription tier updated successfully');
+          showSuccess('Member activated successfully');
           fetchMembers();
         } else {
-          showError('Failed to update subscription tier');
+          showError('Failed to activate member');
         }
       } catch (error) {
-        console.error('Error updating subscription tier:', error);
-        showError('Failed to update subscription tier');
+        console.error('Error activating member:', error);
+        showError('Failed to activate member');
+      }
+    } else if (actionResult.value === 'suspend') {
+      // Suspend user - ask for duration
+      const durationResult = await swalTheme.fire({
+        icon: 'warning',
+        iconColor: '#f59e0b',
+        title: 'Suspend Member',
+        text: `How long should ${member.name} be suspended?`,
+        input: 'select',
+        inputOptions: {
+          '1': '1 day',
+          '3': '3 days',
+          '7': '7 days',
+          '14': '14 days',
+          '30': '30 days',
+          '90': '90 days',
+          'forever': 'Forever (Permanent)',
+        },
+        inputValue: '7',
+        inputPlaceholder: 'Select duration',
+        showCancelButton: true,
+        confirmButtonText: 'Suspend',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#3c2348',
+      });
+
+      if (durationResult.isConfirmed && durationResult.value) {
+        try {
+          const updates = {
+            isActive: false,
+          };
+
+          if (durationResult.value === 'forever') {
+            updates.suspendedUntil = 'forever';
+          } else {
+            updates.suspendedUntil = parseInt(durationResult.value);
+          }
+
+          const response = await fetch(`/api/admin/members?userId=${member._id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: member._id,
+              updates,
+            }),
+          });
+
+          if (response.ok) {
+            const durationText = durationResult.value === 'forever' 
+              ? 'permanently' 
+              : `for ${durationResult.value} day${durationResult.value !== '1' ? 's' : ''}`;
+            showSuccess(`Member suspended ${durationText}`);
+            fetchMembers();
+          } else {
+            showError('Failed to suspend member');
+          }
+        } catch (error) {
+          console.error('Error suspending member:', error);
+          showError('Failed to suspend member');
+        }
       }
     }
   };

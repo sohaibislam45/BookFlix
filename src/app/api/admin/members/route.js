@@ -11,6 +11,24 @@ export async function GET(request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    // If userId is provided, return single member
+    if (userId) {
+      const member = await User.findOne({ _id: userId, role: USER_ROLES.MEMBER })
+        .select('-__v')
+        .lean();
+      
+      if (!member) {
+        return NextResponse.json(
+          { error: 'Member not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({ member });
+    }
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
@@ -115,6 +133,27 @@ export async function PATCH(request) {
       );
     }
 
+    // Handle suspension with duration
+    if (updates.suspendedUntil !== undefined) {
+      if (updates.suspendedUntil === null) {
+        // Activate user - remove suspension
+        updates.isActive = true;
+        updates.suspendedUntil = null;
+      } else {
+        // Suspend user
+        updates.isActive = false;
+        if (updates.suspendedUntil === 'forever') {
+          // Permanent suspension - set to a far future date
+          updates.suspendedUntil = new Date('2099-12-31');
+        } else if (typeof updates.suspendedUntil === 'number') {
+          // Duration in days
+          const suspendedUntil = new Date();
+          suspendedUntil.setDate(suspendedUntil.getDate() + updates.suspendedUntil);
+          updates.suspendedUntil = suspendedUntil;
+        }
+      }
+    }
+
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updates },
@@ -152,12 +191,8 @@ export async function DELETE(request) {
       );
     }
 
-    // Soft delete - set isActive to false
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $set: { isActive: false } },
-      { new: true }
-    ).select('-__v');
+    // Permanently delete user from database
+    const user = await User.findByIdAndDelete(userId);
 
     if (!user) {
       return NextResponse.json(
@@ -166,11 +201,11 @@ export async function DELETE(request) {
       );
     }
 
-    return NextResponse.json({ message: 'Member deactivated successfully', user });
+    return NextResponse.json({ message: 'Member deleted successfully' });
   } catch (error) {
     console.error('[DELETE /api/admin/members] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to deactivate member', details: error.message },
+      { error: 'Failed to delete member', details: error.message },
       { status: 500 }
     );
   }
