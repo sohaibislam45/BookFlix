@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
-import { showSuccess, showError } from '@/lib/swal';
+import { showSuccess, showError, showLoading, close } from '@/lib/swal';
+import Loader from '@/components/Loader';
 
 export default function AdminConfigPage() {
   const { userData } = useAuth();
@@ -23,20 +24,81 @@ export default function AdminConfigPage() {
     droneBeta: false,
     vipPriority: true,
   });
-  const [loading, setLoading] = useState(false);
+  const [savedConfig, setSavedConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
     try {
       setLoading(true);
-      // TODO: Implement API call to save config
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      showSuccess('Configuration saved successfully');
+      const response = await fetch('/api/admin/config');
+      if (response.ok) {
+        const data = await response.json();
+        setConfig(data);
+        setSavedConfig(data);
+      } else {
+        const error = await response.json();
+        showError('Error', error.error || 'Failed to load configuration');
+      }
     } catch (error) {
-      showError('Failed to save configuration');
+      console.error('Error fetching config:', error);
+      showError('Error', 'Failed to load configuration. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const loadingSwal = showLoading('Saving configuration...', 'Please wait while we save your changes.');
+
+      const response = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save configuration');
+      }
+
+      close();
+      showSuccess('Configuration Saved!', 'Your configuration changes have been successfully saved.');
+      setSavedConfig({ ...config }); // Update saved config
+    } catch (error) {
+      close();
+      showError('Error', error.message || 'Failed to save configuration. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    if (savedConfig) {
+      setConfig({ ...savedConfig });
+      showSuccess('Changes Discarded', 'All unsaved changes have been discarded.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <AdminHeader title="System Configuration" subtitle="Manage global application settings, fine rates, lending logic, and communication templates." />
+        <div className="flex-1 overflow-y-auto flex items-center justify-center">
+          <Loader />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -71,10 +133,10 @@ export default function AdminConfigPage() {
                     value={config.timezone}
                     onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
                   >
-                    <option>UTC (Coordinated Universal Time)</option>
-                    <option>EST (Eastern Standard Time)</option>
-                    <option>PST (Pacific Standard Time)</option>
-                    <option>GMT (Greenwich Mean Time)</option>
+                    <option value="UTC">UTC (Coordinated Universal Time)</option>
+                    <option value="EST">EST (Eastern Standard Time)</option>
+                    <option value="PST">PST (Pacific Standard Time)</option>
+                    <option value="GMT">GMT (Greenwich Mean Time)</option>
                   </select>
                   <p className="text-xs text-text-secondary mt-2">Affects fine calculation cut-off times.</p>
                 </label>
@@ -316,14 +378,20 @@ export default function AdminConfigPage() {
               Configuration changes apply immediately.
             </div>
             <div className="flex gap-4 ml-auto">
-              <button className="px-6 py-2.5 rounded-lg text-white font-medium hover:bg-white/5 transition-colors">Discard</button>
+              <button 
+                onClick={handleDiscard}
+                disabled={saving}
+                className="px-6 py-2.5 rounded-lg text-white font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                Discard
+              </button>
               <button
                 onClick={handleSave}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium shadow-[0_0_20px_rgba(170,31,239,0.3)] transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                disabled={saving}
+                className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium shadow-[0_0_20px_rgba(170,31,239,0.3)] transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-sm">save</span>
-                Save Changes
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
