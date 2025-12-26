@@ -44,7 +44,20 @@ export default function AdminBooksPage() {
       const response = await fetch(`/api/books?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setBooks(data.books || []);
+        const booksList = data.books || [];
+        setBooks(booksList);
+        
+        // Calculate low stock count (books with 3 or fewer available copies)
+        const lowStockCount = booksList.filter(book => {
+          const available = book.availableCopies || 0;
+          return available > 0 && available <= 3;
+        }).length;
+        
+        // Update low stock in stats
+        setStats(prev => ({
+          ...prev,
+          lowStock: lowStockCount,
+        }));
       }
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -58,12 +71,12 @@ export default function AdminBooksPage() {
       const response = await fetch('/api/admin/stats');
       if (response.ok) {
         const data = await response.json();
-        setStats({
+        setStats(prev => ({
           totalInventory: data.totalCopies || 0,
           borrowed: data.borrowedCopies || 0,
           available: data.availableCopies || 0,
-          lowStock: 15, // Mock data
-        });
+          lowStock: prev.lowStock || 0, // Will be updated when books are fetched
+        }));
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -94,19 +107,30 @@ export default function AdminBooksPage() {
   };
 
   const handleManageStock = async (bookId, bookTitle) => {
-    // Show input for stock count
+    // Fetch current stock count
+    let currentStock = 0;
+    try {
+      const bookResponse = await fetch(`/api/books/${bookId}`);
+      if (bookResponse.ok) {
+        const bookData = await bookResponse.json();
+        currentStock = bookData.totalCopies || 0;
+      }
+    } catch (error) {
+      console.error('Error fetching book stock:', error);
+    }
+
+    // Show input for stock count with current value
     const result = await showInput(
       'Manage Stock',
       `Enter the number of copies for "${bookTitle}"`,
-      {},
+      { input: 'number' },
       {
         inputPlaceholder: 'Enter number of copies...',
-        inputType: 'number',
-        inputValue: '1',
+        inputValue: currentStock.toString(),
         inputValidator: (value) => {
           const num = parseInt(value);
-          if (!value || isNaN(num) || num < 1) {
-            return 'Please enter a valid number (minimum 1)';
+          if (value === '' || isNaN(num) || num < 0) {
+            return 'Please enter a valid number (minimum 0)';
           }
           if (num > 1000) {
             return 'Maximum 1000 copies allowed';
@@ -121,12 +145,37 @@ export default function AdminBooksPage() {
     if (result.isConfirmed && result.value) {
       try {
         const stockCount = parseInt(result.value);
-        // TODO: Implement stock management API call
-        showSuccess('Stock Updated!', `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`);
-        fetchBooks(); // Refresh the books list
+        
+        const response = await fetch(`/api/books/${bookId}/stock`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            copies: stockCount,
+          }),
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Stock Updated!', `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`);
+          fetchBooks(); // Refresh the books list
+          fetchStats(); // Refresh stats
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to update stock (${response.status})`;
+          showError('Error', errorMessage);
+        }
       } catch (error) {
         console.error('Error updating stock:', error);
-        showError('Error', 'Failed to update stock. Please try again.');
+        showError('Error', error.message || 'Failed to update stock. Please try again.');
       }
     }
   };
@@ -317,7 +366,7 @@ export default function AdminBooksPage() {
   const getStockStatus = (book) => {
     const available = book.availableCopies || 0;
     if (available === 0) return { label: 'Out of Stock', color: 'red', textColor: 'red-400' };
-    if (available <= 2) return { label: 'Low Stock', color: 'orange', textColor: 'orange-400' };
+    if (available <= 3) return { label: 'Low Stock', color: 'orange', textColor: 'orange-400' };
     return { label: 'Available', color: 'emerald', textColor: 'emerald-400' };
   };
 

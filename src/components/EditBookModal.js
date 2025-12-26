@@ -416,6 +416,8 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={(e) => {
+                    // Don't trigger if clicking the remove button
+                    if (e.target.closest('button')) return;
                     if (!submitting && fileInputRef.current) {
                       e.preventDefault();
                       e.stopPropagation();
@@ -428,22 +430,37 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
                       <img 
                         src={formData.coverImagePreview} 
                         alt="Cover preview" 
-                        className="max-w-full max-h-[300px] object-contain rounded-lg"
+                        className="max-w-full max-h-[300px] object-contain rounded-lg pointer-events-none"
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">Click to change image</span>
+                      </div>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            coverImage: null, 
-                            coverImagePreview: prev.existingCoverImage,
-                          }));
+                          // If there's a new image, remove it and show existing
+                          // If only existing image, clear it
+                          if (formData.coverImage) {
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              coverImage: null, 
+                              coverImagePreview: prev.existingCoverImage,
+                            }));
+                          } else {
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              coverImage: null, 
+                              coverImagePreview: null,
+                              existingCoverImage: null,
+                            }));
+                          }
                           if (fileInputRef.current) fileInputRef.current.value = '';
                         }}
-                        className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-colors"
+                        className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-colors z-10"
                         disabled={submitting}
+                        title="Remove image"
                       >
                         <span className="material-symbols-outlined text-[18px]">close</span>
                       </button>
