@@ -85,6 +85,89 @@ export default function AdminBooksPage() {
     }
   };
 
+  const handleEditBook = (bookId) => {
+    // TODO: Implement edit book modal or navigate to edit page
+    showError('Coming Soon', 'Edit book functionality will be available soon.');
+  };
+
+  const handleManageStock = async (bookId, bookTitle) => {
+    // Show input for stock count
+    const result = await showInput(
+      'Manage Stock',
+      `Enter the number of copies for "${bookTitle}"`,
+      {},
+      {
+        inputPlaceholder: 'Enter number of copies...',
+        inputType: 'number',
+        inputValue: '1',
+        inputValidator: (value) => {
+          const num = parseInt(value);
+          if (!value || isNaN(num) || num < 1) {
+            return 'Please enter a valid number (minimum 1)';
+          }
+          if (num > 1000) {
+            return 'Maximum 1000 copies allowed';
+          }
+          return null;
+        },
+        confirmButtonText: 'Update Stock',
+        cancelButtonText: 'Cancel',
+      }
+    );
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const stockCount = parseInt(result.value);
+        // TODO: Implement stock management API call
+        showSuccess('Stock Updated!', `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`);
+        fetchBooks(); // Refresh the books list
+      } catch (error) {
+        console.error('Error updating stock:', error);
+        showError('Error', 'Failed to update stock. Please try again.');
+      }
+    }
+  };
+
+  const handleDeleteBook = async (bookId, bookTitle) => {
+    const result = await showConfirm(
+      'Delete Book',
+      `Are you sure you want to delete "${bookTitle}"? This action will deactivate the book and all its copies.`,
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+      }
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/books/${bookId}`, {
+          method: 'DELETE',
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Book Deleted!', `"${bookTitle}" has been successfully deleted.`);
+          fetchBooks(); // Refresh the books list
+          fetchStats(); // Refresh stats
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to delete book (${response.status})`;
+          showError('Error', errorMessage);
+        }
+      } catch (error) {
+        console.error('Error deleting book:', error);
+        showError('Error', error.message || 'Failed to delete book. Please try again.');
+      }
+    }
+  };
+
   const handleDeleteGenre = async (genreId, genreName) => {
     const result = await showConfirm(
       'Delete Genre',
