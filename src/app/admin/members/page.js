@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
+import Loader from '@/components/Loader';
 import { formatDate, getSubscriptionDisplayName } from '@/lib/utils';
-import { showError, showSuccess } from '@/lib/swal';
+import { showError, showSuccess, showConfirm, showInput } from '@/lib/swal';
+import swalTheme from '@/lib/swal';
 
 export default function AdminMembersPage() {
   const { userData } = useAuth();
@@ -25,6 +27,7 @@ export default function AdminMembersPage() {
     total: 0,
     totalPages: 0,
   });
+  const [selectedMembers, setSelectedMembers] = useState(new Set());
 
   useEffect(() => {
     fetchMembers();
@@ -56,33 +59,149 @@ export default function AdminMembersPage() {
     }
   };
 
-  const handleEdit = (member) => {
-    // TODO: Open edit modal
-  };
-
-  const handleDelete = async (member) => {
-    if (!confirm(`Are you sure you want to deactivate ${member.name}?`)) return;
-
-    try {
-      const response = await fetch(`/api/admin/members?userId=${member._id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        showSuccess('Member deactivated successfully');
-        fetchMembers();
-      } else {
-        showError('Failed to deactivate member');
+  const handleEdit = async (member) => {
+    const result = await showInput(
+      'Edit Member',
+      `Edit details for ${member.name}`,
+      {},
+      {
+        input: 'text',
+        inputLabel: 'Name',
+        inputValue: member.name,
+        inputPlaceholder: 'Enter member name',
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return 'Name cannot be empty';
+          }
+          return null;
+        },
       }
-    } catch (error) {
-      console.error('Error deactivating member:', error);
-      showError('Failed to deactivate member');
+    );
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const response = await fetch(`/api/admin/members?userId=${member._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: result.value.trim() }),
+        });
+
+        if (response.ok) {
+          showSuccess('Member updated successfully');
+          fetchMembers();
+        } else {
+          showError('Failed to update member');
+        }
+      } catch (error) {
+        console.error('Error updating member:', error);
+        showError('Failed to update member');
+      }
     }
   };
 
-  const handleUpgrade = (member) => {
-    // TODO: Open upgrade modal
+  const handleDelete = async (member) => {
+    const result = await showConfirm(
+      'Deactivate Member',
+      `Are you sure you want to deactivate ${member.name}? This action can be reversed later.`,
+      {
+        confirmButtonText: 'Yes, Deactivate',
+        cancelButtonText: 'Cancel',
+        icon: 'warning',
+      }
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/admin/members?userId=${member._id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          showSuccess('Member deactivated successfully');
+          fetchMembers();
+        } else {
+          showError('Failed to deactivate member');
+        }
+      } catch (error) {
+        console.error('Error deactivating member:', error);
+        showError('Failed to deactivate member');
+      }
+    }
   };
+
+  const handleUpgrade = async (member) => {
+    const currentTier = getTierInfo(member);
+    const result = await swalTheme.fire({
+      icon: 'question',
+      iconColor: '#aa1fef',
+      title: 'Change Subscription Tier',
+      text: `Current tier: ${currentTier.label}. Select new tier for ${member.name}`,
+      input: 'select',
+      inputOptions: {
+        free: 'Standard (Free)',
+        monthly: 'Premium (Monthly)',
+        yearly: 'Premium (Yearly)',
+      },
+      inputValue: currentTier.subscriptionType,
+      inputPlaceholder: 'Select tier',
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#aa1fef',
+      cancelButtonColor: '#3c2348',
+    });
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const response = await fetch(`/api/admin/members?userId=${member._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subscription: {
+              type: result.value,
+              status: result.value === 'free' ? 'active' : 'active',
+            },
+          }),
+        });
+
+        if (response.ok) {
+          showSuccess('Subscription tier updated successfully');
+          fetchMembers();
+        } else {
+          showError('Failed to update subscription tier');
+        }
+      } catch (error) {
+        console.error('Error updating subscription tier:', error);
+        showError('Failed to update subscription tier');
+      }
+    }
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedMembers(new Set(members.map((m) => m._id)));
+    } else {
+      setSelectedMembers(new Set());
+    }
+  };
+
+  const handleSelectMember = (memberId) => {
+    const newSelected = new Set(selectedMembers);
+    if (newSelected.has(memberId)) {
+      newSelected.delete(memberId);
+    } else {
+      newSelected.add(memberId);
+    }
+    setSelectedMembers(newSelected);
+  };
+
+  const isAllSelected = members.length > 0 && selectedMembers.size === members.length;
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -241,7 +360,12 @@ export default function AdminMembersPage() {
                   <thead>
                     <tr className="bg-card-dark/50 border-b border-white/5">
                       <th className="p-4 pl-6 w-14">
-                        <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer h-4 w-4" type="checkbox" />
+                        <input
+                          className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer h-4 w-4"
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={handleSelectAll}
+                        />
                       </th>
                       <th className="p-4 text-xs font-bold uppercase tracking-wider text-text-secondary cursor-pointer hover:text-white group transition-colors">
                         <div className="flex items-center gap-1">
@@ -286,14 +410,20 @@ export default function AdminMembersPage() {
                         return (
                           <tr key={member._id} className="group hover:bg-white/5 transition-colors">
                             <td className="p-4 pl-6">
-                              <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer h-4 w-4" type="checkbox" />
+                              <input
+                                className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer h-4 w-4"
+                                type="checkbox"
+                                checked={selectedMembers.has(member._id)}
+                                onChange={() => handleSelectMember(member._id)}
+                              />
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <div
-                                  className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner relative overflow-hidden flex-shrink-0 border-2 border-card-dark group-hover:border-primary/50 transition-colors"
+                                  className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner relative overflow-hidden flex-shrink-0 border-2 border-card-dark group-hover:border-primary/50 transition-colors bg-center bg-cover"
                                   style={{
                                     backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
+                                    backgroundColor: member.profilePhoto ? 'transparent' : undefined,
                                   }}
                                 >
                                   {!member.profilePhoto && getInitials(member.name)}
