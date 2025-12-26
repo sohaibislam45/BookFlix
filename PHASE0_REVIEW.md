@@ -126,3 +126,4 @@ The project is ready to proceed to Phase 1: Authentication setup.
 3. **Testing**: Test the Stripe webhook endpoint with test events
 
 
+

@@ -4,13 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ErrorNavbar from '@/components/ErrorNavbar';
-import dynamic from 'next/dynamic';
-
-// Dynamically import Lottie with SSR disabled to prevent server-side errors
-const Lottie = dynamic(() => import('lottie-react'), {
-  ssr: false,
-  loading: () => null,
-});
+import Lottie from 'lottie-react';
 
 export default function BooksNotFound() {
   const searchParams = useSearchParams();
@@ -22,21 +16,8 @@ export default function BooksNotFound() {
   useEffect(() => {
     // Load Lottie animation from public directory
     fetch('/animations/empty-books.json')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to fetch animation: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        // Validate animation data structure
-        if (data && typeof data === 'object' && data.v && data.fr !== undefined) {
-          setAnimationData(data);
-        } else {
-          console.error('Invalid animation data structure');
-          setAnimationData(null);
-        }
-      })
+      .then((res) => res.json())
+      .then((data) => setAnimationData(data))
       .catch((err) => {
         console.error('Failed to load animation:', err);
         // Fallback: set null to hide animation

@@ -1,43 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ErrorNavbar from '@/components/ErrorNavbar';
-import dynamic from 'next/dynamic';
-
-// Dynamically import Lottie with SSR disabled to prevent server-side errors
-const Lottie = dynamic(() => import('lottie-react'), {
-  ssr: false,
-  loading: () => null,
-});
 
 export default function NotFound() {
-  const [animationData, setAnimationData] = useState(null);
-
-  useEffect(() => {
-    // Load Lottie animation from public directory
-    fetch('/animations/404-error.json')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to fetch animation: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        // Validate animation data structure
-        if (data && typeof data === 'object' && data.v && data.fr !== undefined) {
-          setAnimationData(data);
-        } else {
-          console.error('Invalid animation data structure');
-          setAnimationData(null);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load animation:', err);
-        // Fallback: set null to hide animation
-        setAnimationData(null);
-      });
-  }, []);
 
   return (
     <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display text-gray-900 dark:text-white overflow-x-hidden">
@@ -54,18 +20,6 @@ export default function NotFound() {
               {/* Decorative glow */}
               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full -z-10"></div>
             </div>
-            
-            {/* Lottie Animation */}
-            {animationData && (
-              <div className="w-[300px] h-[300px] md:w-[400px] md:h-[400px] -mt-12">
-                <Lottie
-                  animationData={animationData}
-                  loop={true}
-                  autoplay={true}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
-            )}
             
             <div className="space-y-4 max-w-[600px]">
               <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
@@ -85,10 +39,10 @@ export default function NotFound() {
                 Go to Homepage
               </Link>
               <Link
-                href="/member/browse"
+                href="/contact"
                 className="flex-1 cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-[#2b1934] border border-[#3c2348] text-white text-base font-bold hover:bg-[#3c2348] hover:border-[#553267] transition-all duration-200 flex"
               >
-                Browse Books
+                Contact Support
               </Link>
             </div>
           </div>
@@ -100,9 +54,11 @@ export default function NotFound() {
               <div className="pl-4 pr-3 text-[#b791ca]">
                 <span className="material-symbols-outlined text-2xl">search</span>
               </div>
-              <Link href="/member/browse" className="w-full bg-transparent border-none text-white placeholder-[#7a5c8a] focus:ring-0 text-base h-full rounded-r-lg flex items-center text-[#7a5c8a]">
-                Search for titles, authors, or genres to get back on track...
-              </Link>
+              <input
+                type="text"
+                className="w-full bg-transparent border-none text-white placeholder-[#7a5c8a] focus:ring-0 text-base h-full rounded-r-lg"
+                placeholder="Search for titles, authors, or genres to get back on track..."
+              />
             </div>
           </div>
           
@@ -174,6 +130,9 @@ export default function NotFound() {
             </Link>
             <Link href="/privacy" className="text-[#b791ca] text-sm hover:text-white transition-colors">
               Privacy Policy
+            </Link>
+            <Link href="/cookies" className="text-[#b791ca] text-sm hover:text-white transition-colors">
+              Cookie Settings
             </Link>
           </div>
           <p className="text-gray-500 text-xs">
