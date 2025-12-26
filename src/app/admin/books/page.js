@@ -44,20 +44,7 @@ export default function AdminBooksPage() {
       const response = await fetch(`/api/books?${params}`);
       if (response.ok) {
         const data = await response.json();
-        const booksList = data.books || [];
-        setBooks(booksList);
-        
-        // Calculate low stock count (books with 3 or fewer available copies)
-        const lowStockCount = booksList.filter(book => {
-          const available = book.availableCopies || 0;
-          return available > 0 && available <= 3;
-        }).length;
-        
-        // Update low stock in stats
-        setStats(prev => ({
-          ...prev,
-          lowStock: lowStockCount,
-        }));
+        setBooks(data.books || []);
       }
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -71,12 +58,12 @@ export default function AdminBooksPage() {
       const response = await fetch('/api/admin/stats');
       if (response.ok) {
         const data = await response.json();
-        setStats(prev => ({
+        setStats({
           totalInventory: data.totalCopies || 0,
           borrowed: data.borrowedCopies || 0,
           available: data.availableCopies || 0,
-          lowStock: prev.lowStock || 0, // Will be updated when books are fetched
-        }));
+          lowStock: data.lowStock || 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
