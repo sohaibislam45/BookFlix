@@ -279,6 +279,12 @@ export async function PATCH(request) {
       updateQuery.$set.isActive = Boolean(updates.isActive);
     }
 
+    if (updates.profilePhoto !== undefined) {
+      updateQuery.$set.profilePhoto = updates.profilePhoto && updates.profilePhoto.trim() !== '' 
+        ? updates.profilePhoto.trim() 
+        : null;
+    }
+
     if (Object.keys(updateQuery.$set).length === 0) {
       return NextResponse.json(
         { error: 'No valid fields to update' },
@@ -327,12 +333,11 @@ export async function DELETE(request) {
       return idError;
     }
 
-    // Soft delete - set isActive to false instead of deleting
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $set: { isActive: false } },
-      { new: true }
-    );
+    // Check if user exists and is a staff member
+    const user = await User.findOne({ 
+      _id: userId,
+      role: { $in: [USER_ROLES.LIBRARIAN, USER_ROLES.ADMIN] },
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -341,7 +346,10 @@ export async function DELETE(request) {
       );
     }
 
-    return NextResponse.json({ message: 'Staff member deactivated successfully' });
+    // Permanently delete the user from database
+    await User.findByIdAndDelete(userId);
+
+    return NextResponse.json({ message: 'Staff member deleted successfully' });
   } catch (error) {
     console.error('[DELETE /api/admin/staff] Error:', error);
     return handleApiError(error, 'delete staff');

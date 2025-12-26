@@ -88,11 +88,12 @@ export default function AdminStaffPage() {
 
   const handleDeleteStaff = async (staffId, staffName) => {
     const result = await showConfirm(
-      'Deactivate Staff Member',
-      `Are you sure you want to deactivate "${staffName}"? They will no longer be able to access the system.`,
+      'Delete Staff Member',
+      `Are you sure you want to permanently delete "${staffName}"? This action cannot be undone and all their data will be removed from the system.`,
       {
-        confirmButtonText: 'Deactivate',
+        confirmButtonText: 'Delete',
         cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ef4444',
       }
     );
 
@@ -112,7 +113,7 @@ export default function AdminStaffPage() {
         }
 
         if (response.ok) {
-          showSuccess('Staff Deactivated!', `"${staffName}" has been successfully deactivated.`);
+          showSuccess('Staff Deleted!', `"${staffName}" has been permanently deleted from the system.`);
           fetchStaff(); // Refresh the staff list
           fetchActivities(); // Refresh activity log
         } else {
@@ -291,13 +292,13 @@ export default function AdminStaffPage() {
                                   <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden">
                                     {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
                                       <img
-                                        src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}&t=${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
+                                        src={`${member.profilePhoto}${member.profilePhoto.includes('?') ? '&' : '?'}t=${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
                                         alt={member.name}
                                         className="w-full h-full rounded-full object-cover"
                                         onError={(e) => {
                                           setImageErrors(prev => new Set(prev).add(member._id));
                                         }}
-                                        key={`${member._id}-${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
+                                        key={`img-${member._id}-${member.profilePhoto}-${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
                                       />
                                     ) : (
                                       <span>{getInitials(member.name)}</span>
@@ -424,7 +425,7 @@ export default function AdminStaffPage() {
           // Clear image errors to allow refreshed images to load
           setImageErrors(new Set());
         }}
-        onStaffUpdated={() => {
+        onStaffUpdated={async () => {
           // Clear image errors for the updated staff member specifically
           if (editingStaffId) {
             setImageErrors(prev => {
@@ -435,7 +436,9 @@ export default function AdminStaffPage() {
           } else {
             setImageErrors(new Set());
           }
-          fetchStaff();
+          // Force refresh with a small delay to ensure database is updated
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await fetchStaff();
           fetchActivities();
         }}
         staffId={editingStaffId}
