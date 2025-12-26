@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
+import AddStaffModal from '@/components/AddStaffModal';
 import { formatDate } from '@/lib/utils';
 import Loader from '@/components/Loader';
+import { showError, showSuccess, showConfirm } from '@/lib/swal';
 
 export default function AdminStaffPage() {
   const { userData } = useAuth();
@@ -18,6 +20,8 @@ export default function AdminStaffPage() {
     activeToday: 0,
   });
   const [imageErrors, setImageErrors] = useState(new Set());
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState(null);
 
   useEffect(() => {
     fetchStaff();
@@ -26,22 +30,76 @@ export default function AdminStaffPage() {
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/users?role=librarian&role=admin');
+      const params = new URLSearchParams({
+        ...(searchQuery && { search: searchQuery }),
+        ...(roleFilter !== 'all' && { role: roleFilter }),
+      });
+      const response = await fetch(`/api/admin/staff?${params}`);
       if (response.ok) {
         const data = await response.json();
-        const allStaff = [...(data.users || []), ...(data.admins || [])];
-        setStaff(allStaff);
-        setStats({
-          totalStaff: allStaff.length,
-          administrators: allStaff.filter(s => s.role === 'admin').length,
-          activeToday: allStaff.filter(s => s.isActive).length,
-        });
+        setStaff(data.staff || []);
+        if (data.stats) {
+          setStats({
+            totalStaff: data.stats.totalStaff || 0,
+            administrators: data.stats.administrators || 0,
+            activeToday: data.stats.activeToday || 0,
+          });
+        }
         setImageErrors(new Set()); // Reset image errors when fetching new data
+      } else {
+        const error = await response.json();
+        showError('Error', error.error || 'Failed to fetch staff');
       }
     } catch (error) {
       console.error('Error fetching staff:', error);
+      showError('Error', 'Failed to fetch staff. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditStaff = (staffId) => {
+    setEditingStaffId(staffId);
+    // TODO: Open edit modal
+    showError('Coming Soon', 'Edit staff functionality will be available soon.');
+  };
+
+  const handleDeleteStaff = async (staffId, staffName) => {
+    const result = await showConfirm(
+      'Deactivate Staff Member',
+      `Are you sure you want to deactivate "${staffName}"? They will no longer be able to access the system.`,
+      {
+        confirmButtonText: 'Deactivate',
+        cancelButtonText: 'Cancel',
+      }
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/admin/staff?userId=${staffId}`, {
+          method: 'DELETE',
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Staff Deactivated!', `"${staffName}" has been successfully deactivated.`);
+          fetchStaff(); // Refresh the staff list
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to deactivate staff (${response.status})`;
+          showError('Error', errorMessage);
+        }
+      } catch (error) {
+        console.error('Error deleting staff:', error);
+        showError('Error', error.message || 'Failed to deactivate staff. Please try again.');
+      }
     }
   };
 
@@ -87,11 +145,17 @@ export default function AdminStaffPage() {
               <p className="text-text-secondary">Manage access, permissions, and view activity logs.</p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-white/5 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white transition-all font-medium text-sm">
+              <button 
+                onClick={() => showError('Coming Soon', 'Role management functionality will be available soon.')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-white/5 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white transition-all font-medium text-sm"
+              >
                 <span className="material-symbols-outlined text-[18px]">security</span>
                 Manage Roles
               </button>
-              <button className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 transition-all font-bold text-sm hover:scale-105 active:scale-95">
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 transition-all font-bold text-sm hover:scale-105 active:scale-95"
+              >
                 <span className="material-symbols-outlined text-[20px]">add</span>
                 Add Staff
               </button>
@@ -244,11 +308,19 @@ export default function AdminStaffPage() {
                               </td>
                               <td className="px-5 py-3.5 text-right">
                                 <div className="flex justify-end gap-1">
-                                  <button className="p-1.5 rounded-lg hover:bg-primary/10 hover:text-primary text-text-secondary transition-colors" title="Edit Permissions">
-                                    <span className="material-symbols-outlined text-[18px]">lock_person</span>
-                                  </button>
-                                  <button className="p-1.5 rounded-lg hover:bg-white/10 text-text-secondary hover:text-white transition-colors">
+                                  <button 
+                                    onClick={() => handleEditStaff(member._id)}
+                                    className="p-1.5 rounded-lg hover:bg-primary/10 hover:text-primary text-text-secondary transition-colors" 
+                                    title="Edit Staff"
+                                  >
                                     <span className="material-symbols-outlined text-[18px]">edit</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteStaff(member._id, member.name)}
+                                    className="p-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-400 text-text-secondary transition-colors"
+                                    title="Deactivate Staff"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
                                   </button>
                                 </div>
                               </td>
@@ -295,6 +367,15 @@ export default function AdminStaffPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Staff Modal */}
+      <AddStaffModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onStaffAdded={() => {
+          fetchStaff();
+        }}
+      />
     </>
   );
 }
