@@ -17,6 +17,8 @@ export default function MemberDetailsPage() {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -138,6 +140,10 @@ export default function MemberDetailsPage() {
         ...prev,
         [name]: value,
       }));
+      // Clear preview if profile photo URL is cleared
+      if (name === 'profilePhoto' && !value) {
+        setPhotoPreview(null);
+      }
     }
   };
 
@@ -147,6 +153,66 @@ export default function MemberDetailsPage() {
       ...prev,
       [name]: checked,
     }));
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showError('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      showError('Image size must be less than 5MB');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to ImgBB
+    try {
+      setUploadingPhoto(true);
+      const uploadFormData = new FormData();
+      uploadFormData.append('image', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to upload image');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        setFormData(prev => ({
+          ...prev,
+          profilePhoto: data.url,
+        }));
+        showSuccess('Photo uploaded successfully');
+      } else {
+        throw new Error('No URL returned from upload');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      showError('Failed to upload photo', error.message);
+      setPhotoPreview(null);
+    } finally {
+      setUploadingPhoto(false);
+      // Reset file input
+      e.target.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -251,15 +317,41 @@ export default function MemberDetailsPage() {
               </h2>
               
               <div className="space-y-4">
-                <div className="flex items-center gap-6 mb-6">
-                  <div
-                    className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-inner relative overflow-hidden border-4 border-card-dark bg-center bg-cover"
-                    style={{
-                      backgroundImage: formData.profilePhoto ? `url('${formData.profilePhoto}')` : 'none',
-                      backgroundColor: formData.profilePhoto ? 'transparent' : undefined,
-                    }}
-                  >
-                    {!formData.profilePhoto && getInitials(formData.name)}
+                <div className="flex items-start gap-6 mb-6">
+                  <div className="flex flex-col items-center gap-3">
+                    <div
+                      className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-inner relative overflow-hidden border-4 border-card-dark"
+                      style={{
+                        backgroundImage: (photoPreview || formData.profilePhoto) ? `url('${photoPreview || formData.profilePhoto}')` : 'none',
+                        backgroundSize: (photoPreview || formData.profilePhoto) ? 'cover' : 'auto',
+                        backgroundPosition: (photoPreview || formData.profilePhoto) ? 'center' : 'center',
+                        backgroundColor: (photoPreview || formData.profilePhoto) ? 'transparent' : undefined,
+                      }}
+                    >
+                      {!(photoPreview || formData.profilePhoto) && getInitials(formData.name)}
+                    </div>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        disabled={uploadingPhoto}
+                        className="hidden"
+                      />
+                      <div className="px-4 py-2 rounded-lg border border-white/5 bg-background-dark text-text-secondary hover:text-white hover:border-primary transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {uploadingPhoto ? (
+                          <>
+                            <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-sm">upload</span>
+                            Upload Photo
+                          </>
+                        )}
+                      </div>
+                    </label>
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -273,6 +365,7 @@ export default function MemberDetailsPage() {
                       placeholder="https://example.com/photo.jpg"
                       className="w-full h-11 px-4 bg-background-dark border border-white/5 rounded-lg text-white placeholder:text-text-secondary/50 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                     />
+                    <p className="text-xs text-text-secondary mt-1">Or enter a photo URL directly</p>
                   </div>
                 </div>
 

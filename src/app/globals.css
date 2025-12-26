@@ -137,6 +137,24 @@ body {
   background: #aa1fef;
 }
 
+/* Custom scrollbar for modal content */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1c1022;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3c2348;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #553267;
+}
+
 /* Toggle checkbox styles */
 .toggle-checkbox:checked {
   right: 0;

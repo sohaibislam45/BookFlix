@@ -16,7 +16,7 @@ export async function GET(request) {
     // If userId is provided, return single member
     if (userId) {
       const member = await User.findOne({ _id: userId, role: USER_ROLES.MEMBER })
-        .select('-__v')
+        .select('name email profilePhoto role subscription isActive suspendedUntil createdAt updatedAt phone address')
         .lean();
       
       if (!member) {
@@ -82,7 +82,7 @@ export async function GET(request) {
 
     // Get members
     const members = await User.find(query)
-      .select('-__v')
+      .select('name email profilePhoto role subscription isActive suspendedUntil createdAt updatedAt phone address')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -149,61 +149,124 @@ export async function PATCH(request) {
       );
     }
 
+    // Build update query properly handling nested objects
+    const updateQuery = { $set: {} };
+
+    // Handle top-level fields
+    if (updates.name !== undefined && updates.name !== null) {
+      const trimmedName = updates.name.trim();
+      if (trimmedName === '') {
+        return NextResponse.json(
+          { error: 'Name cannot be empty' },
+          { status: 400 }
+        );
+      }
+      updateQuery.$set.name = trimmedName;
+    }
+    if (updates.phone !== undefined) {
+      updateQuery.$set.phone = updates.phone && updates.phone.trim() !== '' ? updates.phone.trim() : null;
+    }
+    if (updates.profilePhoto !== undefined) {
+      updateQuery.$set.profilePhoto = updates.profilePhoto && updates.profilePhoto.trim() !== '' ? updates.profilePhoto.trim() : null;
+    }
+    if (updates.isActive !== undefined) {
+      updateQuery.$set.isActive = Boolean(updates.isActive);
+    }
+
     // Handle suspension with duration
     if (updates.suspendedUntil !== undefined) {
       if (updates.suspendedUntil === null) {
         // Activate user - remove suspension
-        updates.isActive = true;
-        updates.suspendedUntil = null;
+        updateQuery.$set.isActive = true;
+        updateQuery.$set.suspendedUntil = null;
       } else {
         // Suspend user
-        updates.isActive = false;
+        updateQuery.$set.isActive = false;
         if (updates.suspendedUntil === 'forever') {
           // Permanent suspension - set to a far future date
-          updates.suspendedUntil = new Date('2099-12-31');
+          updateQuery.$set.suspendedUntil = new Date('2099-12-31');
         } else if (typeof updates.suspendedUntil === 'number') {
           // Duration in days
           const suspendedUntil = new Date();
           suspendedUntil.setDate(suspendedUntil.getDate() + updates.suspendedUntil);
-          updates.suspendedUntil = suspendedUntil;
+          updateQuery.$set.suspendedUntil = suspendedUntil;
         } else if (typeof updates.suspendedUntil === 'string') {
           // Date was serialized as string from JSON - convert back to Date
-          updates.suspendedUntil = new Date(updates.suspendedUntil);
+          updateQuery.$set.suspendedUntil = new Date(updates.suspendedUntil);
         } else if (updates.suspendedUntil instanceof Date) {
-          // Already a Date object - keep it
-          // No conversion needed
+          updateQuery.$set.suspendedUntil = updates.suspendedUntil;
         }
       }
-    } else if (updates.isActive === false && !updates.suspendedUntil) {
-      // If isActive is being set to false but no suspendedUntil is provided,
-      // this might be an old suspension - we should still set a date
-      // But we'll leave it as is for now to avoid breaking existing suspensions
     }
 
-    // Debug logging - log the raw updates
-    console.log('[PATCH /api/admin/members] Raw updates object:', JSON.stringify(updates, null, 2));
-    console.log('[PATCH /api/admin/members] suspendedUntil in updates:', updates.suspendedUntil);
-    console.log('[PATCH /api/admin/members] suspendedUntil type:', typeof updates.suspendedUntil);
-    console.log('[PATCH /api/admin/members] suspendedUntil instanceof Date:', updates.suspendedUntil instanceof Date);
-    
-    // Ensure we're setting the field correctly
-    // Create a clean update object to avoid any serialization issues
-    const cleanUpdates = { ...updates };
-    if (cleanUpdates.suspendedUntil instanceof Date) {
-      // Keep as Date object - Mongoose will handle it
-      console.log('[PATCH /api/admin/members] Keeping suspendedUntil as Date object:', cleanUpdates.suspendedUntil.toISOString());
+    // Handle nested subscription object - validate enum values
+    if (updates.subscription !== undefined && updates.subscription !== null && typeof updates.subscription === 'object') {
+      const subscription = updates.subscription;
+      if (subscription.type !== undefined && subscription.type !== null && subscription.type !== '') {
+        const validTypes = ['free', 'monthly', 'yearly'];
+        if (!validTypes.includes(subscription.type)) {
+          return NextResponse.json(
+            { error: `Invalid subscription type: ${subscription.type}. Must be one of: ${validTypes.join(', ')}` },
+            { status: 400 }
+          );
+        }
+        updateQuery.$set['subscription.type'] = subscription.type;
+      }
+      if (subscription.status !== undefined && subscription.status !== null && subscription.status !== '') {
+        const validStatuses = ['active', 'cancelled', 'expired'];
+        if (!validStatuses.includes(subscription.status)) {
+          return NextResponse.json(
+            { error: `Invalid subscription status: ${subscription.status}. Must be one of: ${validStatuses.join(', ')}` },
+            { status: 400 }
+          );
+        }
+        updateQuery.$set['subscription.status'] = subscription.status;
+      }
+      if (subscription.startDate !== undefined) {
+        updateQuery.$set['subscription.startDate'] = subscription.startDate ? new Date(subscription.startDate) : null;
+      }
+      if (subscription.endDate !== undefined) {
+        updateQuery.$set['subscription.endDate'] = subscription.endDate ? new Date(subscription.endDate) : null;
+      }
+      if (subscription.stripeSubscriptionId !== undefined) {
+        updateQuery.$set['subscription.stripeSubscriptionId'] = subscription.stripeSubscriptionId || null;
+      }
     }
-    
-    const updateQuery = { $set: cleanUpdates };
-    console.log('[PATCH /api/admin/members] Update query keys:', Object.keys(updateQuery.$set));
-    console.log('[PATCH /api/admin/members] Update query suspendedUntil:', updateQuery.$set.suspendedUntil);
 
-    // Perform the update - explicitly include suspendedUntil in select
+    // Handle nested address object
+    if (updates.address !== undefined && updates.address !== null && typeof updates.address === 'object') {
+      const address = updates.address;
+      if (address.division !== undefined) {
+        updateQuery.$set['address.division'] = address.division && address.division.trim() !== '' ? address.division.trim() : null;
+      }
+      if (address.city !== undefined) {
+        updateQuery.$set['address.city'] = address.city && address.city.trim() !== '' ? address.city.trim() : null;
+      }
+      if (address.area !== undefined) {
+        updateQuery.$set['address.area'] = address.area && address.area.trim() !== '' ? address.area.trim() : null;
+      }
+      if (address.landmark !== undefined) {
+        updateQuery.$set['address.landmark'] = address.landmark && address.landmark.trim() !== '' ? address.landmark.trim() : null;
+      }
+    }
+
+    // Check if there are any updates to apply
+    if (Object.keys(updateQuery.$set).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[PATCH /api/admin/members] Update query:', JSON.stringify(updateQuery, null, 2));
+    console.log('[PATCH /api/admin/members] UserId:', userId);
+
+    // Perform the update
     const updateResult = await User.findByIdAndUpdate(
       userId,
       updateQuery,
       { new: true, runValidators: true }
-    ).select('+suspendedUntil -__v').lean();
+    ).select('-__v').lean();
     
     console.log('[PATCH /api/admin/members] Update result (lean):', {
       hasResult: !!updateResult,
@@ -215,7 +278,7 @@ export async function PATCH(request) {
     let user = updateResult;
     
     // If suspendedUntil is missing, try without lean() to get the full document
-    if (!updateResult?.suspendedUntil && updates.suspendedUntil) {
+    if (!updateResult?.suspendedUntil && updateQuery.$set.suspendedUntil) {
       console.log('[PATCH /api/admin/members] Retrying without lean() to get full document...');
       const userDoc = await User.findByIdAndUpdate(
         userId,
@@ -225,49 +288,6 @@ export async function PATCH(request) {
       
       if (userDoc) {
         user = userDoc.toObject ? userDoc.toObject() : userDoc;
-        console.log('[PATCH /api/admin/members] Retry result (toObject):', {
-          suspendedUntil: user?.suspendedUntil,
-          suspendedUntilType: typeof user?.suspendedUntil,
-          allKeys: Object.keys(user)
-        });
-      }
-    }
-    
-    console.log('[PATCH /api/admin/members] Final user object:', {
-      _id: user?._id,
-      isActive: user?.isActive,
-      suspendedUntil: user?.suspendedUntil,
-      suspendedUntilType: typeof user?.suspendedUntil,
-      suspendedUntilValue: user?.suspendedUntil ? new Date(user.suspendedUntil).toISOString() : 'null/undefined'
-    });
-
-    // If suspendedUntil is still undefined after update, try a direct query
-    if (updates.suspendedUntil && !user.suspendedUntil) {
-      console.error('[PATCH /api/admin/members] WARNING: suspendedUntil was not saved!');
-      console.error('[PATCH /api/admin/members] Updates that were sent:', updates);
-      // Try to fetch the user directly to see what's in the DB
-      const directUser = await User.findById(userId).select('+suspendedUntil isActive').lean();
-      console.error('[PATCH /api/admin/members] Direct DB query result:', directUser);
-      
-      // The field is not being saved - try using updateOne directly with proper Date conversion
-      console.error('[PATCH /api/admin/members] Attempting direct MongoDB updateOne...');
-      const dateToSave = updates.suspendedUntil instanceof Date 
-        ? updates.suspendedUntil 
-        : new Date(updates.suspendedUntil);
-      
-      const directUpdate = await User.updateOne(
-        { _id: userId },
-        { $set: { suspendedUntil: dateToSave } }
-      );
-      console.error('[PATCH /api/admin/members] Direct updateOne result:', directUpdate);
-      
-      // Fetch again to verify
-      const verifyUser = await User.findById(userId).select('+suspendedUntil isActive').lean();
-      console.error('[PATCH /api/admin/members] After direct updateOne:', verifyUser);
-      
-      if (verifyUser?.suspendedUntil) {
-        user = verifyUser;
-        console.error('[PATCH /api/admin/members] Successfully saved suspendedUntil via updateOne!');
       }
     }
 
@@ -286,6 +306,36 @@ export async function PATCH(request) {
     return NextResponse.json({ user });
   } catch (error) {
     console.error('[PATCH /api/admin/members] Error:', error);
+    console.error('[PATCH /api/admin/members] Error stack:', error.stack);
+    console.error('[PATCH /api/admin/members] Error name:', error.name);
+    
+    // Check if it's a validation error
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.keys(error.errors || {}).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      }));
+      return NextResponse.json(
+        { 
+          error: 'Validation failed', 
+          details: error.message,
+          validationErrors 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Check if it's a CastError (invalid ObjectId, etc.)
+    if (error.name === 'CastError') {
+      return NextResponse.json(
+        { 
+          error: 'Invalid data format', 
+          details: error.message 
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to update member', details: error.message },
       { status: 500 }

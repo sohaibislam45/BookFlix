@@ -88,7 +88,7 @@ export default function UserProfile() {
         <div className="relative w-10 h-10 shrink-0">
           {profilePhoto && !imageError ? (
             <img
-              src={profilePhoto}
+              src={`/api/image-proxy?url=${encodeURIComponent(profilePhoto)}`}
               alt={displayName}
               className="w-10 h-10 rounded-full object-cover border-2 border-primary/50"
               style={{ 
@@ -100,7 +100,7 @@ export default function UserProfile() {
                 flexShrink: 0
               }}
               onError={(e) => {
-                console.error('Image load error:', profilePhoto, e);
+                // Silently handle image load errors - fallback will be shown
                 setImageError(true);
               }}
               onLoad={() => {
@@ -127,11 +127,11 @@ export default function UserProfile() {
               <div className="relative shrink-0">
                 {profilePhoto && !imageError ? (
                   <img
-                    src={profilePhoto}
+                    src={`/api/image-proxy?url=${encodeURIComponent(profilePhoto)}`}
                     alt={displayName}
                     className="w-14 h-14 rounded-full object-cover border-2 border-primary/60 shadow-lg shadow-primary/30"
                     onError={(e) => {
-                      console.error('Image load error:', profilePhoto, e);
+                      // Silently handle image load errors - fallback will be shown
                       setImageError(true);
                     }}
                   />

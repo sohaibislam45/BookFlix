@@ -30,6 +30,7 @@ export default function AdminMembersPage() {
     totalPages: 0,
   });
   const [selectedMembers, setSelectedMembers] = useState(new Set());
+  const [imageErrors, setImageErrors] = useState(new Set());
 
   useEffect(() => {
     fetchMembers();
@@ -52,6 +53,7 @@ export default function AdminMembersPage() {
         setMembers(data.members || []);
         setPagination(data.pagination || pagination);
         setStats(data.stats || stats);
+        setImageErrors(new Set()); // Reset image errors when fetching new data
       }
     } catch (error) {
       console.error('Error fetching members:', error);
@@ -508,14 +510,19 @@ export default function AdminMembersPage() {
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-3">
-                                <div
-                                  className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner relative overflow-hidden flex-shrink-0 border-2 border-card-dark group-hover:border-primary/50 transition-colors bg-center bg-cover"
-                                  style={{
-                                    backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
-                                    backgroundColor: member.profilePhoto ? 'transparent' : undefined,
-                                  }}
-                                >
-                                  {!member.profilePhoto && getInitials(member.name)}
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner relative overflow-hidden flex-shrink-0 border-2 border-card-dark group-hover:border-primary/50 transition-colors">
+                                  {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
+                                    <img
+                                      src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}`}
+                                      alt={member.name}
+                                      className="w-full h-full rounded-full object-cover"
+                                      onError={(e) => {
+                                        setImageErrors(prev => new Set(prev).add(member._id));
+                                      }}
+                                    />
+                                  ) : (
+                                    <span>{getInitials(member.name)}</span>
+                                  )}
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-white text-sm font-semibold truncate">{member.name}</p>

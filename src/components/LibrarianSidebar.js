@@ -84,20 +84,23 @@ export default function LibrarianSidebar() {
       </nav>
       <div className="p-4 border-t border-white/5">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-[#2a1d33] border border-white/5 hover:border-white/10 hover:bg-white/10 cursor-pointer transition-all">
-          <div
-            className="size-9 rounded-full bg-center bg-cover border border-white/10 ring-2 ring-transparent group-hover:ring-primary/50 transition-all"
-            style={{
-              backgroundImage: userData?.profilePhoto
-                ? `url('${userData.profilePhoto}')`
-                : 'none',
-              backgroundColor: userData?.profilePhoto ? 'transparent' : '#3c2348',
-            }}
-          >
-            {!userData?.profilePhoto && (
-              <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
-                {userData?.name?.charAt(0)?.toUpperCase() || 'L'}
-              </div>
-            )}
+          <div className="size-9 rounded-full border border-white/10 ring-2 ring-transparent group-hover:ring-primary/50 transition-all overflow-hidden bg-[#3c2348] flex items-center justify-center">
+            {userData?.profilePhoto ? (
+              <img
+                src={`/api/image-proxy?url=${encodeURIComponent(userData.profilePhoto)}`}
+                alt={userData?.name || 'Librarian'}
+                className="w-full h-full rounded-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className={`w-full h-full flex items-center justify-center text-white text-sm font-bold ${userData?.profilePhoto ? 'hidden' : ''}`}
+            >
+              {userData?.name?.charAt(0)?.toUpperCase() || 'L'}
+            </div>
           </div>
           <div className="flex flex-col overflow-hidden">
             <p className="text-sm font-semibold text-white truncate">{userData?.name || 'Librarian'}</p>

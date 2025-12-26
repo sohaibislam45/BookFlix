@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
+import AddBookModal from '@/components/AddBookModal';
 
 export default function AdminBooksPage() {
   const { userData } = useAuth();
@@ -17,6 +18,7 @@ export default function AdminBooksPage() {
     available: 0,
     lowStock: 0,
   });
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     fetchBooks();
@@ -91,7 +93,10 @@ export default function AdminBooksPage() {
                   <span className="material-symbols-outlined text-[20px]">upload_file</span>
                   Bulk Import
                 </button>
-                <button className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">
+                <button 
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20"
+                >
                   <span className="material-symbols-outlined text-[20px]">add</span>
                   Add New Book
                 </button>
@@ -296,6 +301,16 @@ export default function AdminBooksPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Book Modal */}
+      <AddBookModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onBookAdded={() => {
+          fetchBooks();
+          fetchStats();
+        }}
+      />
     </>
   );
 }

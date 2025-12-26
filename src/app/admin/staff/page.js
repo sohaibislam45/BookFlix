@@ -17,6 +17,7 @@ export default function AdminStaffPage() {
     administrators: 0,
     activeToday: 0,
   });
+  const [imageErrors, setImageErrors] = useState(new Set());
 
   useEffect(() => {
     fetchStaff();
@@ -35,6 +36,7 @@ export default function AdminStaffPage() {
           administrators: allStaff.filter(s => s.role === 'admin').length,
           activeToday: allStaff.filter(s => s.isActive).length,
         });
+        setImageErrors(new Set()); // Reset image errors when fetching new data
       }
     } catch (error) {
       console.error('Error fetching staff:', error);
@@ -199,17 +201,18 @@ export default function AdminStaffPage() {
                             <tr key={member._id} className="group hover:bg-white/5 transition-colors">
                               <td className="px-5 py-3.5">
                                 <div className="flex items-center gap-3">
-                                  <div
-                                    className="size-9 rounded-full bg-center bg-cover"
-                                    style={{
-                                      backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
-                                      backgroundColor: member.profilePhoto ? 'transparent' : '#3c2348',
-                                    }}
-                                  >
-                                    {!member.profilePhoto && (
-                                      <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
-                                        {getInitials(member.name)}
-                                      </div>
+                                  <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                                    {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
+                                      <img
+                                        src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}`}
+                                        alt={member.name}
+                                        className="w-full h-full rounded-full object-cover"
+                                        onError={(e) => {
+                                          setImageErrors(prev => new Set(prev).add(member._id));
+                                        }}
+                                      />
+                                    ) : (
+                                      <span>{getInitials(member.name)}</span>
                                     )}
                                   </div>
                                   <div className="flex flex-col">

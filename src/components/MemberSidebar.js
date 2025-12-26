@@ -63,20 +63,23 @@ export default function MemberSidebar() {
         </nav>
       </div>
       <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-surface-dark border border-[#3c2348]">
-        <div
-          className="size-10 rounded-full bg-cover bg-center"
-          style={{
-            backgroundImage: userData?.profilePhoto
-              ? `url('${userData.profilePhoto}')`
-              : 'none',
-            backgroundColor: userData?.profilePhoto ? 'transparent' : '#3c2348',
-          }}
-        >
-          {!userData?.profilePhoto && (
-            <div className="w-full h-full flex items-center justify-center text-white text-lg font-bold">
-              {userData?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
-          )}
+        <div className="size-10 rounded-full overflow-hidden bg-[#3c2348] flex items-center justify-center">
+          {userData?.profilePhoto ? (
+            <img
+              src={`/api/image-proxy?url=${encodeURIComponent(userData.profilePhoto)}`}
+              alt={userData?.name || 'User'}
+              className="w-full h-full rounded-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div 
+            className={`w-full h-full flex items-center justify-center text-white text-lg font-bold ${userData?.profilePhoto ? 'hidden' : ''}`}
+          >
+            {userData?.name?.charAt(0)?.toUpperCase() || 'U'}
+          </div>
         </div>
         <div className="flex flex-col min-w-0 flex-1">
           <p className="text-sm font-bold text-white truncate">
