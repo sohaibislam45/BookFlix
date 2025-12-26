@@ -16,9 +16,8 @@ export default function AdminOverviewPage() {
     newMembersThisMonth: 0,
     premiumUsers: 0,
     premiumPercentage: 0,
-    systemUptime: 99.99,
-    lastOutage: null,
-    serverLoad: 0,
+    activeBorrowings: 0,
+    booksDueToday: 0,
     totalBooks: 0,
     totalCopies: 0,
     borrowedCopies: 0,
@@ -52,8 +51,8 @@ export default function AdminOverviewPage() {
           revenueGrowth: data.revenueGrowth ?? prev.revenueGrowth ?? 0,
           premiumUsers: data.premiumUsers ?? prev.premiumUsers ?? 0,
           premiumPercentage: data.premiumPercentage ?? prev.premiumPercentage ?? 0,
-          systemUptime: data.systemUptime ?? prev.systemUptime ?? 99.99,
-          serverLoad: data.serverLoad ?? prev.serverLoad ?? 0,
+          activeBorrowings: data.activeBorrowings ?? prev.activeBorrowings ?? 0,
+          booksDueToday: data.booksDueToday ?? prev.booksDueToday ?? 0,
           totalBooks: data.totalBooks ?? prev.totalBooks ?? 0,
           totalCopies: data.totalCopies ?? prev.totalCopies ?? 0,
           borrowedCopies: data.borrowedCopies ?? prev.borrowedCopies ?? 0,
@@ -316,43 +315,42 @@ export default function AdminOverviewPage() {
               </div>
             </div>
 
-            {/* System Uptime */}
-            <div className="flex flex-col justify-between gap-3 rounded-xl p-6 bg-card-dark border border-white/5 hover:border-primary/50 transition-colors group relative overflow-hidden">
+            {/* Books Due Today */}
+            <div className="flex flex-col justify-between gap-3 rounded-xl p-6 bg-card-dark border border-white/5 hover:border-blue-500/50 transition-colors group relative overflow-hidden">
               <div className="absolute right-0 top-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                <span className="material-symbols-outlined text-[80px] text-success-green">dns</span>
+                <span className="material-symbols-outlined text-[80px] text-blue-400">event</span>
               </div>
               <div className="flex justify-between items-start z-10">
-                <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">System Uptime</p>
-                <span className="material-symbols-outlined text-success-green text-xl">check_circle</span>
+                <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Books Due Today</p>
+                <span className="material-symbols-outlined text-blue-400 text-xl">event</span>
               </div>
               <div className="z-10">
-                <p className="text-white text-3xl font-bold tracking-tight mb-1">{stats.systemUptime}%</p>
+                <p className="text-white text-3xl font-bold tracking-tight mb-1">
+                  {loading ? '...' : (stats.booksDueToday ?? 0).toLocaleString()}
+                </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-success-green text-xs font-bold">Operational</span>
-                  <span className="text-text-secondary text-xs">• Last outage: {getDaysAgo(stats.lastOutage)}</span>
+                  <span className="text-blue-400 text-xs font-bold">Due today</span>
+                  <span className="text-text-secondary text-xs">• Action required</span>
                 </div>
               </div>
             </div>
 
-            {/* Server Load */}
+            {/* Active Borrowings */}
             <div className="flex flex-col justify-between gap-3 rounded-xl p-6 bg-card-dark border border-white/5 hover:border-primary/50 transition-colors group relative overflow-hidden">
               <div className="absolute right-0 top-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                <span className="material-symbols-outlined text-[80px] text-yellow-400">memory</span>
+                <span className="material-symbols-outlined text-[80px] text-primary">menu_book</span>
               </div>
               <div className="flex justify-between items-start z-10">
-                <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Avg Server Load</p>
-                <span className="material-symbols-outlined text-yellow-400 text-xl">speed</span>
+                <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Active Borrowings</p>
+                <span className="material-symbols-outlined text-primary text-xl">menu_book</span>
               </div>
-              <div className="z-10 w-full">
-                <div className="flex justify-between items-end mb-2">
-                  <p className="text-white text-3xl font-bold tracking-tight">{stats.serverLoad}%</p>
-                  <span className="text-yellow-400 text-xs font-bold">Moderate</span>
-                </div>
-                <div className="w-full bg-white/5 rounded-full h-1.5">
-                  <div
-                    className="bg-yellow-400 h-1.5 rounded-full transition-all"
-                    style={{ width: `${stats.serverLoad}%` }}
-                  ></div>
+              <div className="z-10">
+                <p className="text-white text-3xl font-bold tracking-tight mb-1">
+                  {loading ? '...' : (stats.activeBorrowings ?? 0).toLocaleString()}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-success-green text-xs font-bold">Currently borrowed</span>
+                  <span className="text-text-secondary text-xs">• On time</span>
                 </div>
               </div>
             </div>

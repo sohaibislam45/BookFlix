@@ -2,33 +2,36 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import RequireAuth from '@/components/RequireAuth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import AdminSidebar from '@/components/AdminSidebar';
+import NotFound from '@/app/not-found';
+import Loader from '@/components/Loader';
 
 export default function AdminLayout({ children }) {
-  const { userData } = useAuth();
-  const router = useRouter();
+  const { userData, loading } = useAuth();
 
-  useEffect(() => {
-    if (userData && userData.role !== 'admin') {
-      // Redirect based on role
-      if (userData.role === 'librarian') {
-        router.push('/librarian/overview');
-      } else {
-        router.push('/member/overview');
-      }
-    }
-  }, [userData, router]);
+  // Show loader while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-dark">
+        <div className="text-center">
+          <Loader />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <RequireAuth>
-      <div className="flex h-screen w-full bg-background-dark text-white font-display antialiased overflow-hidden">
-        <AdminSidebar />
-        <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-          {children}
-        </main>
-      </div>
+      {userData && userData.role !== 'admin' ? (
+        <NotFound />
+      ) : (
+        <div className="flex h-screen w-full bg-background-dark text-white font-display antialiased overflow-hidden">
+          <AdminSidebar />
+          <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+            {children}
+          </main>
+        </div>
+      )}
     </RequireAuth>
   );
 }

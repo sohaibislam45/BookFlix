@@ -131,31 +131,6 @@ export async function GET(request) {
       ? (premiumUsers / activeMembers) * 100 
       : 0;
 
-    // System Uptime (calculate based on recent activity or use high default)
-    // For now, we'll use a calculated value based on successful operations
-    // In a real system, this would come from monitoring tools
-    const systemUptime = 99.99; // Default high uptime
-
-    // Server Load (calculate based on recent activity)
-    // Count recent operations in the last hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentBorrowingsCount = await Borrowing.countDocuments({
-      createdAt: { $gte: oneHourAgo },
-    });
-    const recentPaymentsCount = await Payment.countDocuments({
-      createdAt: { $gte: oneHourAgo },
-    });
-    const recentReservationsCount = await Reservation.countDocuments({
-      createdAt: { $gte: oneHourAgo },
-    });
-    
-    // Calculate server load as a percentage (0-100)
-    // Base it on recent activity (normalize to 0-100)
-    // Each operation type contributes to load
-    const totalRecentActivity = recentBorrowingsCount + recentPaymentsCount + recentReservationsCount;
-    // Scale: 0-50 operations = 0-50%, 50+ operations = 50-100%
-    const serverLoad = Math.min(100, Math.max(0, Math.min(50, totalRecentActivity) + (Math.max(0, totalRecentActivity - 50) / 2)));
-
     // Book Statistics
     const totalBooks = await BookCopy.countDocuments({ isActive: true });
     const borrowedCopies = await BookCopy.countDocuments({
@@ -170,6 +145,19 @@ export async function GET(request) {
     // Overdue Books
     const overdueBooks = await Borrowing.countDocuments({
       status: BORROWING_STATUS.OVERDUE,
+    });
+
+    // Active Borrowings (currently borrowed books that are not overdue)
+    const activeBorrowings = await Borrowing.countDocuments({
+      status: BORROWING_STATUS.ACTIVE,
+    });
+
+    // Books Due Today (only active borrowings, as overdue books have past due dates)
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const booksDueToday = await Borrowing.countDocuments({
+      dueDate: { $gte: todayStart, $lte: todayEnd },
+      status: BORROWING_STATUS.ACTIVE,
     });
 
     // Pending Reservations (pending and ready status)
@@ -325,9 +313,8 @@ export async function GET(request) {
       newMembersThisMonth,
       premiumUsers,
       premiumPercentage: Math.round(premiumPercentage * 100) / 100,
-      systemUptime,
-      lastOutage: null, // Could be tracked in a separate model
-      serverLoad: Math.round(serverLoad),
+      activeBorrowings,
+      booksDueToday,
       totalBooks,
       totalCopies: totalBooks,
       borrowedCopies,
