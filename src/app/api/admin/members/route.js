@@ -26,6 +26,11 @@ export async function GET(request) {
         );
       }
       
+      // Convert dates to ISO strings for proper JSON serialization
+      if (member.suspendedUntil) {
+        member.suspendedUntil = new Date(member.suspendedUntil).toISOString();
+      }
+      
       return NextResponse.json({ member });
     }
 
@@ -83,6 +88,17 @@ export async function GET(request) {
       .limit(limit)
       .lean();
 
+    // Convert dates to ISO strings for proper JSON serialization
+    const membersWithDates = members.map(member => {
+      if (member.suspendedUntil) {
+        return {
+          ...member,
+          suspendedUntil: new Date(member.suspendedUntil).toISOString(),
+        };
+      }
+      return member;
+    });
+
     // Get stats
     const totalMembers = await User.countDocuments({ role: USER_ROLES.MEMBER });
     const premiumUsers = await User.countDocuments({
@@ -97,7 +113,7 @@ export async function GET(request) {
     });
 
     return NextResponse.json({
-      members,
+      members: membersWithDates,
       pagination: {
         page,
         limit,
@@ -150,21 +166,121 @@ export async function PATCH(request) {
           const suspendedUntil = new Date();
           suspendedUntil.setDate(suspendedUntil.getDate() + updates.suspendedUntil);
           updates.suspendedUntil = suspendedUntil;
+        } else if (typeof updates.suspendedUntil === 'string') {
+          // Date was serialized as string from JSON - convert back to Date
+          updates.suspendedUntil = new Date(updates.suspendedUntil);
+        } else if (updates.suspendedUntil instanceof Date) {
+          // Already a Date object - keep it
+          // No conversion needed
         }
       }
+    } else if (updates.isActive === false && !updates.suspendedUntil) {
+      // If isActive is being set to false but no suspendedUntil is provided,
+      // this might be an old suspension - we should still set a date
+      // But we'll leave it as is for now to avoid breaking existing suspensions
     }
 
-    const user = await User.findByIdAndUpdate(
+    // Debug logging - log the raw updates
+    console.log('[PATCH /api/admin/members] Raw updates object:', JSON.stringify(updates, null, 2));
+    console.log('[PATCH /api/admin/members] suspendedUntil in updates:', updates.suspendedUntil);
+    console.log('[PATCH /api/admin/members] suspendedUntil type:', typeof updates.suspendedUntil);
+    console.log('[PATCH /api/admin/members] suspendedUntil instanceof Date:', updates.suspendedUntil instanceof Date);
+    
+    // Ensure we're setting the field correctly
+    // Create a clean update object to avoid any serialization issues
+    const cleanUpdates = { ...updates };
+    if (cleanUpdates.suspendedUntil instanceof Date) {
+      // Keep as Date object - Mongoose will handle it
+      console.log('[PATCH /api/admin/members] Keeping suspendedUntil as Date object:', cleanUpdates.suspendedUntil.toISOString());
+    }
+    
+    const updateQuery = { $set: cleanUpdates };
+    console.log('[PATCH /api/admin/members] Update query keys:', Object.keys(updateQuery.$set));
+    console.log('[PATCH /api/admin/members] Update query suspendedUntil:', updateQuery.$set.suspendedUntil);
+
+    // Perform the update - explicitly include suspendedUntil in select
+    const updateResult = await User.findByIdAndUpdate(
       userId,
-      { $set: updates },
-      { new: true }
-    ).select('-__v');
+      updateQuery,
+      { new: true, runValidators: true }
+    ).select('+suspendedUntil -__v').lean();
+    
+    console.log('[PATCH /api/admin/members] Update result (lean):', {
+      hasResult: !!updateResult,
+      suspendedUntil: updateResult?.suspendedUntil,
+      isActive: updateResult?.isActive,
+      allKeys: updateResult ? Object.keys(updateResult) : []
+    });
+    
+    let user = updateResult;
+    
+    // If suspendedUntil is missing, try without lean() to get the full document
+    if (!updateResult?.suspendedUntil && updates.suspendedUntil) {
+      console.log('[PATCH /api/admin/members] Retrying without lean() to get full document...');
+      const userDoc = await User.findByIdAndUpdate(
+        userId,
+        updateQuery,
+        { new: true, runValidators: true }
+      ).select('-__v');
+      
+      if (userDoc) {
+        user = userDoc.toObject ? userDoc.toObject() : userDoc;
+        console.log('[PATCH /api/admin/members] Retry result (toObject):', {
+          suspendedUntil: user?.suspendedUntil,
+          suspendedUntilType: typeof user?.suspendedUntil,
+          allKeys: Object.keys(user)
+        });
+      }
+    }
+    
+    console.log('[PATCH /api/admin/members] Final user object:', {
+      _id: user?._id,
+      isActive: user?.isActive,
+      suspendedUntil: user?.suspendedUntil,
+      suspendedUntilType: typeof user?.suspendedUntil,
+      suspendedUntilValue: user?.suspendedUntil ? new Date(user.suspendedUntil).toISOString() : 'null/undefined'
+    });
+
+    // If suspendedUntil is still undefined after update, try a direct query
+    if (updates.suspendedUntil && !user.suspendedUntil) {
+      console.error('[PATCH /api/admin/members] WARNING: suspendedUntil was not saved!');
+      console.error('[PATCH /api/admin/members] Updates that were sent:', updates);
+      // Try to fetch the user directly to see what's in the DB
+      const directUser = await User.findById(userId).select('+suspendedUntil isActive').lean();
+      console.error('[PATCH /api/admin/members] Direct DB query result:', directUser);
+      
+      // The field is not being saved - try using updateOne directly with proper Date conversion
+      console.error('[PATCH /api/admin/members] Attempting direct MongoDB updateOne...');
+      const dateToSave = updates.suspendedUntil instanceof Date 
+        ? updates.suspendedUntil 
+        : new Date(updates.suspendedUntil);
+      
+      const directUpdate = await User.updateOne(
+        { _id: userId },
+        { $set: { suspendedUntil: dateToSave } }
+      );
+      console.error('[PATCH /api/admin/members] Direct updateOne result:', directUpdate);
+      
+      // Fetch again to verify
+      const verifyUser = await User.findById(userId).select('+suspendedUntil isActive').lean();
+      console.error('[PATCH /api/admin/members] After direct updateOne:', verifyUser);
+      
+      if (verifyUser?.suspendedUntil) {
+        user = verifyUser;
+        console.error('[PATCH /api/admin/members] Successfully saved suspendedUntil via updateOne!');
+      }
+    }
 
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
+    }
+
+    // Convert dates to ISO strings for proper JSON serialization
+    if (user.suspendedUntil) {
+      user.suspendedUntil = new Date(user.suspendedUntil).toISOString();
     }
 
     return NextResponse.json({ user });

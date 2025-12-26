@@ -99,8 +99,10 @@ export default function AdminMembersPage() {
 
   const handleUpgrade = async (member) => {
     const isCurrentlyActive = member.isActive !== false;
+    const isSuspended = !isCurrentlyActive;
     
     // First, ask if they want to activate or suspend
+    // Default to 'suspend' if user is already suspended
     const actionResult = await swalTheme.fire({
       icon: 'question',
       iconColor: '#aa1fef',
@@ -111,7 +113,7 @@ export default function AdminMembersPage() {
         activate: 'Activate User',
         suspend: 'Suspend User',
       },
-      inputValue: isCurrentlyActive ? 'suspend' : 'activate',
+      inputValue: isSuspended ? 'suspend' : 'suspend', // Default to suspend option
       inputPlaceholder: 'Select action',
       showCancelButton: true,
       confirmButtonText: 'Continue',
@@ -161,56 +163,111 @@ export default function AdminMembersPage() {
           '1': '1 day',
           '3': '3 days',
           '7': '7 days',
-          '14': '14 days',
-          '30': '30 days',
-          '90': '90 days',
+          'custom': 'Custom (Enter days)',
           'forever': 'Forever (Permanent)',
         },
         inputValue: '7',
         inputPlaceholder: 'Select duration',
         showCancelButton: true,
-        confirmButtonText: 'Suspend',
+        confirmButtonText: 'Continue',
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#3c2348',
       });
 
-      if (durationResult.isConfirmed && durationResult.value) {
-        try {
-          const updates = {
-            isActive: false,
-          };
+      if (!durationResult.isConfirmed || !durationResult.value) return;
 
-          if (durationResult.value === 'forever') {
-            updates.suspendedUntil = 'forever';
+      let suspendDays = null;
+
+      // Handle custom duration
+      if (durationResult.value === 'custom') {
+        // Use a small delay to ensure the previous dialog is fully closed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const customResult = await swalTheme.fire({
+          icon: 'question',
+          iconColor: '#f59e0b',
+          title: 'Custom Suspension Duration',
+          text: `Enter the number of days to suspend ${member.name}`,
+          input: 'text',
+          inputValue: '',
+          inputPlaceholder: 'Enter number of days (e.g., 15, 30, 60)',
+          inputAttributes: {
+            type: 'number',
+            min: '1',
+            autocomplete: 'off',
+          },
+          showCancelButton: true,
+          confirmButtonText: 'Suspend',
+          cancelButtonText: 'Cancel',
+          confirmButtonColor: '#f59e0b',
+          cancelButtonColor: '#3c2348',
+          inputValidator: (value) => {
+            if (!value || value.trim() === '') {
+              return 'Please enter a number of days';
+            }
+            const days = parseInt(value.trim());
+            if (isNaN(days) || days < 1) {
+              return 'Please enter a valid number (minimum 1 day)';
+            }
+            return null;
+          },
+          didOpen: () => {
+            // Focus the input field when dialog opens
+            const input = document.querySelector('.swal2-input');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          },
+        });
+
+        if (!customResult.isConfirmed || !customResult.value) return;
+        suspendDays = parseInt(customResult.value.trim());
+      } else if (durationResult.value === 'forever') {
+        suspendDays = 'forever';
+      } else {
+        suspendDays = parseInt(durationResult.value);
+      }
+
+      // Apply suspension
+      try {
+        const updates = {
+          isActive: false,
+        };
+
+        if (suspendDays === 'forever') {
+          updates.suspendedUntil = 'forever';
+        } else {
+          updates.suspendedUntil = suspendDays;
+        }
+
+        const response = await fetch(`/api/admin/members?userId=${member._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: member._id,
+            updates,
+          }),
+        });
+
+        if (response.ok) {
+          let durationText;
+          if (suspendDays === 'forever') {
+            durationText = 'permanently';
           } else {
-            updates.suspendedUntil = parseInt(durationResult.value);
+            durationText = `for ${suspendDays} day${suspendDays !== 1 ? 's' : ''}`;
           }
-
-          const response = await fetch(`/api/admin/members?userId=${member._id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: member._id,
-              updates,
-            }),
-          });
-
-          if (response.ok) {
-            const durationText = durationResult.value === 'forever' 
-              ? 'permanently' 
-              : `for ${durationResult.value} day${durationResult.value !== '1' ? 's' : ''}`;
-            showSuccess(`Member suspended ${durationText}`);
-            fetchMembers();
-          } else {
-            showError('Failed to suspend member');
-          }
-        } catch (error) {
-          console.error('Error suspending member:', error);
+          showSuccess(`Member suspended ${durationText}`);
+          fetchMembers();
+        } else {
           showError('Failed to suspend member');
         }
+      } catch (error) {
+        console.error('Error suspending member:', error);
+        showError('Failed to suspend member');
       }
     }
   };
@@ -468,12 +525,12 @@ export default function AdminMembersPage() {
                             </td>
                             <td className="p-4 hidden md:table-cell">
                               {status.color === 'green' ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span> {status.label}
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
+                                  <span className="w-1 h-1 rounded-full bg-green-400"></span> {status.label}
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span> {status.label}
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+                                  <span className="w-1 h-1 rounded-full bg-red-400"></span> {status.label}
                                 </span>
                               )}
                             </td>
@@ -496,9 +553,9 @@ export default function AdminMembersPage() {
                                 <button
                                   onClick={() => handleUpgrade(member)}
                                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-text-secondary hover:text-white transition-colors"
-                                  title="Change Tier"
+                                  title="Suspend/Activate"
                                 >
-                                  <span className="material-symbols-outlined text-[18px]">upgrade</span>
+                                  <span className="material-symbols-outlined text-[18px]">block</span>
                                 </button>
                                 <button
                                   onClick={() => handleEdit(member)}
