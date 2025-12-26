@@ -60,11 +60,7 @@ const bookCopySchema = new mongoose.Schema({
 bookCopySchema.index({ book: 1, status: 1 });
 bookCopySchema.index({ status: 1, isActive: 1 });
 
-// Update the updatedAt field before saving
-bookCopySchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Note: updatedAt is automatically managed by timestamps: true in schema options
 
 const BookCopy = mongoose.models.BookCopy || mongoose.model('BookCopy', bookCopySchema);
 

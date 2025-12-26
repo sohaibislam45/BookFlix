@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 /**
  * Standardized API error handler
  * Provides consistent error responses across all API routes
@@ -9,7 +11,7 @@
  * @param {number} statusCode - HTTP status code
  * @param {string} code - Error code for client-side handling
  * @param {any} details - Additional error details (only in development)
- * @returns {Response} NextResponse with error
+ * @returns {NextResponse} NextResponse with error
  */
 export function createErrorResponse(message, statusCode = 500, code = null, details = null) {
   const errorResponse = {
@@ -23,12 +25,7 @@ export function createErrorResponse(message, statusCode = 500, code = null, deta
     errorResponse.details = details;
   }
 
-  return new Response(JSON.stringify(errorResponse), {
-    status: statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  return NextResponse.json(errorResponse, { status: statusCode });
 }
 
 /**

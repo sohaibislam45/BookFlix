@@ -75,7 +75,7 @@ reservationSchema.index({ status: 1, reservedDate: 1 });
 reservationSchema.index({ book: 1, status: 1, queuePosition: 1 });
 
 // Update the updatedAt field before saving
-reservationSchema.pre('save', async function(next) {
+reservationSchema.pre('save', async function() {
   this.updatedAt = Date.now();
   
   // Auto-update status based on dates
@@ -96,8 +96,6 @@ reservationSchema.pre('save', async function(next) {
     });
     this.queuePosition = count + 1;
   }
-  
-  next();
 });
 
 // Static method to calculate queue position

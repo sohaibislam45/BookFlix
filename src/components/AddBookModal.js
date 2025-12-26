@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { showError, showSuccess, showLoading, close, showInput } from '@/lib/swal';
+import { showError, showSuccess, showLoading, close } from '@/lib/swal';
 
 export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
   const [formData, setFormData] = useState({
@@ -39,94 +39,8 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
     }
   };
 
-  const handleCreateNewGenre = async () => {
-    try {
-      const result = await showInput(
-        'Create New Genre',
-        'Enter the name of the new genre',
-        {},
-        {
-          inputPlaceholder: 'e.g. Mystery, Thriller, Fantasy...',
-          confirmButtonText: 'Create',
-          cancelButtonText: 'Cancel',
-          inputValidator: (value) => {
-            if (!value || value.trim().length < 2) {
-              return 'Genre name must be at least 2 characters';
-            }
-            if (value.length > 100) {
-              return 'Genre name must be less than 100 characters';
-            }
-            return null;
-          },
-        }
-      );
-
-      if (result.isConfirmed && result.value) {
-        const genreName = result.value.trim();
-        
-        // Check if genre already exists
-        const existingGenre = categories.find(
-          cat => cat.name.toLowerCase() === genreName.toLowerCase()
-        );
-        
-        if (existingGenre) {
-          showError('Genre Already Exists', 'This genre is already in the list.');
-          setFormData(prev => ({ ...prev, genre: existingGenre._id }));
-          return;
-        }
-
-        // Show loading
-        const loadingSwal = showLoading('Creating genre...', 'Please wait.');
-
-        try {
-          // Create new category
-          const response = await fetch('/api/categories', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: genreName,
-              icon: 'menu_book',
-            }),
-          });
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to create genre');
-          }
-
-          close();
-          showSuccess('Genre Created!', 'The new genre has been added successfully.');
-
-          // Refresh categories list
-          await fetchCategories();
-
-          // Auto-select the newly created genre
-          if (data.category) {
-            setFormData(prev => ({ ...prev, genre: data.category._id }));
-          }
-        } catch (error) {
-          close();
-          showError('Error', error.message || 'Failed to create genre. Please try again.');
-        }
-      }
-    } catch (error) {
-      console.error('Error creating genre:', error);
-    }
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // Handle "Create New Genre" option
-    if (name === 'genre' && value === '__create_new__') {
-      // Reset select to previous value or empty
-      e.target.value = formData.genre || '';
-      handleCreateNewGenre();
-      return;
-    }
     
     setFormData(prev => ({
       ...prev,
@@ -414,19 +328,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             {/* Grid Row: Genre, Shelf, Stock */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-white text-sm font-semibold tracking-wide">Genre</label>
-                  <button
-                    type="button"
-                    onClick={handleCreateNewGenre}
-                    disabled={submitting}
-                    className="text-xs text-primary hover:text-primary-hover font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
-                    title="Create New Genre"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    New Genre
-                  </button>
-                </div>
+                <label className="text-white text-sm font-semibold tracking-wide">Genre</label>
                 <div className="relative">
                   <select 
                     name="genre"
@@ -442,10 +344,6 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                         {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
                       </option>
                     ))}
-                    <option disabled value="" className="bg-surface-dark">──────────</option>
-                    <option value="__create_new__" className="bg-primary/10 text-primary font-medium">
-                      + Create New Genre...
-                    </option>
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-3.5 text-text-muted pointer-events-none">expand_more</span>
                 </div>
@@ -520,11 +418,17 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
 
             {/* Upload Box */}
             <div className="flex-1 flex flex-col">
-              <label 
+              <div 
                 className={`group relative flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border-dark bg-surface-dark/50 hover:bg-surface-dark hover:border-primary transition-all cursor-pointer min-h-[300px] ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                onClick={() => !formData.coverImagePreview && !submitting && fileInputRef.current?.click()}
+                onClick={(e) => {
+                  if (!formData.coverImagePreview && !submitting && fileInputRef.current) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInputRef.current.click();
+                  }
+                }}
               >
                 {formData.coverImagePreview ? (
                   <div className="relative w-full h-full flex items-center justify-center">
@@ -562,16 +466,16 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                     </div>
                   </>
                 )}
-                {/* Hidden Input */}
-                <input 
-                  ref={fileInputRef}
-                  className="hidden" 
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled={submitting}
-                />
-              </label>
+              </div>
+              {/* Hidden Input - moved outside to prevent double trigger */}
+              <input 
+                ref={fileInputRef}
+                className="hidden" 
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={submitting}
+              />
             </div>
 
             {/* Preview / Hint Area */}

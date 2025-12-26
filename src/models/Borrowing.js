@@ -78,7 +78,7 @@ borrowingSchema.index({ dueDate: 1, status: 1 });
 borrowingSchema.index({ status: 1, dueDate: 1 });
 
 // Update the updatedAt field before saving
-borrowingSchema.pre('save', function(next) {
+borrowingSchema.pre('save', async function() {
   this.updatedAt = Date.now();
   
   // Auto-update status based on dates
@@ -88,8 +88,6 @@ borrowingSchema.pre('save', function(next) {
       this.status = BORROWING_STATUS.OVERDUE;
     }
   }
-  
-  next();
 });
 
 // Virtual for days overdue

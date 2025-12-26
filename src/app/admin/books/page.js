@@ -6,6 +6,9 @@ import AdminHeader from '@/components/AdminHeader';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
 import AddBookModal from '@/components/AddBookModal';
+import { showError, showSuccess, showInput, showConfirm } from '@/lib/swal';
+import swalTheme from '@/lib/swal';
+import Swal from 'sweetalert2';
 
 export default function AdminBooksPage() {
   const { userData } = useAuth();
@@ -19,10 +22,13 @@ export default function AdminBooksPage() {
     lowStock: 0,
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [genres, setGenres] = useState([]);
+  const [genresLoading, setGenresLoading] = useState(true);
 
   useEffect(() => {
     fetchBooks();
     fetchStats();
+    fetchGenres();
   }, [searchQuery]);
 
   const fetchBooks = async () => {
@@ -58,6 +64,167 @@ export default function AdminBooksPage() {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchGenres = async () => {
+    try {
+      setGenresLoading(true);
+      const response = await fetch('/api/categories?isActive=true');
+      if (response.ok) {
+        const data = await response.json();
+        setGenres(data);
+      } else {
+        showError('Error', 'Failed to fetch genres');
+      }
+    } catch (error) {
+      console.error('Error fetching genres:', error);
+      showError('Error', 'Failed to fetch genres');
+    } finally {
+      setGenresLoading(false);
+    }
+  };
+
+  const handleDeleteGenre = async (genreId, genreName) => {
+    const result = await showConfirm(
+      'Delete Genre',
+      `Are you sure you want to delete the genre "${genreName}"? This action cannot be undone.`,
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+      }
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/categories?id=${genreId}`, {
+          method: 'DELETE',
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Genre Deleted!', `The genre "${genreName}" has been successfully deleted.`);
+          fetchGenres(); // Refresh the genres list
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to delete genre (${response.status})`;
+          showError('Error', errorMessage);
+        }
+      } catch (error) {
+        console.error('Error deleting genre:', error);
+        showError('Error', error.message || 'Failed to delete genre. Please try again.');
+      }
+    }
+  };
+
+  const handleAddGenre = async () => {
+    const result = await swalTheme.fire({
+      title: 'Add New Genre',
+      html: `
+        <div style="text-align: left; margin-top: 1rem;">
+          <label style="display: block; color: #b791ca; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">
+            Genre Name <span style="color: #ef4444;">*</span>
+          </label>
+          <input 
+            id="swal-genre-name" 
+            class="swal-input" 
+            type="text" 
+            placeholder="e.g. Fiction, Science Fiction, Mystery..."
+            style="width: 100%; margin-bottom: 1rem;"
+            maxlength="100"
+          />
+          <label style="display: block; color: #b791ca; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">
+            Description (Optional)
+          </label>
+          <textarea 
+            id="swal-genre-description" 
+            class="swal-input" 
+            placeholder="Enter a brief description of this genre..."
+            style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"
+            maxlength="500"
+          ></textarea>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Create Genre',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#aa1fef',
+      cancelButtonColor: '#3c2348',
+      background: '#1c1c1c',
+      color: '#ffffff',
+      customClass: {
+        popup: 'swal-popup',
+        confirmButton: 'swal-confirm',
+        cancelButton: 'swal-cancel',
+      },
+      preConfirm: () => {
+        const nameInput = document.getElementById('swal-genre-name');
+        const descriptionInput = document.getElementById('swal-genre-description');
+        const name = nameInput?.value?.trim() || '';
+        const description = descriptionInput?.value?.trim() || '';
+
+        if (!name || name.length === 0) {
+          Swal.showValidationMessage('Genre name is required');
+          return false;
+        }
+        if (name.length < 2) {
+          Swal.showValidationMessage('Genre name must be at least 2 characters');
+          return false;
+        }
+        if (name.length > 100) {
+          Swal.showValidationMessage('Genre name must be no more than 100 characters');
+          return false;
+        }
+        if (description.length > 500) {
+          Swal.showValidationMessage('Description must be no more than 500 characters');
+          return false;
+        }
+
+        return { name, description };
+      },
+    });
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const response = await fetch('/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: result.value.name,
+            description: result.value.description || undefined,
+          }),
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Genre Created!', `The genre "${data.category.name}" has been successfully created.`);
+          fetchGenres(); // Refresh the genres list
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to create genre (${response.status})`;
+          showError('Error', errorMessage);
+        }
+      } catch (error) {
+        console.error('Error creating genre:', error);
+        showError('Error', error.message || 'Failed to create genre. Please try again.');
+      }
     }
   };
 
@@ -173,7 +340,100 @@ export default function AdminBooksPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-8 pt-6">
+        <div className="flex-1 overflow-auto p-8 pt-6 space-y-6">
+          {/* Genres Table Section */}
+          <div className="bg-card-dark rounded-xl border border-white/5 shadow-xl overflow-hidden">
+            <div className="px-6 py-4 bg-background-dark border-b border-white/5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Genres</h2>
+                <p className="text-text-secondary text-sm mt-1">Manage book genres and categories</p>
+              </div>
+              <button
+                onClick={handleAddGenre}
+                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20"
+              >
+                <span className="material-symbols-outlined text-[20px]">add</span>
+                Add New Genre
+              </button>
+            </div>
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-background-dark">
+                <tr className="border-b border-white/5">
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Slug</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Created</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {genresLoading ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">
+                      <div className="flex justify-center">
+                        <Loader />
+                      </div>
+                    </td>
+                  </tr>
+                ) : genres.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">
+                      No genres found. Click "Add New Genre" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  genres.map((genre) => (
+                    <tr key={genre._id} className="group hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {genre.icon && (
+                            <span className="material-symbols-outlined text-text-secondary text-[18px]">{genre.icon}</span>
+                          )}
+                          <span className="text-white font-semibold text-sm">
+                            {genre.name.charAt(0).toUpperCase() + genre.name.slice(1)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-xs text-text-secondary tracking-wide">{genre.slug}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-text-secondary text-sm">
+                          {genre.description || <span className="italic text-text-secondary">No description</span>}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          genre.isActive 
+                            ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' 
+                            : 'bg-red-500/10 text-red-300 border border-red-500/20'
+                        }`}>
+                          {genre.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-text-secondary text-xs">
+                          {genre.createdAt ? new Date(genre.createdAt).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleDeleteGenre(genre._id, genre.name)}
+                          className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-60 group-hover:opacity-100"
+                          title="Delete Genre"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Books Table Section */}
           <div className="bg-card-dark rounded-xl border border-white/5 shadow-xl overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead className="bg-background-dark">

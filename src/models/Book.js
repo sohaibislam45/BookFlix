@@ -88,11 +88,7 @@ bookSchema.index({ title: 'text', author: 'text', description: 'text', tags: 'te
 bookSchema.index({ category: 1, isActive: 1 });
 bookSchema.index({ rating: -1, ratingCount: -1 });
 
-// Update the updatedAt field before saving
-bookSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Note: updatedAt is automatically managed by timestamps: true in schema options
 
 // Virtual for available copies count
 bookSchema.virtual('availableCopies', {
