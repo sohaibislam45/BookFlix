@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { showError, showSuccess, showLoading, close } from '@/lib/swal';
 
 export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
@@ -10,9 +10,13 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
     phone: '',
     role: '',
     password: '',
+    profilePhoto: null,
+    profilePhotoPreview: null,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -20,6 +24,53 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      showError('Invalid file type', 'Please upload a valid image file (JPG, PNG, or WEBP)');
+      return;
+    }
+
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      showError('File too large', 'Image must be less than 2MB');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({
+        ...prev,
+        profilePhoto: file,
+        profilePhotoPreview: reader.result,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload image');
+    }
+
+    const data = await response.json();
+    return data.url;
   };
 
   const handleSubmit = async (e) => {
@@ -56,6 +107,15 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
     const loadingSwal = showLoading('Creating staff member...', 'Please wait while we add the new staff member.');
 
     try {
+      let profilePhotoUrl = null;
+      
+      // Upload image if one was selected
+      if (formData.profilePhoto) {
+        setUploading(true);
+        profilePhotoUrl = await uploadImage(formData.profilePhoto);
+        setUploading(false);
+      }
+
       const response = await fetch('/api/admin/staff', {
         method: 'POST',
         headers: {
@@ -67,6 +127,7 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
           phone: formData.phone.trim() || undefined,
           role: formData.role,
           password: formData.password,
+          profilePhoto: profilePhotoUrl,
         }),
       });
 
@@ -89,8 +150,13 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
         phone: '',
         role: '',
         password: '',
+        profilePhoto: null,
+        profilePhotoPreview: null,
       });
       setShowPassword(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
 
       // Notify parent to refresh staff list
       if (onStaffAdded) {
@@ -107,15 +173,20 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
 
   const handleClose = () => {
     if (submitting) return;
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      role: '',
-      password: '',
-    });
-    setShowPassword(false);
-    onClose();
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        role: '',
+        password: '',
+        profilePhoto: null,
+        profilePhotoPreview: null,
+      });
+      setShowPassword(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      onClose();
   };
 
   if (!isOpen) return null;
@@ -202,6 +273,52 @@ export default function AddStaffModal({ isOpen, onClose, onStaffAdded }) {
                     <span className="material-symbols-outlined text-[20px]">call</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Profile Photo */}
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-sm font-medium leading-normal ml-1">Profile Photo</label>
+              <div className="relative">
+                <div 
+                  className="w-full h-32 rounded-lg bg-surface-dark border border-white/5 flex items-center justify-center cursor-pointer hover:border-primary transition-colors overflow-hidden"
+                  onClick={() => !submitting && fileInputRef.current?.click()}
+                >
+                  {formData.profilePhotoPreview ? (
+                    <img 
+                      src={formData.profilePhotoPreview} 
+                      alt="Profile preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-text-muted">
+                      <span className="material-symbols-outlined text-4xl">add_photo_alternate</span>
+                      <span className="text-sm">Click to upload photo</span>
+                    </div>
+                  )}
+                </div>
+                <input 
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={submitting}
+                />
+                {formData.profilePhotoPreview && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFormData(prev => ({ ...prev, profilePhoto: null, profilePhotoPreview: null }));
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-colors"
+                    disabled={submitting}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                )}
               </div>
             </div>
 

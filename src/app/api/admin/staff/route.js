@@ -95,7 +95,7 @@ export async function POST(request) {
       );
     }
 
-    const { name, email, phone, role, password } = body;
+    const { name, email, phone, role, password, profilePhoto } = body;
 
     // Validation
     if (!name || !name.trim()) {
@@ -159,6 +159,7 @@ export async function POST(request) {
       name: sanitizeInput(name.trim(), 200),
       phone: phone ? sanitizeInput(phone.trim(), 20) : undefined,
       role: userRole,
+      profilePhoto: profilePhoto || null,
       isActive: true,
     });
 

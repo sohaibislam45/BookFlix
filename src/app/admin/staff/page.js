@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import AddStaffModal from '@/components/AddStaffModal';
+import ManageRoleModal from '@/components/ManageRoleModal';
 import { formatDate } from '@/lib/utils';
 import Loader from '@/components/Loader';
 import { showError, showSuccess, showConfirm } from '@/lib/swal';
@@ -21,11 +22,30 @@ export default function AdminStaffPage() {
   });
   const [imageErrors, setImageErrors] = useState(new Set());
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isManageRoleModalOpen, setIsManageRoleModalOpen] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
 
   useEffect(() => {
     fetchStaff();
+    fetchActivities();
   }, [searchQuery, roleFilter]);
+
+  const fetchActivities = async () => {
+    try {
+      setActivitiesLoading(true);
+      const response = await fetch('/api/admin/staff/activity?limit=10');
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data.activities || []);
+      }
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
 
   const fetchStaff = async () => {
     try {
@@ -58,10 +78,63 @@ export default function AdminStaffPage() {
     }
   };
 
-  const handleEditStaff = (staffId) => {
-    setEditingStaffId(staffId);
-    // TODO: Open edit modal
-    showError('Coming Soon', 'Edit staff functionality will be available soon.');
+  const handleEditStaff = async (staffId) => {
+    const staffMember = staff.find(s => s._id === staffId);
+    if (!staffMember) return;
+
+    // For now, show a simple edit dialog using SweetAlert
+    // In the future, you can create a full EditStaffModal component
+    const { default: Swal } = await import('sweetalert2');
+    const { value: formValues } = await Swal.fire({
+      title: 'Edit Staff Member',
+      html: `
+        <input id="swal-name" class="swal2-input" placeholder="Full Name" value="${staffMember.name || ''}">
+        <input id="swal-email" class="swal2-input" placeholder="Email" value="${staffMember.email || ''}" type="email">
+        <input id="swal-phone" class="swal2-input" placeholder="Phone" value="${staffMember.phone || ''}">
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      cancelButtonText: 'Cancel',
+      preConfirm: () => {
+        return {
+          name: document.getElementById('swal-name').value,
+          email: document.getElementById('swal-email').value,
+          phone: document.getElementById('swal-phone').value,
+        };
+      },
+    });
+
+    if (formValues) {
+      try {
+        const response = await fetch('/api/admin/staff', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: staffId,
+            updates: {
+              name: formValues.name,
+              email: formValues.email,
+              phone: formValues.phone,
+            },
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showSuccess('Staff Updated!', 'Staff member has been successfully updated.');
+          fetchStaff();
+          fetchActivities();
+        } else {
+          showError('Error', result.error || 'Failed to update staff member');
+        }
+      } catch (error) {
+        showError('Error', 'Failed to update staff member. Please try again.');
+      }
+    }
   };
 
   const handleDeleteStaff = async (staffId, staffName) => {
@@ -92,6 +165,7 @@ export default function AdminStaffPage() {
         if (response.ok) {
           showSuccess('Staff Deactivated!', `"${staffName}" has been successfully deactivated.`);
           fetchStaff(); // Refresh the staff list
+          fetchActivities(); // Refresh activity log
         } else {
           const errorMessage = data?.error || data?.message || `Failed to deactivate staff (${response.status})`;
           showError('Error', errorMessage);
@@ -146,7 +220,7 @@ export default function AdminStaffPage() {
             </div>
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => showError('Coming Soon', 'Role management functionality will be available soon.')}
+                onClick={() => setIsManageRoleModalOpen(true)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-white/5 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white transition-all font-medium text-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">security</span>
@@ -344,23 +418,36 @@ export default function AdminStaffPage() {
                   <button className="text-xs text-primary hover:text-primary-light font-medium transition-colors">View All</button>
                 </div>
                 <div className="p-0 flex-1 overflow-y-auto max-h-[600px]">
-                  <div className="flex flex-col divide-y divide-white/5/50">
-                    <div className="p-4 hover:bg-white/5 transition-colors group">
-                      <div className="flex gap-3">
-                        <div className="mt-1">
-                          <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
-                            <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+                  {activitiesLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader />
+                    </div>
+                  ) : activities.length === 0 ? (
+                    <div className="p-8 text-center text-text-secondary text-sm">No recent activity</div>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-white/5/50">
+                      {activities.map((activity, index) => (
+                        <div key={index} className="p-4 hover:bg-white/5 transition-colors group">
+                          <div className="flex gap-3">
+                            <div className="mt-1">
+                              <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
+                                <span className="material-symbols-outlined text-[16px]">
+                                  {activity.type === 'created' ? 'person_add' : activity.type === 'updated' ? 'edit' : 'delete'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-1 flex-1">
+                              <p className="text-sm text-white leading-snug">{activity.message}</p>
+                              <span className="text-[11px] text-text-secondary flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                {activity.timeAgo}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm text-white leading-snug">System auto-archived 3 inactive accounts.</p>
-                          <span className="text-[11px] text-text-secondary flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[12px]">schedule</span> 3 hours ago
-                          </span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -374,6 +461,17 @@ export default function AdminStaffPage() {
         onClose={() => setIsAddModalOpen(false)}
         onStaffAdded={() => {
           fetchStaff();
+          fetchActivities();
+        }}
+      />
+
+      {/* Manage Role Modal */}
+      <ManageRoleModal 
+        isOpen={isManageRoleModalOpen}
+        onClose={() => setIsManageRoleModalOpen(false)}
+        onRoleUpdated={() => {
+          fetchStaff();
+          fetchActivities();
         }}
       />
     </>
