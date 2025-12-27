@@ -177,13 +177,18 @@ export default function LibrarianMembersPage() {
                       <tr key={member._id} className="group hover:bg-white/5 transition-colors cursor-pointer border-l-2 border-l-transparent hover:border-l-primary">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div
-                              className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-blue-500/20"
-                              style={{
-                                backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
-                              }}
-                            >
-                              {!member.profilePhoto && getInitials(member.name)}
+                            <div className="relative size-10 shrink-0">
+                              {member.profilePhoto ? (
+                                <img
+                                  src={member.profilePhoto}
+                                  alt={member.name || 'Member'}
+                                  className="size-10 rounded-full object-cover border-2 border-primary/50 shadow-lg"
+                                />
+                              ) : (
+                                <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-blue-500/20">
+                                  {getInitials(member.name)}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-white group-hover:text-primary transition-colors">
