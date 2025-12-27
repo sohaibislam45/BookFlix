@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
-import Link from 'next/link';
 import Loader from '@/components/Loader';
 import AddNewMemberModal from '@/components/AddNewMemberModal';
+import EditMemberModal from '@/components/EditMemberModal';
+import ViewMemberModal from '@/components/ViewMemberModal';
 
 export default function LibrarianMembersPage() {
   const { userData } = useAuth();
@@ -15,6 +16,9 @@ export default function LibrarianMembersPage() {
   const [tierFilter, setTierFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   useEffect(() => {
     fetchMembers();
@@ -84,6 +88,22 @@ export default function LibrarianMembersPage() {
     fetchMembers(); // Refresh the members list
   };
 
+  const handleMemberUpdated = () => {
+    setIsEditModalOpen(false);
+    setSelectedMember(null);
+    fetchMembers(); // Refresh the members list
+  };
+
+  const handleEdit = (member) => {
+    setSelectedMember(member);
+    setIsEditModalOpen(true);
+  };
+
+  const handleView = (member) => {
+    setSelectedMember(member);
+    setIsViewModalOpen(true);
+  };
+
   return (
     <>
       <LibrarianHeader title="Member Management" subtitle="Manage patrons, update details, and handle tiers." />
@@ -92,6 +112,27 @@ export default function LibrarianMembersPage() {
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onMemberAdded={handleMemberAdded}
+        />
+      )}
+      {isEditModalOpen && selectedMember && (
+        <EditMemberModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedMember(null);
+          }}
+          member={selectedMember}
+          onMemberUpdated={handleMemberUpdated}
+        />
+      )}
+      {isViewModalOpen && selectedMember && (
+        <ViewMemberModal
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setSelectedMember(null);
+          }}
+          memberId={selectedMember._id}
         />
       )}
       <div className="flex-1 flex overflow-hidden">
@@ -229,20 +270,20 @@ export default function LibrarianMembersPage() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <Link
-                              href={`/librarian/members/${member._id}`}
+                            <button
+                              onClick={() => handleView(member)}
                               className="p-2 rounded-lg hover:bg-surface-border text-text-secondary hover:text-white transition-all"
-                              title="View History"
+                              title="View Details"
                             >
                               <span className="material-symbols-outlined text-[20px]">history</span>
-                            </Link>
-                            <Link
-                              href={`/librarian/members/${member._id}/edit`}
+                            </button>
+                            <button
+                              onClick={() => handleEdit(member)}
                               className="p-2 rounded-lg hover:bg-primary/20 text-text-secondary hover:text-primary transition-all"
                               title="Edit Info"
                             >
                               <span className="material-symbols-outlined text-[20px]">edit</span>
-                            </Link>
+                            </button>
                           </div>
                         </td>
                       </tr>
