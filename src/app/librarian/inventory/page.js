@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
+import AddBookModal from '@/components/AddBookModal';
 
 export default function LibrarianInventoryPage() {
   const { userData } = useAuth();
@@ -25,11 +26,16 @@ export default function LibrarianInventoryPage() {
     lowStock: 0,
     outOfStock: 0,
   });
+  const [addBookModalOpen, setAddBookModalOpen] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchCategories();
-    fetchBooks();
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    fetchBooks();
   }, [pagination.page, searchQuery, categoryFilter, availabilityFilter]);
 
   const fetchCategories = async () => {
@@ -46,17 +52,16 @@ export default function LibrarianInventoryPage() {
 
   const fetchStats = async () => {
     try {
-      // This would ideally come from a dedicated stats endpoint
-      // For now, we'll calculate from books
-      const response = await fetch('/api/books?limit=1');
+      const response = await fetch('/api/librarian/inventory/stats');
       if (response.ok) {
         const data = await response.json();
-        // Placeholder stats - can be enhanced with actual calculations
         setStats({
-          inStock: 12450,
-          lowStock: 85,
-          outOfStock: 24,
+          inStock: data.inStock || 0,
+          lowStock: data.lowStock || 0,
+          outOfStock: data.outOfStock || 0,
         });
+      } else {
+        console.error('Error fetching stats:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -66,9 +71,15 @@ export default function LibrarianInventoryPage() {
   const fetchBooks = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // When availability filter is active, fetch more books for client-side filtering
+      const fetchLimit = availabilityFilter ? 1000 : pagination.limit;
+      const fetchPage = availabilityFilter ? 1 : pagination.page;
+      
       const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+        page: fetchPage.toString(),
+        limit: fetchLimit.toString(),
       });
       if (searchQuery) params.append('search', searchQuery);
       if (categoryFilter) params.append('category', categoryFilter);
@@ -76,15 +87,48 @@ export default function LibrarianInventoryPage() {
       const response = await fetch(`/api/books?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setBooks(data.books || []);
-        setPagination((prev) => ({
-          ...prev,
-          total: data.pagination?.total || 0,
-          pages: data.pagination?.pages || 0,
-        }));
+        let allBooks = data.books || [];
+        
+        // Apply availability filter client-side
+        let filteredBooks = allBooks;
+        if (availabilityFilter) {
+          filteredBooks = allBooks.filter((book) => {
+            const stockStatus = getStockStatus(book);
+            if (availabilityFilter === 'instock' && stockStatus.status === 'in') return true;
+            if (availabilityFilter === 'lowstock' && stockStatus.status === 'low') return true;
+            if (availabilityFilter === 'outstock' && stockStatus.status === 'out') return true;
+            return false;
+          });
+          
+          // Apply client-side pagination when filtering
+          const startIndex = (pagination.page - 1) * pagination.limit;
+          const endIndex = startIndex + pagination.limit;
+          const paginatedBooks = filteredBooks.slice(startIndex, endIndex);
+          
+          // Update pagination with filtered results
+          setPagination((prev) => ({
+            ...prev,
+            total: filteredBooks.length,
+            pages: Math.ceil(filteredBooks.length / prev.limit),
+          }));
+          
+          filteredBooks = paginatedBooks;
+        } else {
+          // Use server-side pagination
+          setPagination((prev) => ({
+            ...prev,
+            total: data.pagination?.total || 0,
+            pages: data.pagination?.pages || 0,
+          }));
+        }
+        
+        setBooks(filteredBooks);
+      } else {
+        setError('Failed to fetch books. Please try again.');
       }
     } catch (error) {
       console.error('Error fetching books:', error);
+      setError('An error occurred while fetching books. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -97,7 +141,12 @@ export default function LibrarianInventoryPage() {
     if (total === 0) return { status: 'out', label: 'Out of Stock', color: 'red' };
     if (available === 0) return { status: 'out', label: 'Out of Stock', color: 'red' };
     if (available <= 2) return { status: 'low', label: 'Low Stock', color: 'amber' };
-    return { status: 'in', label: 'Available', color: 'emerald' };
+    return { status: 'in', label: 'In Stock', color: 'emerald' };
+  };
+
+  const handleBookAdded = () => {
+    fetchBooks();
+    fetchStats();
   };
 
   const getLocationDisplay = (book) => {
@@ -127,13 +176,13 @@ export default function LibrarianInventoryPage() {
                   <span className="material-symbols-outlined text-[20px]">qr_code_scanner</span>
                   Scan Barcode
                 </button>
-                <Link
-                  href="/librarian/inventory/add"
+                <button
+                  onClick={() => setAddBookModalOpen(true)}
                   className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-2.5 rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <span className="material-symbols-outlined text-[20px]">add</span>
                   Add New Book
-                </Link>
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -259,6 +308,12 @@ export default function LibrarianInventoryPage() {
                         </div>
                       </td>
                     </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan="8" className="px-6 py-12 text-center text-red-400">
+                        {error}
+                      </td>
+                    </tr>
                   ) : books.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
@@ -274,13 +329,21 @@ export default function LibrarianInventoryPage() {
                             <input className="rounded bg-white/10 border-white/20 text-primary focus:ring-offset-0 focus:ring-primary/50" type="checkbox" />
                           </td>
                           <td className="px-6 py-4">
-                            <div className="relative h-16 w-11">
-                              <div
-                                className="absolute inset-0 rounded bg-gray-700 bg-cover bg-center shadow-md group-hover:scale-110 transition-transform duration-300 z-10"
-                                style={{
-                                  backgroundImage: book.coverImage ? `url('${book.coverImage}')` : 'none',
-                                }}
-                              ></div>
+                            <div className="relative h-16 w-11 rounded overflow-hidden bg-gray-700 shadow-md group-hover:scale-110 transition-transform duration-300">
+                              {book.coverImage ? (
+                                <img
+                                  src={book.coverImage}
+                                  alt={book.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-700">
+                                  <span className="material-symbols-outlined text-gray-500 text-xl">book</span>
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -434,6 +497,11 @@ export default function LibrarianInventoryPage() {
           </div>
         </section>
       </div>
+      <AddBookModal
+        isOpen={addBookModalOpen}
+        onClose={() => setAddBookModalOpen(false)}
+        onBookAdded={handleBookAdded}
+      />
     </>
   );
 }
