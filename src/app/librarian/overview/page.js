@@ -38,6 +38,8 @@ export default function LibrarianOverviewPage() {
       if (response.ok) {
         const data = await response.json();
         setStats(data);
+      } else {
+        console.error('Error fetching stats:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -288,14 +290,22 @@ export default function LibrarianOverviewPage() {
                           <tr key={activity._id} className="hover:bg-white/[0.02] transition-colors group">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-4">
-                                <div
-                                  className="size-10 rounded-md bg-gray-800 bg-cover shadow-sm group-hover:scale-105 transition-transform duration-300"
-                                  style={{
-                                    backgroundImage: activity.book?.coverImage
-                                      ? `url('${activity.book.coverImage}')`
-                                      : 'none',
-                                  }}
-                                ></div>
+                                <div className="size-10 rounded-md bg-gray-800 shadow-sm group-hover:scale-105 transition-transform duration-300 overflow-hidden">
+                                  {activity.book?.coverImage ? (
+                                    <img
+                                      src={activity.book.coverImage}
+                                      alt={activity.book.title || 'Book cover'}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <span className="material-symbols-outlined text-gray-500 text-sm">book</span>
+                                    </div>
+                                  )}
+                                </div>
                                 <div>
                                   <p className="font-semibold text-white text-sm">
                                     {activity.book?.title || 'Unknown Book'}
@@ -431,15 +441,18 @@ export default function LibrarianOverviewPage() {
                         className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer group"
                       >
                         <div className="relative">
-                          <div
-                            className="size-10 rounded-full bg-center bg-cover border border-white/10"
-                            style={{
-                              backgroundImage: member.profilePhoto
-                                ? `url('${member.profilePhoto}')`
-                                : 'none',
-                              backgroundColor: member.profilePhoto ? 'transparent' : '#3c2348',
-                            }}
-                          >
+                          <div className="size-10 rounded-full bg-center bg-cover border border-white/10 overflow-hidden bg-[#3c2348]">
+                            {member.profilePhoto ? (
+                              <img
+                                src={member.profilePhoto}
+                                alt={member.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
                             {!member.profilePhoto && (
                               <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
                                 {getInitials(member.name)}
