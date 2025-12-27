@@ -2,16 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { showError, showSuccess, showLoading, close } from '@/lib/swal';
+import { LOCATION_DATA } from '@/lib/locationData';
 
 export default function AddNewMemberModal({ isOpen, onClose, onMemberAdded }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    streetAddress: '',
+    division: '',
     city: '',
-    state: 'NY',
-    zip: '',
+    area: '',
+    landmark: '',
     tier: 'premium',
     password: 'Library123!',
     profilePhoto: null,
@@ -29,10 +30,10 @@ export default function AddNewMemberModal({ isOpen, onClose, onMemberAdded }) {
         name: '',
         email: '',
         phone: '',
-        streetAddress: '',
+        division: '',
         city: '',
-        state: 'NY',
-        zip: '',
+        area: '',
+        landmark: '',
         tier: 'premium',
         password: 'Library123!',
         profilePhoto: null,
@@ -47,10 +48,43 @@ export default function AddNewMemberModal({ isOpen, onClose, onMemberAdded }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Handle cascading dropdowns like register page
+    if (name === 'division') {
+      setFormData(prev => ({
+        ...prev,
+        division: value,
+        city: '', // Reset city when division changes
+        area: '', // Reset area when division changes
+      }));
+    } else if (name === 'city') {
+      setFormData(prev => ({
+        ...prev,
+        city: value,
+        area: '', // Reset area when city changes
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  // Get available cities based on selected division
+  const getAvailableCities = () => {
+    if (!formData.division || !LOCATION_DATA[formData.division]) {
+      return [];
+    }
+    return Object.keys(LOCATION_DATA[formData.division]);
+  };
+
+  // Get available areas based on selected division and city
+  const getAvailableAreas = () => {
+    if (!formData.division || !formData.city || !LOCATION_DATA[formData.division]) {
+      return [];
+    }
+    return LOCATION_DATA[formData.division][formData.city] || [];
   };
 
   const handleFileChange = async (e) => {
@@ -133,12 +167,12 @@ export default function AddNewMemberModal({ isOpen, onClose, onMemberAdded }) {
         setUploading(false);
       }
 
-      // Prepare address object
+      // Prepare address object (matching User model structure)
       const address = {
-        state: formData.state || undefined,
+        division: formData.division || undefined,
         city: formData.city || undefined,
-        street: formData.streetAddress || undefined,
-        zip: formData.zip || undefined,
+        area: formData.area || undefined,
+        landmark: formData.landmark || undefined,
       };
 
       const response = await fetch('/api/admin/members', {
@@ -341,57 +375,77 @@ export default function AddNewMemberModal({ isOpen, onClose, onMemberAdded }) {
                     />
                   </label>
                 </div>
-                <label className="flex flex-col gap-2">
-                  <span className="text-white/80 text-sm font-medium">Street Address</span>
-                  <input 
-                    name="streetAddress"
-                    value={formData.streetAddress}
-                    onChange={handleInputChange}
-                    className="w-full bg-surface-darker border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
-                    placeholder="e.g. 123 Library Lane, Apt 4B" 
-                    type="text"
-                    disabled={submitting}
-                  />
-                </label>
-                <div className="grid grid-cols-6 gap-4">
-                  <label className="flex flex-col gap-2 col-span-3">
-                    <span className="text-white/80 text-sm font-medium">City</span>
-                    <input 
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#150c19] border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
-                      placeholder="New York" 
-                      type="text"
-                      disabled={submitting}
-                    />
-                  </label>
-                  <label className="flex flex-col gap-2 col-span-2">
-                    <span className="text-white/80 text-sm font-medium">State</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-white/80 text-sm font-medium">Division</span>
                     <div className="relative">
                       <select 
-                        name="state"
-                        value={formData.state}
+                        name="division"
+                        value={formData.division}
                         onChange={handleInputChange}
-                        className="w-full bg-surface-darker border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none cursor-pointer"
+                        className="w-full bg-[#150c19] border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none cursor-pointer"
                         disabled={submitting}
                       >
-                        <option value="NY">NY</option>
-                        <option value="CA">CA</option>
-                        <option value="TX">TX</option>
-                        <option value="FL">FL</option>
+                        <option value="" className="bg-[#150c19]">Select Division</option>
+                        {Object.keys(LOCATION_DATA).map((division) => (
+                          <option key={division} value={division} className="bg-[#150c19]">
+                            {division}
+                          </option>
+                        ))}
                       </select>
                       <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">expand_more</span>
                     </div>
                   </label>
-                  <label className="flex flex-col gap-2 col-span-1">
-                    <span className="text-white/80 text-sm font-medium">Zip</span>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-white/80 text-sm font-medium">City</span>
+                    <div className="relative">
+                      <select 
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        className="w-full bg-[#150c19] border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={submitting || !formData.division}
+                      >
+                        <option value="" className="bg-[#150c19]">Select City</option>
+                        {getAvailableCities().map((city) => (
+                          <option key={city} value={city} className="bg-[#150c19]">
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">expand_more</span>
+                    </div>
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-white/80 text-sm font-medium">Area (Thana)</span>
+                    <div className="relative">
+                      <select 
+                        name="area"
+                        value={formData.area}
+                        onChange={handleInputChange}
+                        className="w-full bg-[#150c19] border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={submitting || !formData.city}
+                      >
+                        <option value="" className="bg-[#150c19]">Select Area</option>
+                        {getAvailableAreas().map((area) => (
+                          <option key={area} value={area} className="bg-[#150c19]">
+                            {area}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">expand_more</span>
+                    </div>
+                  </label>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-white/80 text-sm font-medium">Landmark</span>
                     <input 
-                      name="zip"
-                      value={formData.zip}
+                      name="landmark"
+                      value={formData.landmark}
                       onChange={handleInputChange}
                       className="w-full bg-[#150c19] border border-border-dark rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
-                      placeholder="10001" 
+                      placeholder="e.g. Near Public Library" 
                       type="text"
                       disabled={submitting}
                     />

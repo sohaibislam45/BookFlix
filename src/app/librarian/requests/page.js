@@ -33,7 +33,7 @@ export default function LibrarianRequestsPage() {
         setStats({
           pendingReservations: data.recentReservations || 0,
           acquisitionRequests: 0, // Placeholder - can be added later
-          requiresApproval: 0, // Placeholder - can be added later
+          requiresApproval: data.reservationsAwaitingPickup || 0,
         });
       }
     } catch (error) {
@@ -44,11 +44,28 @@ export default function LibrarianRequestsPage() {
   const fetchReservations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/reservations?status=pending&limit=100');
-      if (response.ok) {
-        const data = await response.json();
-        setReservations(data.reservations || []);
-      }
+      // Fetch pending reservations
+      const pendingResponse = await fetch('/api/reservations?status=pending&limit=100');
+      // Fetch ready reservations
+      const readyResponse = await fetch('/api/reservations?status=ready&limit=100');
+      
+      const pendingData = pendingResponse.ok ? await pendingResponse.json() : { reservations: [] };
+      const readyData = readyResponse.ok ? await readyResponse.json() : { reservations: [] };
+      
+      // Combine pending and ready reservations
+      const allReservations = [
+        ...(pendingData.reservations || []),
+        ...(readyData.reservations || [])
+      ];
+      
+      // Sort by reserved date (most recent first)
+      allReservations.sort((a, b) => {
+        const dateA = new Date(a.reservedDate || 0);
+        const dateB = new Date(b.reservedDate || 0);
+        return dateB - dateA;
+      });
+      
+      setReservations(allReservations);
     } catch (error) {
       console.error('Error fetching reservations:', error);
       showError('Error', 'Failed to fetch reservations');
@@ -75,6 +92,7 @@ export default function LibrarianRequestsPage() {
       if (response.ok) {
         showSuccess('Success!', 'Reservation marked as ready');
         await fetchReservations();
+        await fetchStats(); // Refresh stats
       } else {
         const error = await response.json();
         showError('Error', error.error || 'Failed to mark reservation as ready');
@@ -102,6 +120,7 @@ export default function LibrarianRequestsPage() {
       if (response.ok) {
         showSuccess('Success!', 'Reservation completed successfully');
         await fetchReservations();
+        await fetchStats(); // Refresh stats
       } else {
         const error = await response.json();
         showError('Error', error.error || 'Failed to complete reservation');
@@ -109,6 +128,43 @@ export default function LibrarianRequestsPage() {
     } catch (error) {
       console.error('Error completing reservation:', error);
       showError('Error', 'Failed to complete reservation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCancelReservation = async (reservationId) => {
+    const result = await showConfirm(
+      'Cancel Reservation',
+      'Are you sure you want to cancel this reservation? This action cannot be undone.',
+      {
+        confirmButtonText: 'Yes, Cancel',
+        cancelButtonText: 'Keep Reservation',
+        icon: 'warning',
+        confirmButtonColor: '#ef4444',
+      }
+    );
+    if (!result.isConfirmed) return;
+
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/reservations/${reservationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' }),
+      });
+
+      if (response.ok) {
+        showSuccess('Success!', 'Reservation cancelled successfully');
+        await fetchReservations();
+        await fetchStats(); // Refresh stats
+      } else {
+        const error = await response.json();
+        showError('Error', error.error || 'Failed to cancel reservation');
+      }
+    } catch (error) {
+      console.error('Error cancelling reservation:', error);
+      showError('Error', 'Failed to cancel reservation');
     } finally {
       setProcessing(false);
     }
@@ -288,8 +344,17 @@ export default function LibrarianRequestsPage() {
                           <span className="material-symbols-outlined text-6xl text-gray-700">image_not_supported</span>
                         </div>
                       )}
-                      <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
-                        Queue #{reservation.queuePosition}
+                      <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                        {reservation.status === 'ready' && (
+                          <div className="bg-emerald-500/90 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white border border-emerald-400/50">
+                            Ready for Pickup
+                          </div>
+                        )}
+                        {reservation.queuePosition && reservation.status === 'pending' && (
+                          <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
+                            Queue #{reservation.queuePosition}
+                          </div>
+                        )}
                       </div>
                       <div className="absolute bottom-3 left-4 right-4">
                         <h3 className="text-white font-bold text-xl leading-snug drop-shadow-md">
@@ -320,32 +385,45 @@ export default function LibrarianRequestsPage() {
                       </div>
                       <div className="mt-auto flex gap-3 pt-2">
                         {reservation.status === 'pending' && (
-                          <button
-                            onClick={() => handleMarkReady(reservation._id, reservation.book?._id)}
-                            disabled={processing}
-                            className="flex-1 bg-primary hover:bg-primary-hover text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">check</span>
-                            Mark Ready
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleMarkReady(reservation._id, reservation.book?._id)}
+                              disabled={processing}
+                              className="flex-1 bg-primary hover:bg-primary-hover text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">check</span>
+                              Mark Ready
+                            </button>
+                            <button
+                              onClick={() => handleCancelReservation(reservation._id)}
+                              disabled={processing}
+                              className="flex-1 bg-transparent border border-[#553267] hover:bg-red-500/20 hover:border-red-500 text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">close</span>
+                              Cancel
+                            </button>
+                          </>
                         )}
                         {reservation.status === 'ready' && (
-                          <button
-                            onClick={() => handleCompleteReservation(reservation._id)}
-                            disabled={processing}
-                            className="flex-1 bg-primary hover:bg-primary-hover text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">check</span>
-                            Complete
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleCompleteReservation(reservation._id)}
+                              disabled={processing}
+                              className="flex-1 bg-primary hover:bg-primary-hover text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">check</span>
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => handleCancelReservation(reservation._id)}
+                              disabled={processing}
+                              className="flex-1 bg-transparent border border-[#553267] hover:bg-red-500/20 hover:border-red-500 text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">close</span>
+                              Cancel
+                            </button>
+                          </>
                         )}
-                        <button
-                          disabled={processing}
-                          className="flex-1 bg-transparent border border-[#553267] hover:bg-surface-dark text-white py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                          Cancel
-                        </button>
                       </div>
                     </div>
                   </div>
