@@ -7,18 +7,26 @@ import LibrarianHeader from '@/components/LibrarianHeader';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import Link from 'next/link';
 
+// Helper function to check if a string is a valid MongoDB ObjectId
+const isValidObjectId = (str) => {
+  return /^[0-9a-fA-F]{24}$/.test(str);
+};
+
 export default function CirculationDeskPage() {
   const { userData } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('checkout'); // checkout, return, renew
   const [searchQuery, setSearchQuery] = useState('');
+  const [returnQuery, setReturnQuery] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [member, setMember] = useState(null);
   const [cart, setCart] = useState([]);
   const [books, setBooks] = useState([]);
+  const [renewableBooks, setRenewableBooks] = useState([]);
   const [recentReturns, setRecentReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [totalFines, setTotalFines] = useState(0);
 
   useEffect(() => {
     if (userData?.role !== 'librarian' && userData?.role !== 'admin') {
@@ -26,6 +34,12 @@ export default function CirculationDeskPage() {
     }
     fetchRecentReturns();
   }, [userData, router]);
+
+  useEffect(() => {
+    if (member?._id) {
+      fetchMemberFines();
+    }
+  }, [member]);
 
   const fetchRecentReturns = async () => {
     try {
@@ -39,23 +53,57 @@ export default function CirculationDeskPage() {
     }
   };
 
+  const fetchMemberFines = async () => {
+    try {
+      const response = await fetch(`/api/fines?memberId=${member._id}&status=pending`);
+      if (response.ok) {
+        const data = await response.json();
+        const total = (data.fines || []).reduce((sum, fine) => sum + (fine.amount || 0), 0);
+        setTotalFines(total);
+      }
+    } catch (error) {
+      console.error('Error fetching fines:', error);
+    }
+  };
+
   const searchMember = async () => {
     if (!memberSearch) return;
     try {
       setLoading(true);
-      const response = await fetch(`/api/users?email=${encodeURIComponent(memberSearch)}`);
+      
+      // Check if it's a valid ObjectId (member ID)
+      const isObjectId = isValidObjectId(memberSearch.trim());
+      
+      let response;
+      if (isObjectId) {
+        // Try to fetch by ID using admin members API
+        response = await fetch(`/api/admin/members?userId=${memberSearch.trim()}`);
+      } else {
+        // Search by email
+        response = await fetch(`/api/users?email=${encodeURIComponent(memberSearch)}`);
+      }
+      
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data.users) && data.users.length > 0) {
-          setMember(data.users[0]);
+        const foundMember = data.member || data.user || data;
+        
+        if (foundMember) {
+          setMember(foundMember);
           // Fetch member's borrowings
-          if (data.users[0]._id) {
-            const borrowingsResponse = await fetch(`/api/borrowings/member/${data.users[0]._id}`);
+          if (foundMember._id) {
+            const borrowingsResponse = await fetch(`/api/borrowings/member/${foundMember._id}`);
             if (borrowingsResponse.ok) {
               const borrowingsData = await borrowingsResponse.json();
               setBooks(borrowingsData.borrowings || []);
+              
+              // Filter renewable books (active, not overdue, renewal count < 2)
+              const renewable = (borrowingsData.borrowings || []).filter(
+                (b) => b.status === 'active' && b.renewalCount < 2
+              );
+              setRenewableBooks(renewable);
             }
           }
+          fetchMemberFines();
         } else {
           showError('Member Not Found', 'No member found with that email or ID');
           setMember(null);
@@ -67,13 +115,19 @@ export default function CirculationDeskPage() {
     } catch (error) {
       console.error('Error searching member:', error);
       showError('Error', 'Error searching member');
+      setMember(null);
     } finally {
       setLoading(false);
     }
   };
 
   const searchBook = async (isbn) => {
-    if (!isbn) return;
+    if (!isbn || !member) {
+      if (!member) {
+        showError('Member Required', 'Please search for a member first');
+      }
+      return;
+    }
     try {
       setLoading(true);
       const response = await fetch(`/api/books?search=${encodeURIComponent(isbn)}&limit=1`);
@@ -83,8 +137,28 @@ export default function CirculationDeskPage() {
           const book = data.books[0];
           // Check if already in cart
           if (!cart.find((b) => b._id === book._id)) {
+            // Check if member already has this book borrowed
+            const alreadyBorrowed = books.some(
+              (b) => b.book?._id === book._id && (b.status === 'active' || b.status === 'overdue')
+            );
+            if (alreadyBorrowed) {
+              showError('Already Borrowed', 'Member already has this book borrowed');
+              return;
+            }
+            
+            // Check borrowing limit
+            const activeCount = books.filter((b) => b.status === 'active' || b.status === 'overdue').length;
+            const maxBooks = member.subscription?.type === 'free' ? 1 : 4;
+            if (activeCount + cart.length >= maxBooks) {
+              showError('Borrowing Limit', `Member can borrow maximum ${maxBooks} book(s) at a time`);
+              return;
+            }
+            
             setCart([...cart, { ...book, dueDate: calculateDueDate() }]);
             setSearchQuery('');
+            showSuccess('Book Added', 'Book added to cart successfully');
+          } else {
+            showError('Already in Cart', 'This book is already in the cart');
           }
         } else {
           showError('Book Not Found', 'No book found with that ISBN');
@@ -92,6 +166,7 @@ export default function CirculationDeskPage() {
       }
     } catch (error) {
       console.error('Error searching book:', error);
+      showError('Error', 'Error searching for book');
     } finally {
       setLoading(false);
     }
@@ -110,6 +185,8 @@ export default function CirculationDeskPage() {
 
     try {
       setProcessing(true);
+      const results = [];
+      
       for (const book of cart) {
         const response = await fetch('/api/borrowings', {
           method: 'POST',
@@ -119,20 +196,40 @@ export default function CirculationDeskPage() {
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || 'Failed to checkout book');
+          results.push({ book: book.title, success: false, error: error.error });
+        } else {
+          results.push({ book: book.title, success: true });
         }
       }
 
-      showSuccess('Success!', 'All books checked out successfully');
+      const failed = results.filter((r) => !r.success);
+      const succeeded = results.filter((r) => r.success);
+
+      if (failed.length > 0) {
+        showError(
+          'Checkout Incomplete',
+          `Failed to checkout: ${failed.map((f) => f.book).join(', ')}\n${failed.map((f) => f.error).join('\n')}`
+        );
+      } else {
+        showSuccess('Success!', `All ${succeeded.length} book(s) checked out successfully`);
+      }
+
       setCart([]);
       setSearchQuery('');
+      
       // Refresh member's borrowings
       if (member._id) {
         const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
         if (borrowingsResponse.ok) {
           const borrowingsData = await borrowingsResponse.json();
           setBooks(borrowingsData.borrowings || []);
+          
+          const renewable = (borrowingsData.borrowings || []).filter(
+            (b) => b.status === 'active' && (b.renewalCount || 0) < 2
+          );
+          setRenewableBooks(renewable);
         }
+        fetchMemberFines();
       }
     } catch (error) {
       console.error('Error checking out books:', error);
@@ -161,7 +258,17 @@ export default function CirculationDeskPage() {
           if (returnResponse.ok) {
             showSuccess('Success!', 'Book returned successfully');
             fetchRecentReturns();
-            setSearchQuery('');
+            setReturnQuery('');
+            
+            // Refresh member's borrowings if member is loaded
+            if (member?._id) {
+              const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
+              if (borrowingsResponse.ok) {
+                const borrowingsData = await borrowingsResponse.json();
+                setBooks(borrowingsData.borrowings || []);
+              }
+              fetchMemberFines();
+            }
           } else {
             const error = await returnResponse.json();
             showError('Error', error.error || 'Failed to return book');
@@ -173,6 +280,43 @@ export default function CirculationDeskPage() {
     } catch (error) {
       console.error('Error returning book:', error);
       showError('Error', 'Failed to return book');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRenew = async (borrowingId) => {
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/borrowings/${borrowingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'renew' }),
+      });
+
+      if (response.ok) {
+        showSuccess('Success!', 'Book renewed successfully');
+        
+        // Refresh member's borrowings
+        if (member._id) {
+          const borrowingsResponse = await fetch(`/api/borrowings/member/${member._id}`);
+          if (borrowingsResponse.ok) {
+            const borrowingsData = await borrowingsResponse.json();
+            setBooks(borrowingsData.borrowings || []);
+            
+            const renewable = (borrowingsData.borrowings || []).filter(
+              (b) => b.status === 'active' && (b.renewalCount || 0) < 2
+            );
+            setRenewableBooks(renewable);
+          }
+        }
+      } else {
+        const error = await response.json();
+        showError('Error', error.error || 'Failed to renew book');
+      }
+    } catch (error) {
+      console.error('Error renewing book:', error);
+      showError('Error', 'Failed to renew book');
     } finally {
       setProcessing(false);
     }
@@ -209,7 +353,7 @@ export default function CirculationDeskPage() {
                   <div className="flex gap-2">
                     <input
                       className="w-full bg-[#2b1934] border border-[#553267] text-white text-lg font-mono h-12 pl-12 pr-4 rounded-xl focus:outline-none focus:border-primary placeholder:text-text-muted/50 transition-all"
-                      placeholder="Scan Member ID or Search Name..."
+                      placeholder="Scan Member ID or Search Email..."
                       type="text"
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
@@ -218,7 +362,7 @@ export default function CirculationDeskPage() {
                     <button
                       onClick={searchMember}
                       disabled={loading}
-                      className="bg-[#3c2348] hover:bg-primary text-white px-4 rounded-xl transition-colors border border-[#553267] hover:border-primary"
+                      className="bg-[#3c2348] hover:bg-primary text-white px-4 rounded-xl transition-colors border border-[#553267] hover:border-primary disabled:opacity-50"
                     >
                       Check
                     </button>
@@ -230,15 +374,15 @@ export default function CirculationDeskPage() {
               {member && (
                 <div className="flex-[1.5] bg-[#2b1934]/50 border border-[#3c2348] rounded-xl p-3 flex items-center gap-4 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-1 bg-emerald-500/10 rounded-bl-xl border-b border-l border-emerald-500/20 text-[10px] text-emerald-400 font-bold uppercase px-2">Active</div>
-                  <div
-                    className="size-12 rounded-full bg-cover bg-center shrink-0 border border-[#553267]"
-                    style={{
-                      backgroundImage: member.profilePhoto ? `url('${member.profilePhoto}')` : 'none',
-                      backgroundColor: member.profilePhoto ? 'transparent' : '#3c2348',
-                    }}
-                  >
-                    {!member.profilePhoto && (
-                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                  <div className="size-12 rounded-full bg-cover bg-center shrink-0 border border-[#553267] overflow-hidden">
+                    {member.profilePhoto ? (
+                      <img
+                        src={member.profilePhoto}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-[#3c2348] text-white text-sm font-bold">
                         {getInitials(member.name)}
                       </div>
                     )}
@@ -257,7 +401,9 @@ export default function CirculationDeskPage() {
                     </div>
                     <div className="text-center">
                       <div className="text-text-muted uppercase text-[9px]">Fines</div>
-                      <div className="text-emerald-400 font-bold text-lg">$0.00</div>
+                      <div className={`font-bold text-lg ${totalFines > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        ${totalFines.toFixed(2)}
+                      </div>
                     </div>
                   </div>
                   <button
@@ -265,6 +411,8 @@ export default function CirculationDeskPage() {
                       setMember(null);
                       setCart([]);
                       setBooks([]);
+                      setRenewableBooks([]);
+                      setTotalFines(0);
                     }}
                     className="absolute bottom-2 right-2 p-1 text-text-muted hover:text-white rounded hover:bg-white/10"
                     title="Clear Member"
@@ -319,7 +467,7 @@ export default function CirculationDeskPage() {
                     <input
                       autoFocus
                       className="w-full bg-[#2b1934] border border-[#553267] text-white text-xl font-mono h-14 pl-12 pr-24 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-text-muted/40 transition-all"
-                      placeholder="Scan Book ISBN to borrow..."
+                      placeholder={member ? "Scan Book ISBN to borrow..." : "Search for member first..."}
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -328,6 +476,7 @@ export default function CirculationDeskPage() {
                           searchBook(searchQuery);
                         }
                       }}
+                      disabled={!member}
                     />
                     <kbd className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#3c2348] text-text-muted text-xs rounded font-mono border border-[#553267]">Enter</kbd>
                   </div>
@@ -354,12 +503,22 @@ export default function CirculationDeskPage() {
                         cart.map((book) => (
                           <tr key={book._id} className="hover:bg-white/5 group transition-colors">
                             <td className="p-4 text-white font-medium flex items-center gap-3">
-                              <div
-                                className="w-8 h-10 bg-gray-700 rounded bg-cover"
-                                style={{
-                                  backgroundImage: book.coverImage ? `url('${book.coverImage}')` : 'none',
-                                }}
-                              ></div>
+                              <div className="w-8 h-10 bg-gray-700 rounded overflow-hidden shrink-0">
+                                {book.coverImage ? (
+                                  <img
+                                    src={book.coverImage}
+                                    alt={book.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-gray-500 text-sm">book</span>
+                                  </div>
+                                )}
+                              </div>
                               {book.title}
                             </td>
                             <td className="p-4 text-text-muted">{book.author}</td>
@@ -412,9 +571,89 @@ export default function CirculationDeskPage() {
             {/* Renew Tab Content */}
             {activeTab === 'renew' && (
               <div className="flex-1 flex flex-col p-6 overflow-hidden">
-                <div className="text-center py-12 text-text-muted">
-                  <p>Renew functionality coming soon</p>
-                </div>
+                {!member ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-text-muted">
+                      <span className="material-symbols-outlined text-6xl mb-4 block">person_search</span>
+                      <p className="text-lg">Please search for a member first</p>
+                    </div>
+                  </div>
+                ) : renewableBooks.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-text-muted">
+                      <span className="material-symbols-outlined text-6xl mb-4 block">library_books</span>
+                      <p className="text-lg">No renewable books found</p>
+                      <p className="text-sm mt-2">All books are either renewed or overdue</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-4 text-sm text-text-muted">
+                      Books eligible for renewal (can renew up to 2 times)
+                    </div>
+                    <div className="flex-1 overflow-y-auto bg-[#23142b] rounded-xl border border-[#3c2348]">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-[#2b1934] text-xs uppercase text-text-muted font-semibold sticky top-0 z-10">
+                          <tr>
+                            <th className="p-4 border-b border-[#3c2348]">Book Title</th>
+                            <th className="p-4 border-b border-[#3c2348]">Author</th>
+                            <th className="p-4 border-b border-[#3c2348]">Current Due Date</th>
+                            <th className="p-4 border-b border-[#3c2348]">Renewals</th>
+                            <th className="p-4 border-b border-[#3c2348] text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-sm divide-y divide-[#3c2348]">
+                          {renewableBooks.map((borrowing) => (
+                            <tr key={borrowing._id} className="hover:bg-white/5 group transition-colors">
+                              <td className="p-4 text-white font-medium flex items-center gap-3">
+                                <div className="w-8 h-10 bg-gray-700 rounded overflow-hidden shrink-0">
+                                  {borrowing.book?.coverImage ? (
+                                    <img
+                                      src={borrowing.book.coverImage}
+                                      alt={borrowing.book.title}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <span className="material-symbols-outlined text-gray-500 text-sm">book</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {borrowing.book?.title || 'Unknown Book'}
+                              </td>
+                              <td className="p-4 text-text-muted">{borrowing.book?.author || 'Unknown Author'}</td>
+                              <td className="p-4 text-emerald-400 font-mono">
+                                {borrowing.dueDate
+                                  ? new Date(borrowing.dueDate).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })
+                                  : 'N/A'}
+                              </td>
+                              <td className="p-4 text-text-muted">
+                                {borrowing.renewalCount || 0}/2
+                              </td>
+                              <td className="p-4 text-right">
+                                <button
+                                  onClick={() => handleRenew(borrowing._id)}
+                                  disabled={processing}
+                                  className="px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">autorenew</span>
+                                  Renew
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -441,17 +680,18 @@ export default function CirculationDeskPage() {
                   className="w-full bg-[#2b1934] border border-[#3c2348] text-white text-lg font-mono h-14 pl-4 pr-12 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-text-muted/40 transition-all"
                   placeholder="ISBN..."
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={returnQuery}
+                  onChange={(e) => setReturnQuery(e.target.value)}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' && searchQuery) {
-                      handleReturn(searchQuery);
+                    if (e.key === 'Enter' && returnQuery) {
+                      handleReturn(returnQuery);
                     }
                   }}
                 />
                 <button
-                  onClick={() => handleReturn(searchQuery)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                  onClick={() => handleReturn(returnQuery)}
+                  disabled={processing}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                 </button>
@@ -470,12 +710,22 @@ export default function CirculationDeskPage() {
                     className="p-3 rounded-xl bg-[#2b1934] border-l-4 border-l-blue-500 border-y border-r border-[#3c2348] hover:border-blue-500/30 transition-all"
                   >
                     <div className="flex gap-3">
-                      <div
-                        className="w-10 h-14 bg-gray-700 rounded shadow-sm bg-cover shrink-0"
-                        style={{
-                          backgroundImage: returnItem.book?.coverImage ? `url('${returnItem.book.coverImage}')` : 'none',
-                        }}
-                      ></div>
+                      <div className="w-10 h-14 bg-gray-700 rounded shadow-sm bg-cover shrink-0 overflow-hidden">
+                        {returnItem.book?.coverImage ? (
+                          <img
+                            src={returnItem.book.coverImage}
+                            alt={returnItem.book.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="material-symbols-outlined text-gray-500 text-xs">book</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-bold truncate">{returnItem.book?.title || 'Unknown Book'}</p>
                         <p className="text-xs text-text-muted mb-2">{returnItem.book?.author || 'Unknown Author'}</p>
@@ -506,3 +756,4 @@ export default function CirculationDeskPage() {
     </>
   );
 }
+
