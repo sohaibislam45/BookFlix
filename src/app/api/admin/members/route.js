@@ -343,6 +343,131 @@ export async function PATCH(request) {
   }
 }
 
+export async function POST(request) {
+  try {
+    await connectDB();
+
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    const { name, email, phone, profilePhoto, address, tier, password } = body;
+
+    // Validation
+    if (!name || !name.trim()) {
+      return NextResponse.json(
+        { error: 'Full name is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!email || !email.trim()) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.trim().toLowerCase() });
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Generate placeholder firebaseUid (similar to staff creation)
+    // Note: In production, you would create a Firebase user here using Firebase Admin SDK
+    const firebaseUid = `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Determine subscription based on tier
+    let subscriptionType = 'free';
+    let subscriptionStatus = 'active';
+    
+    if (tier === 'premium') {
+      subscriptionType = 'monthly'; // Default to monthly for premium
+      subscriptionStatus = 'active';
+    }
+
+    // Clean address object
+    const cleanAddress = address ? {
+      division: address.state || address.division || undefined,
+      city: address.city || undefined,
+      area: address.street || address.area || undefined,
+      landmark: address.zip || address.landmark || undefined,
+    } : undefined;
+
+    // Create user in database
+    const user = new User({
+      firebaseUid,
+      email: email.trim().toLowerCase(),
+      name: name.trim(),
+      phone: phone ? phone.trim() : undefined,
+      profilePhoto: profilePhoto || null,
+      address: cleanAddress,
+      role: USER_ROLES.MEMBER,
+      subscription: {
+        type: subscriptionType,
+        status: subscriptionStatus,
+      },
+      isActive: true,
+    });
+
+    await user.save();
+
+    // Return user without sensitive data
+    const userResponse = user.toObject();
+    delete userResponse.__v;
+    delete userResponse.firebaseUid;
+
+    return NextResponse.json(
+      {
+        message: 'Member created successfully',
+        user: userResponse,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('[POST /api/admin/members] Error:', error);
+    
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      );
+    }
+
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors || {}).map(err => err.message);
+      return NextResponse.json(
+        { error: 'Validation error', details: validationErrors.join(', ') },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to create member', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request) {
   try {
     await connectDB();

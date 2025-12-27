@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Link from 'next/link';
 import Loader from '@/components/Loader';
+import AddNewMemberModal from '@/components/AddNewMemberModal';
 
 export default function LibrarianMembersPage() {
   const { userData } = useAuth();
@@ -13,6 +14,7 @@ export default function LibrarianMembersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     fetchMembers();
@@ -21,12 +23,19 @@ export default function LibrarianMembersPage() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      // Note: You may need to create a dedicated members API endpoint
-      // For now, this is a placeholder - the API should filter by role=member
-      const response = await fetch('/api/users?role=member&limit=50');
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (tierFilter) {
+        const tier = tierFilter === 'free' ? 'standard' : tierFilter === 'monthly' || tierFilter === 'yearly' ? 'premium' : tierFilter;
+        if (tier !== 'all') params.append('tier', tier);
+      }
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      params.append('limit', '50');
+      
+      const response = await fetch(`/api/admin/members?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setMembers(data.users || []);
+        setMembers(data.members || []);
       }
     } catch (error) {
       console.error('Error fetching members:', error);
@@ -41,7 +50,11 @@ export default function LibrarianMembersPage() {
       monthly: { label: 'Premium', color: 'amber', bgColor: 'amber-500/10', borderColor: 'amber-500/20', textColor: 'amber-300' },
       yearly: { label: 'Premium', color: 'amber', bgColor: 'amber-500/10', borderColor: 'amber-500/20', textColor: 'amber-300' },
     };
-    return badges[subscriptionType] || badges.free;
+    // Handle premium subscription types
+    if (subscriptionType === 'monthly' || subscriptionType === 'yearly') {
+      return badges.monthly;
+    }
+    return badges.free;
   };
 
   const getStatusBadge = (member) => {
@@ -63,26 +76,24 @@ export default function LibrarianMembersPage() {
     return name[0].toUpperCase();
   };
 
-  const filteredMembers = members.filter((member) => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      if (
-        !member.name?.toLowerCase().includes(query) &&
-        !member.email?.toLowerCase().includes(query) &&
-        !member._id.toString().toLowerCase().includes(query)
-      ) {
-        return false;
-      }
-    }
-    if (tierFilter && member.subscription?.type !== tierFilter) {
-      return false;
-    }
-    return true;
-  });
+  // Filtering is now handled server-side via API, but keep for client-side filtering if needed
+  const filteredMembers = members;
+
+  const handleMemberAdded = () => {
+    setIsAddModalOpen(false);
+    fetchMembers(); // Refresh the members list
+  };
 
   return (
     <>
       <LibrarianHeader title="Member Management" subtitle="Manage patrons, update details, and handle tiers." />
+      {isAddModalOpen && (
+        <AddNewMemberModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onMemberAdded={handleMemberAdded}
+        />
+      )}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col overflow-y-auto p-8">
           <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -103,9 +114,8 @@ export default function LibrarianMembersPage() {
                 onChange={(e) => setTierFilter(e.target.value)}
               >
                 <option value="">All Tiers</option>
-                <option value="free">Standard</option>
-                <option value="monthly">Premium</option>
-                <option value="yearly">Premium</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
               </select>
               <select
                 className="bg-surface-dark border border-surface-border rounded-lg h-10 px-3 text-sm text-white focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-text-secondary/50 transition-colors"
@@ -123,13 +133,13 @@ export default function LibrarianMembersPage() {
                 <span className="material-symbols-outlined text-[18px]">file_download</span>
                 Export CSV
               </button>
-              <Link
-                href="/librarian/members/add"
+              <button
+                onClick={() => setIsAddModalOpen(true)}
                 className="bg-primary hover:bg-primary-hover text-white text-sm font-bold h-10 px-4 rounded-lg flex items-center gap-2 shadow-[0_0_20px_rgba(170,31,239,0.3)] transition-all hover:shadow-[0_0_25px_rgba(170,31,239,0.5)]"
               >
                 <span className="material-symbols-outlined text-[20px]">add</span>
                 Add New Member
-              </Link>
+              </button>
             </div>
           </div>
           <div className="rounded-xl border border-surface-border bg-surface-dark overflow-hidden shadow-sm">
