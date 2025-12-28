@@ -120,7 +120,7 @@ export default function UserProfile() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-72 rounded-2xl bg-gradient-to-b from-surface-dark to-black/90 border border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden z-50 transition-all duration-200 opacity-100">
+        <div className="absolute right-0 mt-3 w-72 rounded-2xl bg-gradient-to-b from-surface-dark to-black/90 border border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden z-[100] transition-all duration-200 opacity-100">
           {/* Header Section with Profile */}
           <div className="relative p-5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-b border-white/10">
             <div className="flex items-center gap-3">

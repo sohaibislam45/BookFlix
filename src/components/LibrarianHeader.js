@@ -21,7 +21,7 @@ export default function LibrarianHeader({ title = 'Dashboard', subtitle, onSearc
   };
 
   return (
-    <header className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-white/5 bg-background-dark/80 backdrop-blur-xl sticky top-0 z-10">
+    <header className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-white/5 bg-background-dark/80 backdrop-blur-xl sticky top-0 z-30">
       <div className="flex flex-col">
         <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
           {title}

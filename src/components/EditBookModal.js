@@ -75,13 +75,19 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
           }
         }
 
+        // Get shelf location - the API returns shelfLocation explicitly
+        // Handle both empty string and undefined/null cases
+        const shelfLocation = book.shelfLocation !== undefined && book.shelfLocation !== null 
+          ? String(book.shelfLocation).trim() 
+          : (book.location ? String(book.location).trim() : '');
+
         setFormData({
           title: book.title || '',
           author: book.author || '',
           isbn: book.isbn || '',
           publishedYear: publishedYear,
           genre: book.category?._id || book.category || '',
-          shelfLocation: book.shelfLocation || book.location || '', // Get from book.shelfLocation or book.location
+          shelfLocation: shelfLocation,
           description: book.description || '',
           coverImage: null,
           coverImagePreview: book.coverImage || null,
@@ -225,8 +231,10 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
         isbn: formData.isbn.trim() || undefined,
         publishedDate: formData.publishedYear ? `${formData.publishedYear}-01-01` : undefined,
         bookLanguage: bookLanguage, // Always include, always valid
-        shelfLocation: formData.shelfLocation.trim() || undefined, // Include shelf location
+        shelfLocation: formData.shelfLocation ? formData.shelfLocation.trim() : '', // Always include shelf location (even if empty)
       };
+      
+      console.log('Sending bookData with shelfLocation:', bookData.shelfLocation);
 
 
       // Update book

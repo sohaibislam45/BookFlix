@@ -259,8 +259,14 @@ export default function LibrarianInventoryPage() {
   };
 
   const getLocationDisplay = (book) => {
-    // Placeholder - in real app, this would come from bookCopy location data
-    // For now, generate a mock location based on category
+    // Use actual shelfLocation or location from book, fallback to generated location
+    if (book.shelfLocation && book.shelfLocation.trim()) {
+      return book.shelfLocation.trim();
+    }
+    if (book.location && book.location.trim()) {
+      return book.location.trim();
+    }
+    // Fallback: generate a location based on category if no shelf location exists
     if (book.category?.slug) {
       const categorySlug = book.category.slug.toUpperCase();
       const bookId = book._id.toString().slice(-2);

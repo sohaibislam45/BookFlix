@@ -41,10 +41,44 @@ export async function GET(request, { params }) {
       isActive: true,
     });
 
+    // Get shelf location from Book or BookCopy
+    // The shelfLocation field might not exist in old documents, so check explicitly
+    let shelfLocation = '';
+    
+    // Check if book has shelfLocation field (handle both undefined and empty string)
+    // Use 'in' operator to check if field exists, even if value is empty
+    if ('shelfLocation' in book && book.shelfLocation !== undefined && book.shelfLocation !== null) {
+      shelfLocation = String(book.shelfLocation).trim();
+    } else if ('location' in book && book.location !== undefined && book.location !== null) {
+      shelfLocation = String(book.location).trim();
+    } else {
+      // If not in Book, try to get from first BookCopy
+      const firstCopy = await BookCopy.findOne({ book: id, isActive: true })
+        .select('location')
+        .lean();
+      if (firstCopy?.location) {
+        // If location is an object with shelf, section, floor, format it
+        if (typeof firstCopy.location === 'object' && firstCopy.location !== null) {
+          const locParts = [];
+          if (firstCopy.location.shelf) locParts.push(firstCopy.location.shelf);
+          if (firstCopy.location.section) locParts.push(firstCopy.location.section);
+          if (firstCopy.location.floor) locParts.push(firstCopy.location.floor);
+          shelfLocation = locParts.join('-') || '';
+        } else if (firstCopy.location) {
+          shelfLocation = String(firstCopy.location).trim();
+        }
+      }
+    }
+
+    console.log('GET book - shelfLocation from DB:', book.shelfLocation);
+    console.log('GET book - location from DB:', book.location);
+    console.log('GET book - final shelfLocation:', shelfLocation);
+
     return NextResponse.json({
       ...book,
       availableCopies,
       totalCopies,
+      shelfLocation: shelfLocation, // Always include shelfLocation, even if empty
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching book:', error);
@@ -243,7 +277,8 @@ export async function PATCH(request, { params }) {
         updateData[key] = value;
       } else if (key === 'bookLanguage' || key === 'language') {
         // Validate language code - only allow 'en' or 'bn'
-        // Update both 'language' (database field) and 'bookLanguage' (model schema) for compatibility
+        // Only update 'bookLanguage' (model schema field)
+        // Do NOT update 'language' field as it conflicts with MongoDB Atlas Search text index
         const validLanguages = ['en', 'bn'];
         const languageValue = String(value).trim();
         if (!validLanguages.includes(languageValue)) {
@@ -252,30 +287,36 @@ export async function PATCH(request, { params }) {
             { status: 400 }
           );
         }
-        // Update both fields: 'language' (what exists in DB) and 'bookLanguage' (model schema)
-        updateData['language'] = languageValue;
+        // Only update bookLanguage to avoid MongoDB Atlas Search language override error
         updateData['bookLanguage'] = languageValue;
       } else if (key === 'shelfLocation' || key === 'location') {
-        // Handle shelf location - save to both 'shelfLocation' and 'location' for compatibility
-        const locationValue = String(value || '').trim();
+        // Handle shelf location - save to 'shelfLocation' (the schema field)
+        // Allow empty strings for shelfLocation
+        const locationValue = value !== undefined && value !== null ? String(value).trim() : '';
+        // Only save to shelfLocation (the field in the schema)
+        // Don't save to 'location' to avoid confusion
         updateData['shelfLocation'] = locationValue;
-        updateData['location'] = locationValue;
+        console.log('Setting shelfLocation to:', locationValue);
       } else {
         updateData[key] = value;
       }
     }
 
     // Update all fields including bookLanguage
+    let updatedBookDoc = null;
     if (Object.keys(updateData).length > 0) {
       try {
         console.log('Updating book with data:', updateData);
         
-        // Update the book - update both 'language' (DB field) and 'bookLanguage' (schema field)
-        // Use runValidators: true to validate schema fields, but Mongoose allows extra fields by default
+        // Update the book - use updateOne with explicit field setting
+        // Ensure shelfLocation is explicitly set even if it's a new field
         const updateResult = await Book.updateOne(
           { _id: id },
           { $set: updateData },
-          { runValidators: true }
+          { 
+            runValidators: true,
+            strict: false // Allow fields not in schema to be saved
+          }
         );
         
         console.log('Update result:', updateResult);
@@ -290,6 +331,31 @@ export async function PATCH(request, { params }) {
         if (updateResult.modifiedCount === 0) {
           console.warn('No documents were modified. Update data:', updateData);
         }
+        
+        // Explicitly update shelfLocation separately to ensure it's saved
+        // Use direct MongoDB update to bypass any Mongoose filtering
+        if (updateData.shelfLocation !== undefined) {
+          console.log('Explicitly updating shelfLocation:', updateData.shelfLocation);
+          const shelfValue = String(updateData.shelfLocation).trim();
+          
+          // Use the native MongoDB driver to ensure the field is saved
+          const db = mongoose.connection.db;
+          if (db) {
+            const booksCollection = db.collection('books');
+            const shelfUpdate = await booksCollection.updateOne(
+              { _id: new mongoose.Types.ObjectId(id) },
+              { $set: { shelfLocation: shelfValue, location: shelfValue } }
+            );
+            console.log('Direct MongoDB shelf location update result:', shelfUpdate);
+          } else {
+            console.error('MongoDB connection not available');
+          }
+        }
+        
+        // Verify the field was saved by checking the document directly
+        const verifyBook = await Book.findById(id).select('shelfLocation location').lean();
+        console.log('Verified shelfLocation in DB after update:', verifyBook?.shelfLocation);
+        console.log('Verified location in DB after update:', verifyBook?.location);
       } catch (updateError) {
         console.error('Error updating book:', updateError);
         console.error('Error stack:', updateError.stack);
@@ -300,10 +366,10 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    // Fetch the updated book with all fields including bookLanguage
+    // Fetch the updated book fresh from database
     const updatedBook = await Book.findById(id)
       .populate('category', 'name slug icon')
-      .select('-__v')
+      .select('-__v') // Exclude __v, all other fields including shelfLocation will be included
       .lean();
 
     if (!updatedBook) {
@@ -313,9 +379,35 @@ export async function PATCH(request, { params }) {
       );
     }
 
+    // Get shelfLocation from the updateData we just saved, or from the fetched book
+    // This ensures we return the value we just saved, even if there's a timing issue
+    const savedShelfLocation = updateData.shelfLocation || updateData.location || '';
+    
+    // Check the fetched book - handle both shelfLocation and location fields
+    let bookShelfLocation = '';
+    if (updatedBook.shelfLocation !== undefined && updatedBook.shelfLocation !== null) {
+      bookShelfLocation = String(updatedBook.shelfLocation).trim();
+    } else if (updatedBook.location !== undefined && updatedBook.location !== null) {
+      bookShelfLocation = String(updatedBook.location).trim();
+    }
+    
+    // Use the saved value if available (from updateData), otherwise use what's in the book
+    // This handles read-after-write consistency issues
+    const finalShelfLocation = savedShelfLocation || bookShelfLocation;
+
+    // Ensure shelfLocation is included in response
+    const responseBook = {
+      ...updatedBook,
+      shelfLocation: finalShelfLocation,
+      location: finalShelfLocation, // Also include as location for compatibility
+    };
+
+    console.log('Updated book shelfLocation (from updateData):', savedShelfLocation);
+    console.log('Updated book shelfLocation (from document):', bookShelfLocation);
+    console.log('Final shelfLocation:', finalShelfLocation);
 
     return NextResponse.json(
-      { message: 'Book updated successfully', book: updatedBook },
+      { message: 'Book updated successfully', book: responseBook },
       { status: 200 }
     );
   } catch (error) {

@@ -263,19 +263,9 @@ export default function AdminBooksPage() {
             class="swal-input" 
             type="text" 
             placeholder="e.g. Fiction, Science Fiction, Mystery..."
-            style="width: 100%; margin-bottom: 1rem;"
+            style="width: 100%;"
             maxlength="100"
           />
-          <label style="display: block; color: #b791ca; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">
-            Description (Optional)
-          </label>
-          <textarea 
-            id="swal-genre-description" 
-            class="swal-input" 
-            placeholder="Enter a brief description of this genre..."
-            style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"
-            maxlength="500"
-          ></textarea>
         </div>
       `,
       focusConfirm: false,
@@ -293,9 +283,7 @@ export default function AdminBooksPage() {
       },
       preConfirm: () => {
         const nameInput = document.getElementById('swal-genre-name');
-        const descriptionInput = document.getElementById('swal-genre-description');
         const name = nameInput?.value?.trim() || '';
-        const description = descriptionInput?.value?.trim() || '';
 
         if (!name || name.length === 0) {
           Swal.showValidationMessage('Genre name is required');
@@ -309,12 +297,8 @@ export default function AdminBooksPage() {
           Swal.showValidationMessage('Genre name must be no more than 100 characters');
           return false;
         }
-        if (description.length > 500) {
-          Swal.showValidationMessage('Description must be no more than 500 characters');
-          return false;
-        }
 
-        return { name, description };
+        return { name };
       },
     });
 
@@ -327,7 +311,6 @@ export default function AdminBooksPage() {
           },
           body: JSON.stringify({
             name: result.value.name,
-            description: result.value.description || undefined,
           }),
         });
 
@@ -505,7 +488,6 @@ export default function AdminBooksPage() {
                 <tr className="border-b border-white/5">
                   <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Name</th>
                   <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Slug</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Description</th>
                   <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Created</th>
                   <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Actions</th>
@@ -514,7 +496,7 @@ export default function AdminBooksPage() {
               <tbody className="divide-y divide-white/5">
                 {genresLoading ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">
+                    <td colSpan="5" className="px-6 py-8 text-center text-text-secondary">
                       <div className="flex justify-center">
                         <Loader />
                       </div>
@@ -522,7 +504,7 @@ export default function AdminBooksPage() {
                   </tr>
                 ) : genres.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">
+                    <td colSpan="5" className="px-6 py-8 text-center text-text-secondary">
                       No genres found. Click "Add New Genre" to create one.
                     </td>
                   </tr>
@@ -541,11 +523,6 @@ export default function AdminBooksPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-mono text-xs text-text-secondary tracking-wide">{genre.slug}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-text-secondary text-sm">
-                          {genre.description || <span className="italic text-text-secondary">No description</span>}
-                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
