@@ -368,7 +368,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-200">
               <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}
+                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}+
               </span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">group</span>

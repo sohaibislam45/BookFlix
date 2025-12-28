@@ -25,6 +25,8 @@ export async function GET(request) {
     const category = searchParams.get('category');
     const sort = searchParams.get('sort') || 'createdAt';
     const order = searchParams.get('order') || 'desc';
+    const availability = searchParams.get('availability') || 'all';
+    const language = searchParams.get('language') || 'all';
 
     // Validate sort field
     const allowedSortFields = ['createdAt', 'title', 'author', 'rating', 'publishedDate'];
@@ -63,6 +65,11 @@ export async function GET(request) {
       query.category = category;
     }
 
+    // Language filter
+    if (language && language !== 'all') {
+      query.language = language;
+    }
+
     // Build sort object
     const sortObj = {};
     if (sort === 'rating') {
@@ -72,20 +79,16 @@ export async function GET(request) {
       sortObj[sort] = order === 'asc' ? 1 : -1;
     }
 
-    const skip = (page - 1) * limit;
-
-    // Get books with pagination
-    const books = await Book.find(query)
+    // Get all books matching the query (without pagination) to filter by availability
+    const allBooks = await Book.find(query)
       .populate('category', 'name slug icon')
       .sort(sortObj)
-      .skip(skip)
-      .limit(limit)
       .select('-__v')
       .lean();
 
     // Get counts for each book
     const booksWithCounts = await Promise.all(
-      books.map(async (book) => {
+      allBooks.map(async (book) => {
         const availableCopies = await BookCopy.countDocuments({
           book: book._id,
           status: 'available',
@@ -104,11 +107,23 @@ export async function GET(request) {
       })
     );
 
-    // Get total count for pagination
-    const total = await Book.countDocuments(query);
+    // Filter by availability if specified
+    let filteredBooks = booksWithCounts;
+    if (availability === 'available') {
+      filteredBooks = booksWithCounts.filter(book => book.availableCopies > 0);
+    } else if (availability === 'waitlist') {
+      filteredBooks = booksWithCounts.filter(book => book.availableCopies === 0);
+    }
+
+    // Get total count after availability filter
+    const total = filteredBooks.length;
+
+    // Apply pagination to filtered results
+    const skip = (page - 1) * limit;
+    const paginatedBooks = filteredBooks.slice(skip, skip + limit);
 
     return NextResponse.json({
-      books: booksWithCounts,
+      books: paginatedBooks,
       pagination: {
         page,
         limit,

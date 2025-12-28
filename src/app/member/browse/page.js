@@ -28,6 +28,12 @@ function BrowseContent() {
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'createdAt');
   const [availability, setAvailability] = useState(searchParams.get('availability') || 'all');
+  const [language, setLanguage] = useState(searchParams.get('language') || 'all');
+  
+  // Dropdown states
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   // Fetch categories
   useEffect(() => {
@@ -37,7 +43,7 @@ function BrowseContent() {
   // Fetch books
   useEffect(() => {
     fetchBooks();
-  }, [search, selectedCategory, sortBy, availability, pagination.page]);
+  }, [search, selectedCategory, sortBy, availability, language, pagination.page]);
 
   const fetchCategories = async () => {
     try {
@@ -64,6 +70,12 @@ function BrowseContent() {
       if (search) params.append('search', search);
       if (selectedCategory && selectedCategory !== 'all') {
         params.append('category', selectedCategory);
+      }
+      if (availability && availability !== 'all') {
+        params.append('availability', availability);
+      }
+      if (language && language !== 'all') {
+        params.append('language', language);
       }
 
       const response = await fetch(`/api/books?${params.toString()}`);
@@ -93,7 +105,22 @@ function BrowseContent() {
 
   const handleSortChange = (sort) => {
     setSortBy(sort);
+    setSortOpen(false);
     updateURL({ sort });
+  };
+
+  const handleAvailabilityChange = (avail) => {
+    setAvailability(avail);
+    setAvailabilityOpen(false);
+    setPagination({ ...pagination, page: 1 });
+    updateURL({ availability: avail === 'all' ? '' : avail, page: 1 });
+  };
+
+  const handleLanguageChange = (lang) => {
+    setLanguage(lang);
+    setLanguageOpen(false);
+    setPagination({ ...pagination, page: 1 });
+    updateURL({ language: lang === 'all' ? '' : lang, page: 1 });
   };
 
   const updateURL = (updates) => {
@@ -253,18 +280,153 @@ function BrowseContent() {
 
           {/* Sort & Filter Dropdowns */}
           <div className="flex gap-3 shrink-0 w-full md:w-auto">
-            <button className="flex h-9 flex-1 md:w-auto items-center justify-between gap-2 rounded-lg bg-surface-dark border border-white/10 px-3 hover:border-white/20 transition-colors">
-              <span className="text-sm text-gray-300">
-                Availability: <strong>All</strong>
-              </span>
-              <span className="material-symbols-outlined text-gray-400 text-[18px]">expand_more</span>
-            </button>
-            <button className="flex h-9 flex-1 md:w-auto items-center justify-between gap-2 rounded-lg bg-surface-dark border border-white/10 px-3 hover:border-white/20 transition-colors">
-              <span className="text-sm text-gray-300">
-                Sort by: <strong>{sortBy === 'createdAt' ? 'Newest' : sortBy === 'rating' ? 'Popular' : 'Title'}</strong>
-              </span>
-              <span className="material-symbols-outlined text-gray-400 text-[18px]">sort</span>
-            </button>
+            {/* Availability Dropdown */}
+            <div className="relative flex-1 md:w-auto">
+              <button
+                onClick={() => {
+                  setAvailabilityOpen(!availabilityOpen);
+                  setSortOpen(false);
+                  setLanguageOpen(false);
+                }}
+                className="flex h-9 w-full md:w-auto items-center justify-between gap-2 rounded-lg bg-surface-dark border border-white/10 px-3 hover:border-white/20 transition-colors"
+              >
+                <span className="text-sm text-gray-300">
+                  Availability: <strong>
+                    {availability === 'all' ? 'All' : availability === 'available' ? 'Available' : 'Waitlist'}
+                  </strong>
+                </span>
+                <span className={`material-symbols-outlined text-gray-400 text-[18px] transition-transform ${availabilityOpen ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              {availabilityOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setAvailabilityOpen(false)}
+                  ></div>
+                  <div className="absolute top-full left-0 mt-1 z-20 w-full md:w-48 bg-surface-dark border border-white/10 rounded-lg shadow-lg overflow-hidden">
+                    {['all', 'available', 'waitlist'].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => handleAvailabilityChange(option)}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                          availability === option
+                            ? 'bg-primary/20 text-primary'
+                            : 'text-gray-300 hover:bg-surface-hover'
+                        }`}
+                      >
+                        {option === 'all' ? 'All' : option === 'available' ? 'Available' : 'Waitlist'}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Sort By Dropdown */}
+            <div className="relative flex-1 md:w-auto">
+              <button
+                onClick={() => {
+                  setSortOpen(!sortOpen);
+                  setAvailabilityOpen(false);
+                  setLanguageOpen(false);
+                }}
+                className="flex h-9 w-full md:w-auto items-center justify-between gap-2 rounded-lg bg-surface-dark border border-white/10 px-3 hover:border-white/20 transition-colors"
+              >
+                <span className="text-sm text-gray-300">
+                  Sort by: <strong>
+                    {sortBy === 'createdAt' ? 'Newest' : 
+                     sortBy === 'rating' ? 'Popular' : 
+                     sortBy === 'title' ? 'Title' :
+                     sortBy === 'author' ? 'Author' :
+                     sortBy === 'publishedDate' ? 'Publication Date' : 'Newest'}
+                  </strong>
+                </span>
+                <span className={`material-symbols-outlined text-gray-400 text-[18px] transition-transform ${sortOpen ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              {sortOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setSortOpen(false)}
+                  ></div>
+                  <div className="absolute top-full left-0 mt-1 z-20 w-full md:w-48 bg-surface-dark border border-white/10 rounded-lg shadow-lg overflow-hidden">
+                    {[
+                      { value: 'createdAt', label: 'Newest' },
+                      { value: 'rating', label: 'Popular' },
+                      { value: 'title', label: 'Title' },
+                      { value: 'author', label: 'Author' },
+                      { value: 'publishedDate', label: 'Publication Date' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSortChange(option.value)}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                          sortBy === option.value
+                            ? 'bg-primary/20 text-primary'
+                            : 'text-gray-300 hover:bg-surface-hover'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Language Dropdown */}
+            <div className="relative flex-1 md:w-auto">
+              <button
+                onClick={() => {
+                  setLanguageOpen(!languageOpen);
+                  setAvailabilityOpen(false);
+                  setSortOpen(false);
+                }}
+                className="flex h-9 w-full md:w-auto items-center justify-between gap-2 rounded-lg bg-surface-dark border border-white/10 px-3 hover:border-white/20 transition-colors"
+              >
+                <span className="text-sm text-gray-300">
+                  Language: <strong>
+                    {language === 'all' ? 'All' : 
+                     language === 'en' ? 'English' : 
+                     language === 'bn' ? 'Bangla' : language}
+                  </strong>
+                </span>
+                <span className={`material-symbols-outlined text-gray-400 text-[18px] transition-transform ${languageOpen ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              {languageOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setLanguageOpen(false)}
+                  ></div>
+                  <div className="absolute top-full left-0 mt-1 z-20 w-full md:w-48 bg-surface-dark border border-white/10 rounded-lg shadow-lg overflow-hidden">
+                    {[
+                      { value: 'all', label: 'All Languages' },
+                      { value: 'en', label: 'English' },
+                      { value: 'bn', label: 'Bangla' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleLanguageChange(option.value)}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                          language === option.value
+                            ? 'bg-primary/20 text-primary'
+                            : 'text-gray-300 hover:bg-surface-hover'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
