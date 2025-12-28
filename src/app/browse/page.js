@@ -604,15 +604,7 @@ export default function BrowsePage() {
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
                   {books.map((book) => (
                     <div key={book._id} className="group">
-                      <Link
-                        href={user ? `/member/books/${book._id}` : `/browse`}
-                        onClick={(e) => {
-                          if (!user) {
-                            e.preventDefault();
-                            togglePricingModal();
-                          }
-                        }}
-                      >
+                      <Link href={`/book/${book._id}`}>
                         <div className="card-hover-effect relative aspect-[2/3] rounded-lg overflow-hidden shadow-lg shadow-black/50 mb-4 cursor-pointer">
                           <Image
                             src={book.coverImage || '/placeholder-book.png'}

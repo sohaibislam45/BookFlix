@@ -66,28 +66,60 @@ export default function LoginPage() {
               if (fetchResponse.ok) {
                 const userData = await fetchResponse.json();
                 const role = userData.role || 'member';
-                router.push(getRoleOverviewRoute(role));
+                const returnUrl = sessionStorage.getItem('returnAfterLogin');
+                if (returnUrl) {
+                  sessionStorage.removeItem('returnAfterLogin');
+                  router.push(returnUrl);
+                } else {
+                  router.push(getRoleOverviewRoute(role));
+                }
               } else {
-                router.push('/member/overview');
+                const returnUrl = sessionStorage.getItem('returnAfterLogin');
+                if (returnUrl) {
+                  sessionStorage.removeItem('returnAfterLogin');
+                  router.push(returnUrl);
+                } else {
+                  router.push('/member/overview');
+                }
               }
             }
           } else if (response.ok) {
             const userData = await response.json();
             const role = userData.role || 'member';
-            // Navigate to role-based overview page
-            router.push(getRoleOverviewRoute(role));
+            // Check if there's a return URL after login
+            const returnUrl = sessionStorage.getItem('returnAfterLogin');
+            if (returnUrl) {
+              sessionStorage.removeItem('returnAfterLogin');
+              router.push(returnUrl);
+            } else {
+              // Navigate to role-based overview page
+              router.push(getRoleOverviewRoute(role));
+            }
           } else {
             // Other error - still navigate to member overview
             console.error('[Login] Error fetching user data, status:', response.status);
             const errorText = await response.text().catch(() => 'Unknown error');
             console.error('[Login] Error response:', errorText);
-            router.push('/member/overview');
+            const returnUrl = sessionStorage.getItem('returnAfterLogin');
+            if (returnUrl) {
+              sessionStorage.removeItem('returnAfterLogin');
+              router.push(returnUrl);
+            } else {
+              router.push('/member/overview');
+            }
           }
         } catch (error) {
           console.error('[Login] Error fetching user data:', error);
           console.error('[Login] Error stack:', error.stack);
-          // Fallback to member overview on error
-          router.push('/member/overview');
+          // Check if there's a return URL after login
+          const returnUrl = sessionStorage.getItem('returnAfterLogin');
+          if (returnUrl) {
+            sessionStorage.removeItem('returnAfterLogin');
+            router.push(returnUrl);
+          } else {
+            // Fallback to member overview on error
+            router.push('/member/overview');
+          }
         }
         // Don't set loading to false here - navigation will handle it
       } else {
@@ -140,7 +172,13 @@ export default function LoginPage() {
               // Handle both "created" (201) and "already exists" (200) cases
               const user = newUserData.user || newUserData;
               const role = user?.role || 'member';
-              router.push(getRoleOverviewRoute(role));
+              const returnUrl = sessionStorage.getItem('returnAfterLogin');
+              if (returnUrl) {
+                sessionStorage.removeItem('returnAfterLogin');
+                router.push(returnUrl);
+              } else {
+                router.push(getRoleOverviewRoute(role));
+              }
             } else {
               // Log the error details for debugging
               try {
@@ -156,31 +194,61 @@ export default function LoginPage() {
               if (fetchResponse.ok) {
                 const userData = await fetchResponse.json();
                 const role = userData.role || 'member';
-                router.push(getRoleOverviewRoute(role));
+                const returnUrl = sessionStorage.getItem('returnAfterLogin');
+                if (returnUrl) {
+                  sessionStorage.removeItem('returnAfterLogin');
+                  router.push(returnUrl);
+                } else {
+                  router.push(getRoleOverviewRoute(role));
+                }
               } else {
                 // If Firebase auth succeeded but user creation/lookup failed,
                 // still redirect to member dashboard since user is authenticated
                 // The user can complete their profile later if needed
-                router.push('/member/overview');
+                const returnUrl = sessionStorage.getItem('returnAfterLogin');
+                if (returnUrl) {
+                  sessionStorage.removeItem('returnAfterLogin');
+                  router.push(returnUrl);
+                } else {
+                  router.push('/member/overview');
+                }
               }
             }
           } else if (response.ok) {
             // Fetch user data to get role for navigation
             const userData = await response.json();
             const role = userData.role || 'member';
-            router.push(getRoleOverviewRoute(role));
+            const returnUrl = sessionStorage.getItem('returnAfterLogin');
+            if (returnUrl) {
+              sessionStorage.removeItem('returnAfterLogin');
+              router.push(returnUrl);
+            } else {
+              router.push(getRoleOverviewRoute(role));
+            }
           } else {
             // Other error - if Firebase auth succeeded, redirect to dashboard anyway
             console.error('[Google Login] Error fetching user data, status:', response.status);
             // Since Firebase authentication succeeded, redirect to member dashboard
             // User can complete profile later if needed
-            router.push('/member/overview');
+            const returnUrl = sessionStorage.getItem('returnAfterLogin');
+            if (returnUrl) {
+              sessionStorage.removeItem('returnAfterLogin');
+              router.push(returnUrl);
+            } else {
+              router.push('/member/overview');
+            }
           }
         } catch (error) {
           console.error('[Google Login] Error checking user:', error);
           // Since Firebase authentication succeeded, redirect to member dashboard
           // User can complete profile later if needed
-          router.push('/member/overview');
+          const returnUrl = sessionStorage.getItem('returnAfterLogin');
+          if (returnUrl) {
+            sessionStorage.removeItem('returnAfterLogin');
+            router.push(returnUrl);
+          } else {
+            router.push('/member/overview');
+          }
         }
       } else {
         setError(result.error || 'Failed to sign in with Google');
