@@ -23,7 +23,7 @@ export default function AdminFinancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-  const [timePeriod, setTimePeriod] = useState('30d');
+  const [timePeriod, setTimePeriod] = useState('7d');
   const [revenueData, setRevenueData] = useState([]);
   const [revenueBreakdown, setRevenueBreakdown] = useState({
     subscriptions: { percentage: 0, amount: 0 },
@@ -148,9 +148,8 @@ export default function AdminFinancePage() {
 
   const calculateRevenueChart = (monthlyRevenue, period) => {
     const now = new Date();
-    let days = 30;
-    if (period === '7d') days = 7;
-    else if (period === '90d') days = 90;
+    const days = 7;
+    const dataPoints = 7; // Show daily for 7 days
 
     // Generate daily data points
     const chartData = [];
@@ -323,38 +322,6 @@ export default function AdminFinancePage() {
                 <div>
                   <h3 className="text-lg font-bold text-white">Revenue Analytics</h3>
                   <p className="text-sm text-text-secondary">Income from all sources over time</p>
-                </div>
-                <div className="flex p-1 bg-background-dark rounded-lg border border-white/5">
-                  <button 
-                    onClick={() => setTimePeriod('7d')}
-                    className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      timePeriod === '7d' 
-                        ? 'bg-white/5 text-white rounded shadow-sm' 
-                        : 'text-text-secondary hover:text-white'
-                    }`}
-                  >
-                    7d
-                  </button>
-                  <button 
-                    onClick={() => setTimePeriod('30d')}
-                    className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      timePeriod === '30d' 
-                        ? 'bg-white/5 text-white rounded shadow-sm' 
-                        : 'text-text-secondary hover:text-white'
-                    }`}
-                  >
-                    30d
-                  </button>
-                  <button 
-                    onClick={() => setTimePeriod('90d')}
-                    className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      timePeriod === '90d' 
-                        ? 'bg-white/5 text-white rounded shadow-sm' 
-                        : 'text-text-secondary hover:text-white'
-                    }`}
-                  >
-                    90d
-                  </button>
                 </div>
               </div>
               <div className="h-[300px] w-full relative flex items-end justify-between gap-2">

@@ -6,6 +6,7 @@ import Fine from '@/models/Fine';
 import Borrowing from '@/models/Borrowing';
 import Reservation from '@/models/Reservation';
 import BookCopy from '@/models/BookCopy';
+import Book from '@/models/Book';
 import { handleApiError } from '@/lib/apiErrorHandler';
 import { USER_ROLES, PAYMENT_STATUS, SUBSCRIPTION_PRICE, BOOK_STATUS, BORROWING_STATUS, RESERVATION_STATUS, FINE_STATUS } from '@/lib/constants';
 
@@ -132,7 +133,10 @@ export async function GET(request) {
       : 0;
 
     // Book Statistics
-    const totalBooks = await BookCopy.countDocuments({ isActive: true });
+    // Count unique books (titles) for total inventory
+    const totalUniqueBooks = await Book.countDocuments({ isActive: true });
+    // Count total copies for reference
+    const totalBookCopies = await BookCopy.countDocuments({ isActive: true });
     const borrowedCopies = await BookCopy.countDocuments({
       isActive: true,
       status: BOOK_STATUS.BORROWED,
@@ -315,8 +319,9 @@ export async function GET(request) {
       premiumPercentage: Math.round(premiumPercentage * 100) / 100,
       activeBorrowings,
       booksDueToday,
-      totalBooks,
-      totalCopies: totalBooks,
+      totalBooks: totalUniqueBooks,
+      totalCopies: totalUniqueBooks, // Total inventory should show unique books, not total copies
+      totalBookCopies, // Keep total copies count for reference if needed
       borrowedCopies,
       availableCopies,
       overdueBooks,

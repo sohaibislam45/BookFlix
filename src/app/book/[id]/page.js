@@ -9,6 +9,7 @@ import UserProfile from '@/components/UserProfile';
 import Loader from '@/components/Loader';
 import { showError, showSuccess } from '@/lib/swal';
 import Swal from 'sweetalert2';
+import { USER_ROLES } from '@/lib/constants';
 
 export default function BookDetailsPage() {
   const params = useParams();
@@ -23,6 +24,12 @@ export default function BookDetailsPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [checkingWishlist, setCheckingWishlist] = useState(false);
+
+  // Role checks
+  const isMember = userData?.role === USER_ROLES.MEMBER;
+  const isAdmin = userData?.role === USER_ROLES.ADMIN;
+  const isLibrarian = userData?.role === USER_ROLES.LIBRARIAN;
+  const isStaff = isAdmin || isLibrarian;
 
   // Check if book is in wishlist
   useEffect(() => {
@@ -102,6 +109,12 @@ export default function BookDetailsPage() {
       return;
     }
 
+    // Only members can reserve books
+    if (!isMember) {
+      showError('Reservation Not Available', 'Book reservations are only available for members. Please contact support if you need assistance.');
+      return;
+    }
+
     try {
       setReserving(true);
       const response = await fetch('/api/reservations', {
@@ -135,6 +148,12 @@ export default function BookDetailsPage() {
       showError('Login Required', 'You need to login first to request home delivery.');
       sessionStorage.setItem('returnAfterLogin', `/book/${bookId}`);
       router.push('/login');
+      return;
+    }
+
+    // Only members can request home delivery
+    if (!isMember) {
+      showError('Home Delivery Not Available', 'Home delivery is only available for members. Please contact support if you need assistance.');
       return;
     }
 
@@ -506,66 +525,98 @@ export default function BookDetailsPage() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-                  {/* Primary Action */}
-                  <button
-                    onClick={handleReserve}
-                    disabled={reserving || (!isAvailable && !user)}
-                    className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {reserving ? (
-                      <>
-                        <Loader />
-                        <span>Reserving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined">local_library</span>
-                        <span>{isAvailable ? 'Reserve for Pickup' : 'Join Waitlist'}</span>
+                  {isStaff ? (
+                    /* Staff Actions (Admin/Librarian) */
+                    <>
+                      <Link
+                        href={isAdmin ? '/admin/books' : '/librarian/books'}
+                        className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn"
+                      >
+                        <span className="material-symbols-outlined">edit</span>
+                        <span>Manage Book</span>
                         <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
-                      </>
-                    )}
-                  </button>
+                      </Link>
+                      <Link
+                        href={isAdmin ? '/admin/overview' : '/librarian/circulation'}
+                        className="flex-1 h-12 px-6 rounded-lg border border-surface-border bg-surface-dark text-text-secondary hover:border-primary hover:text-white transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">{isAdmin ? 'dashboard' : 'history'}</span>
+                        <span>{isAdmin ? 'View Dashboard' : 'View Circulation'}</span>
+                      </Link>
+                      <button
+                        onClick={toggleFavorite}
+                        className="h-12 w-12 rounded-lg border border-surface-border bg-surface-dark text-white hover:bg-surface-border hover:text-red-400 transition-colors flex items-center justify-center shrink-0"
+                      >
+                        <span className={`material-symbols-outlined ${isFavorite ? 'fill text-red-400' : ''}`}>
+                          favorite
+                        </span>
+                      </button>
+                    </>
+                  ) : (
+                    /* Member Actions */
+                    <>
+                      {/* Primary Action */}
+                      <button
+                        onClick={handleReserve}
+                        disabled={reserving || (!isAvailable && !user) || !isMember}
+                        className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {reserving ? (
+                          <>
+                            <Loader />
+                            <span>Reserving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined">local_library</span>
+                            <span>{isAvailable ? 'Reserve for Pickup' : 'Join Waitlist'}</span>
+                            <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
+                          </>
+                        )}
+                      </button>
 
-                  {/* Secondary Action (Premium) */}
-                  <div className="flex-1 relative group/tooltip">
-                    <button
-                      onClick={handleHomeDelivery}
-                      disabled={!isPremium || reserving}
-                      className={`w-full h-12 px-6 rounded-lg border border-surface-border bg-surface-dark text-text-secondary flex items-center justify-center gap-2 transition-all ${
-                        isPremium && !reserving
-                          ? 'hover:border-primary hover:text-white cursor-pointer' 
-                          : 'disabled:cursor-not-allowed disabled:opacity-70 hover:opacity-100 hover:border-surface-border'
-                      }`}
-                    >
-                      {reserving ? (
-                        <>
-                          <Loader />
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-sm">{isPremium ? 'local_shipping' : 'lock'}</span>
-                          <span>Request Home Delivery</span>
-                        </>
-                      )}
-                    </button>
-                    {!isPremium && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-surface-border rounded text-center opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
-                        <p className="text-xs text-primary font-bold">Premium Feature</p>
-                        <p className="text-xs text-gray-400">Upgrade to unlock delivery</p>
+                      {/* Secondary Action (Premium) */}
+                      <div className="flex-1 relative group/tooltip">
+                        <button
+                          onClick={handleHomeDelivery}
+                          disabled={!isPremium || reserving || !isMember}
+                          className={`w-full h-12 px-6 rounded-lg border border-surface-border bg-surface-dark text-text-secondary flex items-center justify-center gap-2 transition-all ${
+                            isPremium && !reserving && isMember
+                              ? 'hover:border-primary hover:text-white cursor-pointer' 
+                              : 'disabled:cursor-not-allowed disabled:opacity-70 hover:opacity-100 hover:border-surface-border'
+                          }`}
+                        >
+                          {reserving ? (
+                            <>
+                              <Loader />
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-sm">{isPremium ? 'local_shipping' : 'lock'}</span>
+                              <span>Request Home Delivery</span>
+                            </>
+                          )}
+                        </button>
+                        {!isPremium && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-surface-border rounded text-center opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                            <p className="text-xs text-primary font-bold">Premium Feature</p>
+                            <p className="text-xs text-gray-400">Upgrade to unlock delivery</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Favorite Action */}
-                  <button
-                    onClick={toggleFavorite}
-                    className="h-12 w-12 rounded-lg border border-surface-border bg-surface-dark text-white hover:bg-surface-border hover:text-red-400 transition-colors flex items-center justify-center shrink-0"
-                  >
-                    <span className={`material-symbols-outlined ${isFavorite ? 'fill text-red-400' : ''}`}>
-                      favorite
-                    </span>
-                  </button>
+                      {/* Favorite Action */}
+                      <button
+                        onClick={toggleFavorite}
+                        className="h-12 w-12 rounded-lg border border-surface-border bg-surface-dark text-white hover:bg-surface-border hover:text-red-400 transition-colors flex items-center justify-center shrink-0"
+                      >
+                        <span className={`material-symbols-outlined ${isFavorite ? 'fill text-red-400' : ''}`}>
+                          favorite
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

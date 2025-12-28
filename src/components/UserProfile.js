@@ -71,7 +71,19 @@ export default function UserProfile() {
   const isPremiumMember = userData?.subscription?.type && 
     ['monthly', 'yearly'].includes(userData.subscription.type) && 
     userData.subscription.status === 'active';
-  const memberStatus = isPremiumMember ? 'Premium Member' : 'General Member';
+  const isMember = userData?.role === USER_ROLES.MEMBER;
+  const isAdmin = userData?.role === USER_ROLES.ADMIN;
+  const isLibrarian = userData?.role === USER_ROLES.LIBRARIAN;
+  
+  // Only show member status for members, show role for admin/librarian
+  let displayStatus = null;
+  if (isMember) {
+    displayStatus = isPremiumMember ? 'Premium Member' : 'General Member';
+  } else if (isAdmin) {
+    displayStatus = 'Admin';
+  } else if (isLibrarian) {
+    displayStatus = 'Librarian';
+  }
   
   // Reset image error when profile photo changes
   useEffect(() => {
@@ -140,7 +152,7 @@ export default function UserProfile() {
                     <span className="material-symbols-outlined text-primary text-2xl">person</span>
                   </div>
                 )}
-                {isPremiumMember && (
+                {isPremiumMember && isMember && (
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary border-2 border-surface-dark flex items-center justify-center">
                     <span className="material-symbols-outlined text-white text-xs">star</span>
                   </div>
@@ -148,18 +160,25 @@ export default function UserProfile() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-bold text-sm truncate">{displayName}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    isPremiumMember 
-                      ? 'bg-primary/20 text-primary border border-primary/40' 
-                      : 'bg-white/10 text-gray-300 border border-white/20'
-                  }`}>
-                    {isPremiumMember && (
-                      <span className="material-symbols-outlined text-xs">diamond</span>
-                    )}
-                    {memberStatus}
-                  </span>
-                </div>
+                {displayStatus && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      isPremiumMember && isMember
+                        ? 'bg-primary/20 text-primary border border-primary/40' 
+                        : isAdmin || isLibrarian
+                        ? 'bg-primary/30 text-primary border border-primary/50'
+                        : 'bg-white/10 text-gray-300 border border-white/20'
+                    }`}>
+                      {isPremiumMember && isMember && (
+                        <span className="material-symbols-outlined text-xs">diamond</span>
+                      )}
+                      {(isAdmin || isLibrarian) && (
+                        <span className="material-symbols-outlined text-xs">admin_panel_settings</span>
+                      )}
+                      {displayStatus}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
