@@ -27,19 +27,19 @@ export async function GET(request) {
     };
 
     let normalizedLanguage = language.toLowerCase().trim();
-    let searchLanguage = null;
+    let searchLanguageVariants = [];
 
-    // Find the normalized language code
+    // Find all variants for the requested language
     for (const [code, variants] of Object.entries(languageMap)) {
       if (variants.includes(normalizedLanguage)) {
-        searchLanguage = code;
+        searchLanguageVariants = variants;
         break;
       }
     }
 
     // If not found in map, use the provided language as-is
-    if (!searchLanguage) {
-      searchLanguage = normalizedLanguage;
+    if (searchLanguageVariants.length === 0) {
+      searchLanguageVariants = [normalizedLanguage];
     }
 
     // Validate limit
@@ -50,9 +50,12 @@ export async function GET(request) {
       );
     }
 
-    // Fetch books by language
+    // Fetch books by language - search for all variants (case-insensitive)
+    // Escape special regex characters in variants
+    const escapedVariants = searchLanguageVariants.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const languageRegex = new RegExp(`^(${escapedVariants.join('|')})$`, 'i');
     const books = await Book.find({
-      bookLanguage: searchLanguage,
+      bookLanguage: { $regex: languageRegex },
       isActive: true,
     })
       .populate('category', 'name slug icon')
