@@ -8,7 +8,10 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
-  updateProfile
+  updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -258,6 +261,49 @@ export default function AuthProvider({ children }) {
     }
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      if (!user) {
+        return { success: false, error: 'User not authenticated' };
+      }
+
+      // Re-authenticate user before changing password
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // Update password
+      await updatePassword(user, newPassword);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Password change error:', error);
+      let errorMessage = 'Failed to change password. Please try again.';
+      
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/wrong-password':
+            errorMessage = 'Current password is incorrect.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'New password should be at least 6 characters long.';
+            break;
+          case 'auth/requires-recent-login':
+            errorMessage = 'For security, please log out and log back in before changing your password.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+            break;
+          default:
+            errorMessage = error.message || errorMessage;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      return { success: false, error: errorMessage, code: error.code || 'unknown' };
+    }
+  };
+
   const value = {
     user,
     userData,
@@ -266,6 +312,7 @@ export default function AuthProvider({ children }) {
     signUp,
     signInWithGoogle,
     signOut,
+    changePassword,
     setUserData,
   };
 
