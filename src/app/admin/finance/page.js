@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, debounce } from '@/lib/utils';
 import Loader from '@/components/Loader';
+import { showSuccess, showError } from '@/lib/swal';
 
 export default function AdminFinancePage() {
   const { userData } = useAuth();
@@ -17,40 +18,196 @@ export default function AdminFinancePage() {
     pendingFines: 0,
   });
   const [transactions, setTransactions] = useState([]);
+  const [allTransactions, setAllTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [timePeriod, setTimePeriod] = useState('30d');
+  const [revenueData, setRevenueData] = useState([]);
+  const [revenueBreakdown, setRevenueBreakdown] = useState({
+    subscriptions: { percentage: 0, amount: 0 },
+    fines: { percentage: 0, amount: 0 },
+    replacement: { percentage: 0, amount: 0 },
+  });
+  const filterDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     fetchFinanceData();
-  }, []);
+  }, [timePeriod]);
+
+  // Filter transactions based on search and status
+  useEffect(() => {
+    let filtered = [...allTransactions];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((tx) => {
+        const memberName = tx.member?.name?.toLowerCase() || '';
+        const memberEmail = tx.member?.email?.toLowerCase() || '';
+        const txId = tx._id?.toString().toLowerCase() || '';
+        return memberName.includes(query) || memberEmail.includes(query) || txId.includes(query);
+      });
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((tx) => tx.status === statusFilter);
+    }
+
+    setTransactions(filtered);
+  }, [searchQuery, statusFilter, allTransactions]);
 
   const fetchFinanceData = async () => {
     try {
       setLoading(true);
       const [statsRes, paymentsRes] = await Promise.all([
         fetch('/api/admin/stats'),
-        fetch('/api/payments?limit=10'),
+        fetch('/api/payments?limit=1000'),
       ]);
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStats({
+        
+        // Calculate subscription ARR (Annual Recurring Revenue)
+        const monthlyPrice = 9.99;
+        const subscriptionARR = (statsData.premiumUsers || 0) * monthlyPrice * 12;
+
+        setStats(prev => ({
           totalRevenue: statsData.totalRevenue || 0,
-          finesCollected: 0, // Calculate from payments
-          subscriptionARR: (statsData.premiumUsers || 0) * 9.99 * 12,
+          finesCollected: prev.finesCollected || 0, // Will be updated when payments are loaded
+          subscriptionARR: subscriptionARR,
           payingMembers: statsData.premiumUsers || 0,
           revenueGrowth: parseFloat(statsData.revenueGrowth || 0),
           pendingFines: statsData.pendingFines || 0,
-        });
+        }));
+
+        // Calculate revenue breakdown
+        if (statsData.revenueBreakdown && statsData.revenueBreakdown.length > 0) {
+          const subscriptionBreakdown = statsData.revenueBreakdown.find(r => r.type === 'subscription');
+          const fineBreakdown = statsData.revenueBreakdown.find(r => r.type === 'fine');
+          
+          setRevenueBreakdown({
+            subscriptions: {
+              percentage: subscriptionBreakdown?.percentage || 0,
+              amount: (statsData.totalRevenue || 0) * (subscriptionBreakdown?.percentage || 0) / 100,
+            },
+            fines: {
+              percentage: fineBreakdown?.percentage || 0,
+              amount: (statsData.totalRevenue || 0) * (fineBreakdown?.percentage || 0) / 100,
+            },
+            replacement: {
+              percentage: 0,
+              amount: 0,
+            },
+          });
+        }
+
+        // Calculate revenue chart data based on time period
+        calculateRevenueChart(statsData.monthlyRevenue || [], timePeriod);
       }
 
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
-        setTransactions(paymentsData.payments || []);
+        const payments = paymentsData.payments || [];
+        setAllTransactions(payments);
+        setTransactions(payments);
+        
+        // Calculate fines collected from completed payments after transactions are loaded
+        const finesCollected = payments
+          .filter(tx => tx.status === 'completed' && (tx.fine || tx.type === 'fine'))
+          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+        
+        setStats(prev => ({
+          ...prev,
+          finesCollected: finesCollected,
+        }));
       }
     } catch (error) {
       console.error('Error fetching finance data:', error);
+      showError('Error', 'Failed to fetch finance data. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateRevenueChart = (monthlyRevenue, period) => {
+    const now = new Date();
+    let days = 30;
+    if (period === '7d') days = 7;
+    else if (period === '90d') days = 90;
+
+    // Generate daily data points
+    const chartData = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // For simplicity, distribute monthly revenue evenly across days
+      // In a real app, you'd fetch daily payment data
+      const monthIndex = monthlyRevenue.length - Math.floor(i / 30);
+      const monthData = monthlyRevenue[monthIndex] || { total: 0 };
+      const dailyAmount = monthData.total / 30;
+      
+      chartData.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        amount: dailyAmount,
+      });
+    }
+
+    setRevenueData(chartData);
+  };
+
+  const handleExportReport = () => {
+    try {
+      // Create CSV content
+      const headers = ['Transaction ID', 'Date', 'Member', 'Email', 'Type', 'Method', 'Amount', 'Status'];
+      const rows = transactions.map(tx => [
+        tx._id?.toString().slice(-6) || '',
+        formatDate(tx.createdAt),
+        tx.member?.name || 'Unknown',
+        tx.member?.email || 'N/A',
+        tx.type || 'Payment',
+        tx.paymentMethod || 'Card',
+        formatCurrency(tx.amount || 0),
+        tx.status || 'Pending',
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `finance-report-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showSuccess('Export Successful', 'Finance report has been downloaded.');
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      showError('Export Failed', 'Failed to export report. Please try again.');
     }
   };
 
@@ -70,7 +227,10 @@ export default function AdminFinancePage() {
                 <span className="material-symbols-outlined text-[18px]">calendar_today</span>
                 {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/25 transition-all text-sm font-medium">
+              <button 
+                onClick={handleExportReport}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/25 transition-all text-sm font-medium"
+              >
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Export Report
               </button>
@@ -165,25 +325,63 @@ export default function AdminFinancePage() {
                   <p className="text-sm text-text-secondary">Income from all sources over time</p>
                 </div>
                 <div className="flex p-1 bg-background-dark rounded-lg border border-white/5">
-                  <button className="px-3 py-1 text-xs font-medium text-text-secondary hover:text-white transition-colors">7d</button>
-                  <button className="px-3 py-1 text-xs font-medium bg-white/5 text-white rounded shadow-sm transition-colors">30d</button>
-                  <button className="px-3 py-1 text-xs font-medium text-text-secondary hover:text-white transition-colors">90d</button>
+                  <button 
+                    onClick={() => setTimePeriod('7d')}
+                    className={`px-3 py-1 text-xs font-medium transition-colors ${
+                      timePeriod === '7d' 
+                        ? 'bg-white/5 text-white rounded shadow-sm' 
+                        : 'text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    7d
+                  </button>
+                  <button 
+                    onClick={() => setTimePeriod('30d')}
+                    className={`px-3 py-1 text-xs font-medium transition-colors ${
+                      timePeriod === '30d' 
+                        ? 'bg-white/5 text-white rounded shadow-sm' 
+                        : 'text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    30d
+                  </button>
+                  <button 
+                    onClick={() => setTimePeriod('90d')}
+                    className={`px-3 py-1 text-xs font-medium transition-colors ${
+                      timePeriod === '90d' 
+                        ? 'bg-white/5 text-white rounded shadow-sm' 
+                        : 'text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    90d
+                  </button>
                 </div>
               </div>
               <div className="h-[300px] w-full relative flex items-end justify-between gap-2">
-                {[40, 50, 45, 60, 55, 70].map((height, index) => (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-2" style={{ height: '100%' }}>
-                    <div className="w-full flex flex-col items-end justify-end" style={{ height: '100%' }}>
-                      <div
-                        className="w-full bg-primary rounded-t transition-all hover:bg-primary-hover"
-                        style={{ height: `${height}%`, minHeight: '4px' }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-text-secondary font-medium">
-                      {['Sep 24', 'Oct 01', 'Oct 08', 'Oct 15', 'Oct 22', 'Today'][index]}
-                    </span>
+                {revenueData.length > 0 ? (
+                  revenueData.map((data, index) => {
+                    const maxAmount = Math.max(...revenueData.map(d => d.amount), 1);
+                    const height = (data.amount / maxAmount) * 100;
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2" style={{ height: '100%' }}>
+                        <div className="w-full flex flex-col items-end justify-end" style={{ height: '100%' }}>
+                          <div
+                            className="w-full bg-primary rounded-t transition-all hover:bg-primary-hover cursor-pointer"
+                            style={{ height: `${Math.max(height, 5)}%`, minHeight: '4px' }}
+                            title={formatCurrency(data.amount)}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-text-secondary font-medium">
+                          {data.date}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-text-secondary">
+                    No revenue data available
                   </div>
-                ))}
+                )}
               </div>
             </div>
             <div className="bg-card-dark border border-white/5 rounded-xl p-6 shadow-sm flex flex-col">
@@ -196,33 +394,44 @@ export default function AdminFinancePage() {
                   <div className="group">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-white/70">Subscriptions</span>
-                      <span className="text-white font-semibold">78%</span>
+                      <span className="text-white font-semibold">{revenueBreakdown.subscriptions.percentage.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-background-dark rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full w-[78%] shadow-[0_0_10px_rgba(170,31,239,0.4)]"></div>
+                      <div 
+                        className="bg-primary h-2 rounded-full shadow-[0_0_10px_rgba(170,31,239,0.4)] transition-all" 
+                        style={{ width: `${revenueBreakdown.subscriptions.percentage}%` }}
+                      ></div>
                     </div>
-                    <p className="text-xs text-text-secondary mt-1">$97,110.00 this month</p>
+                    <p className="text-xs text-text-secondary mt-1">{formatCurrency(revenueBreakdown.subscriptions.amount)} total</p>
                   </div>
                   <div className="group">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-white/70">Late Fines</span>
-                      <span className="text-white font-semibold">15%</span>
+                      <span className="text-white font-semibold">{revenueBreakdown.fines.percentage.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-background-dark rounded-full h-2">
-                      <div className="bg-orange-400 h-2 rounded-full w-[15%]"></div>
+                      <div 
+                        className="bg-orange-400 h-2 rounded-full transition-all" 
+                        style={{ width: `${revenueBreakdown.fines.percentage}%` }}
+                      ></div>
                     </div>
-                    <p className="text-xs text-text-secondary mt-1">$18,675.00 this month</p>
+                    <p className="text-xs text-text-secondary mt-1">{formatCurrency(revenueBreakdown.fines.amount)} total</p>
                   </div>
-                  <div className="group">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-white/70">Book Replacement</span>
-                      <span className="text-white font-semibold">7%</span>
+                  {revenueBreakdown.replacement.percentage > 0 && (
+                    <div className="group">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-white/70">Book Replacement</span>
+                        <span className="text-white font-semibold">{revenueBreakdown.replacement.percentage.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-background-dark rounded-full h-2">
+                        <div 
+                          className="bg-blue-400 h-2 rounded-full transition-all" 
+                          style={{ width: `${revenueBreakdown.replacement.percentage}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-text-secondary mt-1">{formatCurrency(revenueBreakdown.replacement.amount)} total</p>
                     </div>
-                    <div className="w-full bg-background-dark rounded-full h-2">
-                      <div className="bg-blue-400 h-2 rounded-full w-[7%]"></div>
-                    </div>
-                    <p className="text-xs text-text-secondary mt-1">$8,715.00 this month</p>
-                  </div>
+                  )}
                 </div>
                 <div className="pt-4 border-t border-white/5">
                   <div className="flex items-center justify-between text-sm">
@@ -245,12 +454,79 @@ export default function AdminFinancePage() {
                     className="bg-card-dark border border-white/5 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-text-secondary focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 w-full sm:w-64 transition-all"
                     placeholder="Search by user, ID..."
                     type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <button className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/5 bg-card-dark hover:bg-white/5 text-white text-sm transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">filter_list</span>
-                  Filter
-                </button>
+                <div className="relative" ref={filterDropdownRef}>
+                  <button 
+                    onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/5 bg-card-dark hover:bg-white/5 text-white text-sm transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                    Filter
+                    <span className="material-symbols-outlined text-[14px]">{isFilterDropdownOpen ? 'expand_less' : 'expand_more'}</span>
+                  </button>
+                  {isFilterDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-lg bg-card-dark border border-white/5 shadow-xl z-50">
+                      <div className="p-2">
+                        <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Status</div>
+                        <button
+                          onClick={() => {
+                            setStatusFilter('all');
+                            setIsFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                            statusFilter === 'all'
+                              ? 'bg-primary/20 text-white'
+                              : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          All Transactions
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStatusFilter('completed');
+                            setIsFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                            statusFilter === 'completed'
+                              ? 'bg-primary/20 text-white'
+                              : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          Completed
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStatusFilter('pending');
+                            setIsFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                            statusFilter === 'pending'
+                              ? 'bg-primary/20 text-white'
+                              : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          Pending
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStatusFilter('failed');
+                            setIsFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                            statusFilter === 'failed'
+                              ? 'bg-primary/20 text-white'
+                              : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          Failed
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="bg-card-dark border border-white/5 rounded-xl overflow-hidden shadow-sm">
@@ -295,15 +571,15 @@ export default function AdminFinancePage() {
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                                {transaction.memberId?.name?.charAt(0) || 'U'}
+                                {transaction.member?.name?.charAt(0) || transaction.memberId?.name?.charAt(0) || 'U'}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-white">{transaction.memberId?.name || 'Unknown'}</p>
-                                <p className="text-xs text-text-secondary">{transaction.memberId?.email || 'N/A'}</p>
+                                <p className="text-sm font-medium text-white">{transaction.member?.name || transaction.memberId?.name || 'Unknown'}</p>
+                                <p className="text-xs text-text-secondary">{transaction.member?.email || transaction.memberId?.email || 'N/A'}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="p-4 text-sm text-white/70">{transaction.type || 'Payment'}</td>
+                          <td className="p-4 text-sm text-white/70">{transaction.type || (transaction.fine ? 'Fine Payment' : 'Payment')}</td>
                           <td className="p-4">
                             <div className="flex items-center gap-2 text-sm text-text-secondary">
                               <span className="material-symbols-outlined text-[16px]">credit_card</span> Card

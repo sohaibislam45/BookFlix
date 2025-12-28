@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import Link from 'next/link';
@@ -16,6 +16,11 @@ export default function AdminBooksPage() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [languageFilter, setLanguageFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [stats, setStats] = useState({
     totalInventory: 0,
     borrowed: 0,
@@ -29,19 +34,18 @@ export default function AdminBooksPage() {
   const [editingBookId, setEditingBookId] = useState(null);
   const [genres, setGenres] = useState([]);
   const [genresLoading, setGenresLoading] = useState(true);
+  const categoryDropdownRef = useRef(null);
+  const filterDropdownRef = useRef(null);
 
-  useEffect(() => {
-    fetchBooks();
-    fetchStats();
-    fetchGenres();
-  }, [searchQuery]);
-
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         limit: '10',
         ...(searchQuery && { search: searchQuery }),
+        ...(languageFilter && languageFilter !== 'all' && { language: languageFilter }),
+        ...(categoryFilter && { category: categoryFilter }),
+        ...(availabilityFilter && availabilityFilter !== 'all' && { availability: availabilityFilter }),
       });
       const response = await fetch(`/api/books?${params}`);
       if (response.ok) {
@@ -53,7 +57,38 @@ export default function AdminBooksPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, languageFilter, categoryFilter, availabilityFilter]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchBooks();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [fetchBooks]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchGenres();
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -91,6 +126,37 @@ export default function AdminBooksPage() {
       setGenresLoading(false);
     }
   };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchBooks();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, languageFilter, categoryFilter, availabilityFilter]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchGenres();
+  }, []);
 
   const handleEditBook = (bookId) => {
     setEditingBookId(bookId);
@@ -451,19 +517,139 @@ export default function AdminBooksPage() {
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
             <div className="flex items-center gap-2 bg-card-dark rounded-lg p-1 border border-white/5 shadow-sm">
-              <button className="px-3 py-1.5 rounded bg-primary/20 text-white text-sm font-medium">All</button>
-              <button className="px-3 py-1.5 rounded hover:bg-white/5 text-text-secondary hover:text-white text-sm font-medium transition-colors">Physical</button>
-              <button className="px-3 py-1.5 rounded hover:bg-white/5 text-text-secondary hover:text-white text-sm font-medium transition-colors">Digital</button>
+              <button 
+                onClick={() => setLanguageFilter('all')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  languageFilter === 'all' 
+                    ? 'bg-primary/20 text-white' 
+                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button 
+                onClick={() => setLanguageFilter('en')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  languageFilter === 'en' 
+                    ? 'bg-primary/20 text-white' 
+                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                }`}
+              >
+                English
+              </button>
+              <button 
+                onClick={() => setLanguageFilter('bn')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  languageFilter === 'bn' 
+                    ? 'bg-primary/20 text-white' 
+                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                }`}
+              >
+                Bangla
+              </button>
             </div>
             <div className="h-6 w-px bg-white/5 mx-1 hidden sm:block"></div>
-            <button className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">category</span>
-              Categories
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">filter_list</span>
-              Filters
-            </button>
+            <div className="relative" ref={categoryDropdownRef}>
+              <button 
+                onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">category</span>
+                Categories
+                <span className="material-symbols-outlined text-[14px]">{isCategoryDropdownOpen ? 'expand_less' : 'expand_more'}</span>
+              </button>
+              {isCategoryDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-lg bg-card-dark border border-white/5 shadow-xl z-50 max-h-80 overflow-y-auto">
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        setCategoryFilter('');
+                        setIsCategoryDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                        categoryFilter === ''
+                          ? 'bg-primary/20 text-white'
+                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      All Categories
+                    </button>
+                    {genres.map((genre) => (
+                      <button
+                        key={genre._id}
+                        onClick={() => {
+                          setCategoryFilter(genre._id);
+                          setIsCategoryDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                          categoryFilter === genre._id
+                            ? 'bg-primary/20 text-white'
+                            : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {genre.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="relative" ref={filterDropdownRef}>
+              <button 
+                onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                Filters
+                <span className="material-symbols-outlined text-[14px]">{isFilterDropdownOpen ? 'expand_less' : 'expand_more'}</span>
+              </button>
+              {isFilterDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-lg bg-card-dark border border-white/5 shadow-xl z-50">
+                  <div className="p-2">
+                    <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Availability</div>
+                    <button
+                      onClick={() => {
+                        setAvailabilityFilter('all');
+                        setIsFilterDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                        availabilityFilter === 'all'
+                          ? 'bg-primary/20 text-white'
+                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      All Books
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAvailabilityFilter('available');
+                        setIsFilterDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                        availabilityFilter === 'available'
+                          ? 'bg-primary/20 text-white'
+                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      Available
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAvailabilityFilter('waitlist');
+                        setIsFilterDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                        availabilityFilter === 'waitlist'
+                          ? 'bg-primary/20 text-white'
+                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      Waitlist Only
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
