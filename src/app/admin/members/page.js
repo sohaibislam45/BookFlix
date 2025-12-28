@@ -335,7 +335,7 @@ export default function AdminMembersPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 pt-8 pb-2 max-w-[1440px] mx-auto w-full">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-card-dark border border-white/5 p-4 rounded-xl flex items-start justify-between">
               <div>
                 <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Total Members</p>
@@ -368,16 +368,6 @@ export default function AdminMembersPage() {
               </div>
               <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
                 <span className="material-symbols-outlined">bolt</span>
-              </div>
-            </div>
-            <div className="bg-card-dark border border-white/5 p-4 rounded-xl flex items-start justify-between">
-              <div>
-                <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Pending Requests</p>
-                <h3 className="text-2xl font-black text-white">15</h3>
-                <p className="text-yellow-400 text-xs font-medium mt-1">Action required</p>
-              </div>
-              <div className="p-2 bg-red-500/10 rounded-lg text-red-500">
-                <span className="material-symbols-outlined">assignment_late</span>
               </div>
             </div>
           </div>

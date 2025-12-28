@@ -9,7 +9,7 @@ import UserProfile from '@/components/UserProfile';
 import Loader from '@/components/Loader';
 import { showError, showSuccess } from '@/lib/swal';
 import Swal from 'sweetalert2';
-import { USER_ROLES } from '@/lib/constants';
+import { USER_ROLES, RESERVATION_STATUS } from '@/lib/constants';
 
 export default function BookDetailsPage() {
   const params = useParams();
@@ -24,6 +24,8 @@ export default function BookDetailsPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [checkingWishlist, setCheckingWishlist] = useState(false);
+  const [isReserved, setIsReserved] = useState(false);
+  const [checkingReservation, setCheckingReservation] = useState(false);
 
   // Role checks
   const isMember = userData?.role === USER_ROLES.MEMBER;
@@ -53,6 +55,32 @@ export default function BookDetailsPage() {
 
     checkWishlist();
   }, [user, userData, bookId]);
+
+  // Check if book is already reserved by the user
+  useEffect(() => {
+    const checkReservation = async () => {
+      if (!user || !userData || !bookId || !isMember) return;
+      
+      try {
+        setCheckingReservation(true);
+        const response = await fetch(`/api/reservations?memberId=${userData._id}&bookId=${bookId}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Check if there's an active reservation (pending or ready status)
+          const activeReservation = data.reservations?.some(
+            r => r.status === RESERVATION_STATUS.PENDING || r.status === RESERVATION_STATUS.READY
+          );
+          setIsReserved(activeReservation || false);
+        }
+      } catch (error) {
+        console.error('Error checking reservation:', error);
+      } finally {
+        setCheckingReservation(false);
+      }
+    };
+
+    checkReservation();
+  }, [user, userData, bookId, isMember]);
 
   // Fetch book details
   useEffect(() => {
@@ -129,6 +157,7 @@ export default function BookDetailsPage() {
       });
 
       if (response.ok) {
+        setIsReserved(true);
         showSuccess('Reserved!', 'Book has been reserved successfully. You will be notified when it\'s available.');
       } else {
         const errorData = await response.json();
@@ -558,13 +587,18 @@ export default function BookDetailsPage() {
                       {/* Primary Action */}
                       <button
                         onClick={handleReserve}
-                        disabled={reserving || (!isAvailable && !user) || !isMember}
+                        disabled={reserving || isReserved || (!isAvailable && !user) || !isMember || checkingReservation}
                         className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {reserving ? (
                           <>
                             <Loader />
                             <span>Reserving...</span>
+                          </>
+                        ) : isReserved ? (
+                          <>
+                            <span className="material-symbols-outlined">check_circle</span>
+                            <span>Already Reserved</span>
                           </>
                         ) : (
                           <>

@@ -137,19 +137,88 @@ export async function GET(request) {
     const totalUniqueBooks = await Book.countDocuments({ isActive: true });
     // Count total copies for reference
     const totalBookCopies = await BookCopy.countDocuments({ isActive: true });
-    const borrowedCopies = await BookCopy.countDocuments({
-      isActive: true,
-      status: BOOK_STATUS.BORROWED,
-    });
-    const availableCopies = await BookCopy.countDocuments({
-      isActive: true,
-      status: BOOK_STATUS.AVAILABLE,
-    });
+    
+    // Count unique books that have borrowed copies
+    const borrowedBooksResult = await BookCopy.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: BOOK_STATUS.BORROWED,
+        },
+      },
+      {
+        $group: {
+          _id: '$book',
+        },
+      },
+      {
+        $count: 'count',
+      },
+    ]);
+    const borrowedBooks = borrowedBooksResult.length > 0 ? borrowedBooksResult[0].count : 0;
+    
+    // Count unique books that have available copies
+    const availableBooksResult = await BookCopy.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: BOOK_STATUS.AVAILABLE,
+        },
+      },
+      {
+        $group: {
+          _id: '$book',
+        },
+      },
+      {
+        $count: 'count',
+      },
+    ]);
+    const availableBooks = availableBooksResult.length > 0 ? availableBooksResult[0].count : 0;
+    
+    // Count books with low stock (3 or fewer available copies)
+    // Use aggregation to count available copies per book and filter for low stock
+    const lowStockBooksResult = await BookCopy.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: BOOK_STATUS.AVAILABLE,
+        },
+      },
+      {
+        $group: {
+          _id: '$book',
+          availableCount: { $sum: 1 },
+        },
+      },
+      {
+        $match: {
+          availableCount: { $lte: 3, $gt: 0 },
+        },
+      },
+      {
+        $count: 'count',
+      },
+    ]);
+    const lowStockBooks = lowStockBooksResult.length > 0 ? lowStockBooksResult[0].count : 0;
 
-    // Overdue Books
-    const overdueBooks = await Borrowing.countDocuments({
-      status: BORROWING_STATUS.OVERDUE,
-    });
+    // Count unique books with overdue borrowings
+    const overdueBooksResult = await Borrowing.aggregate([
+      {
+        $match: {
+          status: BORROWING_STATUS.OVERDUE,
+        },
+      },
+      {
+        $group: {
+          _id: '$book',
+        },
+      },
+      {
+        $count: 'count',
+      },
+    ]);
+    const overdueBooks = overdueBooksResult.length > 0 ? overdueBooksResult[0].count : 0;
 
     // Active Borrowings (currently borrowed books that are not overdue)
     const activeBorrowings = await Borrowing.countDocuments({
@@ -164,10 +233,23 @@ export async function GET(request) {
       status: BORROWING_STATUS.ACTIVE,
     });
 
-    // Pending Reservations (pending and ready status)
-    const pendingReservations = await Reservation.countDocuments({
-      status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
-    });
+    // Count unique books with pending reservations
+    const pendingReservationsResult = await Reservation.aggregate([
+      {
+        $match: {
+          status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
+        },
+      },
+      {
+        $group: {
+          _id: '$book',
+        },
+      },
+      {
+        $count: 'count',
+      },
+    ]);
+    const pendingReservations = pendingReservationsResult.length > 0 ? pendingReservationsResult[0].count : 0;
 
     // Pending Fines (unpaid fines)
     const pendingFines = await Fine.countDocuments({
@@ -322,10 +404,11 @@ export async function GET(request) {
       totalBooks: totalUniqueBooks,
       totalCopies: totalUniqueBooks, // Total inventory should show unique books, not total copies
       totalBookCopies, // Keep total copies count for reference if needed
-      borrowedCopies,
-      availableCopies,
-      overdueBooks,
-      pendingReservations,
+      borrowedCopies: borrowedBooks, // Count of unique books with borrowed copies
+      availableCopies: availableBooks, // Count of unique books with available copies
+      lowStock: lowStockBooks, // Count of unique books with low stock (3 or fewer available)
+      overdueBooks, // Count of unique books with overdue borrowings
+      pendingReservations, // Count of unique books with pending reservations
       pendingFines,
       monthlyRevenue,
       revenueBreakdown,

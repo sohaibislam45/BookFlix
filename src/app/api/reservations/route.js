@@ -162,19 +162,16 @@ export async function POST(request) {
       );
     }
 
-    // Check if book has available copies (if yes, suggest borrowing instead)
+    // Check if book has any available copies
     const availableCopy = await BookCopy.findOne({
       book: bookId,
       status: BOOK_STATUS.AVAILABLE,
       isActive: true,
     });
 
-    if (availableCopy) {
+    if (!availableCopy) {
       return NextResponse.json(
-        { 
-          error: 'This book is currently available. You can borrow it directly.',
-          available: true,
-        },
+        { error: 'This book is not currently available for reservation. All copies are currently borrowed.' },
         { status: 400 }
       );
     }

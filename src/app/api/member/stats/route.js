@@ -21,25 +21,32 @@ export async function GET(request) {
       return idValidation;
     }
 
-    // Get active borrowings
-    const activeBorrowings = await Borrowing.find({
+    // Get all non-returned borrowings (where returnedDate is null)
+    // This is the most reliable way to find currently borrowed books
+    const allBorrowings = await Borrowing.find({
       member: memberId,
-      status: BORROWING_STATUS.ACTIVE,
+      returnedDate: null,
     })
       .populate('book', 'title author coverImage')
       .populate('bookCopy', 'copyNumber')
       .sort({ dueDate: 1 })
       .lean();
 
-    // Get overdue borrowings
-    const overdueBorrowings = await Borrowing.find({
-      member: memberId,
-      status: BORROWING_STATUS.OVERDUE,
-    })
-      .populate('book', 'title author coverImage')
-      .populate('bookCopy', 'copyNumber')
-      .sort({ dueDate: 1 })
-      .lean();
+    // Categorize borrowings as active or overdue based on current date
+    const now = new Date();
+    const activeBorrowings = [];
+    const overdueBorrowings = [];
+
+    allBorrowings.forEach((borrowing) => {
+      const dueDate = new Date(borrowing.dueDate);
+      if (dueDate < now) {
+        // Past due date - overdue
+        overdueBorrowings.push(borrowing);
+      } else {
+        // Not yet due - active
+        activeBorrowings.push(borrowing);
+      }
+    });
 
     // Get returned borrowings for yearly goal
     const thisYear = new Date();
