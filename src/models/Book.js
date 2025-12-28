@@ -47,6 +47,10 @@ const bookSchema = new mongoose.Schema({
     default: 'en',
     trim: true,
   },
+  shelfLocation: {
+    type: String,
+    trim: true,
+  },
   pages: {
     type: Number,
     min: 0,

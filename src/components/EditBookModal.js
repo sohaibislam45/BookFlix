@@ -29,6 +29,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
     }
   }, [isOpen, bookId]);
 
+
   const fetchCategories = async () => {
     try {
       const response = await fetch('/api/categories?isActive=true');
@@ -57,18 +58,35 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
           publishedYear = date.getFullYear().toString();
         }
 
+        // Ensure bookLanguage is properly set - handle both 'language' and 'bookLanguage' field names
+        // Check both field names to handle database inconsistencies
+        const languageValue = book.bookLanguage || book.language;
+        
+        let bookLanguage = 'en'; // default
+        if (languageValue === 'bn' || languageValue === 'en') {
+          bookLanguage = languageValue;
+        } else if (languageValue) {
+          // If there's a value but it's not 'en' or 'bn', normalize it
+          const normalized = String(languageValue).trim().toLowerCase();
+          if (normalized === 'bangla' || normalized === 'bn') {
+            bookLanguage = 'bn';
+          } else {
+            bookLanguage = 'en';
+          }
+        }
+
         setFormData({
           title: book.title || '',
           author: book.author || '',
           isbn: book.isbn || '',
           publishedYear: publishedYear,
           genre: book.category?._id || book.category || '',
-          shelfLocation: '', // Not stored in book model
+          shelfLocation: book.shelfLocation || book.location || '', // Get from book.shelfLocation or book.location
           description: book.description || '',
           coverImage: null,
           coverImagePreview: book.coverImage || null,
           existingCoverImage: book.coverImage || null,
-          bookLanguage: book.bookLanguage || 'en',
+          bookLanguage: bookLanguage,
         });
       } else {
         const error = await response.json();
@@ -87,10 +105,17 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: value,
+      };
+      // Ensure bookLanguage is always set to a valid value
+      if (name === 'bookLanguage' && value !== 'en' && value !== 'bn') {
+        updated.bookLanguage = 'en';
+      }
+      return updated;
+    });
   };
 
   const handleFileChange = async (e) => {
@@ -184,10 +209,12 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
       }
 
       // Prepare book data
-      // Ensure bookLanguage is always included and valid
-      const bookLanguage = (formData.bookLanguage && ['en', 'bn'].includes(formData.bookLanguage)) 
-        ? formData.bookLanguage 
-        : 'en';
+      // Ensure bookLanguage is always included and valid ('en' or 'bn')
+      // Explicitly convert to string and validate
+      let bookLanguage = String(formData.bookLanguage || 'en').trim();
+      if (bookLanguage !== 'bn' && bookLanguage !== 'en') {
+        bookLanguage = 'en';
+      }
       
       const bookData = {
         title: formData.title.trim(),
@@ -197,8 +224,10 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
         description: formData.description.trim() || undefined,
         isbn: formData.isbn.trim() || undefined,
         publishedDate: formData.publishedYear ? `${formData.publishedYear}-01-01` : undefined,
-        bookLanguage: bookLanguage,
+        bookLanguage: bookLanguage, // Always include, always valid
+        shelfLocation: formData.shelfLocation.trim() || undefined, // Include shelf location
       };
+
 
       // Update book
       const response = await fetch(`/api/books/${bookId}`, {
@@ -389,11 +418,12 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
                     <span className="material-symbols-outlined absolute left-3 top-3.5 text-text-muted text-[20px]">language</span>
                     <select 
                       name="bookLanguage"
-                      value={formData.bookLanguage}
+                      value={formData.bookLanguage || 'en'}
                       onChange={handleInputChange}
                       className="w-full appearance-none rounded-lg bg-surface-dark border border-border-dark text-white placeholder-text-muted pl-10 pr-10 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm cursor-pointer"
                       required
-                      disabled={submitting}
+                      disabled={submitting || loading}
+                      key={`language-${bookId}-${formData.bookLanguage || 'en'}`}
                     >
                       <option value="en">English</option>
                       <option value="bn">Bangla</option>

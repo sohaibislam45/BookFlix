@@ -15,6 +15,7 @@ export default function LibrarianInventoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState('');
+  const [languageSort, setLanguageSort] = useState('');
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -39,7 +40,7 @@ export default function LibrarianInventoryPage() {
 
   useEffect(() => {
     fetchBooks();
-  }, [pagination.page, searchQuery, categoryFilter, availabilityFilter]);
+  }, [pagination.page, searchQuery, categoryFilter, availabilityFilter, languageSort]);
 
   const fetchCategories = async () => {
     try {
@@ -123,6 +124,27 @@ export default function LibrarianInventoryPage() {
             total: data.pagination?.total || 0,
             pages: data.pagination?.pages || 0,
           }));
+        }
+        
+        // Apply language sort if selected
+        if (languageSort) {
+          filteredBooks.sort((a, b) => {
+            const langA = a.bookLanguage || 'en';
+            const langB = b.bookLanguage || 'en';
+            
+            if (languageSort === 'en-first') {
+              // English first, then Bangla
+              if (langA === 'en' && langB === 'bn') return -1;
+              if (langA === 'bn' && langB === 'en') return 1;
+              return 0;
+            } else if (languageSort === 'bn-first') {
+              // Bangla first, then English
+              if (langA === 'bn' && langB === 'en') return -1;
+              if (langA === 'en' && langB === 'bn') return 1;
+              return 0;
+            }
+            return 0;
+          });
         }
         
         setBooks(filteredBooks);
@@ -323,6 +345,21 @@ export default function LibrarianInventoryPage() {
                     setPagination((prev) => ({ ...prev, page: 1 }));
                   }}
                 />
+              </div>
+              <div className="relative min-w-[160px]">
+                <select
+                  className="w-full appearance-none bg-surface-dark border border-white/5 text-white text-sm rounded-xl py-3 pl-4 pr-10 focus:ring-2 focus:ring-primary/50 cursor-pointer transition-all outline-none"
+                  value={languageSort}
+                  onChange={(e) => {
+                    setLanguageSort(e.target.value);
+                    setPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <option value="">Sort by Language</option>
+                  <option value="en-first">English First</option>
+                  <option value="bn-first">Bangla First</option>
+                </select>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">expand_more</span>
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1 md:pb-0">
                 <div className="relative min-w-[160px]">

@@ -86,7 +86,8 @@ export async function PATCH(request, { params }) {
     }
 
     // Validate and sanitize update fields
-    const allowedFields = ['title', 'author', 'isbn', 'description', 'coverImage', 'category', 'publishedDate', 'publisher', 'bookLanguage', 'pages', 'rating', 'ratingCount', 'tags', 'isActive'];
+    // Note: Handle both 'language' and 'bookLanguage' for database compatibility
+    const allowedFields = ['title', 'author', 'isbn', 'description', 'coverImage', 'category', 'publishedDate', 'publisher', 'bookLanguage', 'language', 'shelfLocation', 'location', 'pages', 'rating', 'ratingCount', 'tags', 'isActive'];
     const updateData = {};
 
     for (const [key, value] of Object.entries(body)) {
@@ -240,33 +241,78 @@ export async function PATCH(request, { params }) {
           );
         }
         updateData[key] = value;
-      } else if (key === 'bookLanguage') {
+      } else if (key === 'bookLanguage' || key === 'language') {
         // Validate language code - only allow 'en' or 'bn'
+        // Update both 'language' (database field) and 'bookLanguage' (model schema) for compatibility
         const validLanguages = ['en', 'bn'];
-        if (!validLanguages.includes(value)) {
+        const languageValue = String(value).trim();
+        if (!validLanguages.includes(languageValue)) {
           return NextResponse.json(
             { error: `Language must be one of: ${validLanguages.join(', ')}` },
             { status: 400 }
           );
         }
-        updateData[key] = value;
+        // Update both fields: 'language' (what exists in DB) and 'bookLanguage' (model schema)
+        updateData['language'] = languageValue;
+        updateData['bookLanguage'] = languageValue;
+      } else if (key === 'shelfLocation' || key === 'location') {
+        // Handle shelf location - save to both 'shelfLocation' and 'location' for compatibility
+        const locationValue = String(value || '').trim();
+        updateData['shelfLocation'] = locationValue;
+        updateData['location'] = locationValue;
       } else {
         updateData[key] = value;
       }
     }
 
-    // Update all fields including bookLanguage (no longer need special handling since field is renamed)
+    // Update all fields including bookLanguage
     if (Object.keys(updateData).length > 0) {
-      await Book.updateOne(
-        { _id: id },
-        { $set: updateData },
-        { runValidators: true }
+      try {
+        console.log('Updating book with data:', updateData);
+        
+        // Update the book - update both 'language' (DB field) and 'bookLanguage' (schema field)
+        // Use runValidators: true to validate schema fields, but Mongoose allows extra fields by default
+        const updateResult = await Book.updateOne(
+          { _id: id },
+          { $set: updateData },
+          { runValidators: true }
+        );
+        
+        console.log('Update result:', updateResult);
+        
+        if (updateResult.matchedCount === 0) {
+          return NextResponse.json(
+            { error: 'Book not found' },
+            { status: 404 }
+          );
+        }
+        
+        if (updateResult.modifiedCount === 0) {
+          console.warn('No documents were modified. Update data:', updateData);
+        }
+      } catch (updateError) {
+        console.error('Error updating book:', updateError);
+        console.error('Error stack:', updateError.stack);
+        return NextResponse.json(
+          { error: 'Failed to update book', details: updateError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Fetch the updated book with all fields including bookLanguage
+    const updatedBook = await Book.findById(id)
+      .populate('category', 'name slug icon')
+      .select('-__v')
+      .lean();
+
+    if (!updatedBook) {
+      return NextResponse.json(
+        { error: 'Book not found after update' },
+        { status: 404 }
       );
     }
 
-    // Fetch the updated book
-    const updatedBook = await Book.findById(id)
-      .populate('category', 'name slug icon');
 
     return NextResponse.json(
       { message: 'Book updated successfully', book: updatedBook },
