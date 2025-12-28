@@ -184,6 +184,11 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
       }
 
       // Prepare book data
+      // Ensure bookLanguage is always included and valid
+      const bookLanguage = (formData.bookLanguage && ['en', 'bn'].includes(formData.bookLanguage)) 
+        ? formData.bookLanguage 
+        : 'en';
+      
       const bookData = {
         title: formData.title.trim(),
         author: formData.author.trim(),
@@ -192,7 +197,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
         description: formData.description.trim() || undefined,
         isbn: formData.isbn.trim() || undefined,
         publishedDate: formData.publishedYear ? `${formData.publishedYear}-01-01` : undefined,
-        bookLanguage: formData.bookLanguage || 'en',
+        bookLanguage: bookLanguage,
       };
 
       // Update book
