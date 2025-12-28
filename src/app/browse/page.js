@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
+import Loader from '@/components/Loader';
 
 export default function BrowsePage() {
   const router = useRouter();
@@ -277,18 +278,9 @@ export default function BrowsePage() {
       {loading && books.length === 0 && (
         <div className="fixed inset-0 z-[60] bg-background-dark/95 backdrop-blur-sm flex items-center justify-center">
           <div className="flex flex-col items-center animate-fade-in-up">
-            <div className="relative w-20 h-20 mb-6">
-              <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-transparent border-t-primary rounded-full animate-spin"></div>
-              <div className="absolute inset-0 border-4 border-transparent border-r-primary rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-            </div>
-            <div className="text-white text-xl font-bold mb-2">Loading Collection</div>
+            <Loader />
+            <div className="text-white text-xl font-bold mb-2 mt-6">Loading Collection</div>
             <div className="text-gray-400 text-sm">Fetching books from our library...</div>
-            <div className="mt-6 flex gap-2">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-            </div>
           </div>
         </div>
       )}
@@ -454,6 +446,60 @@ export default function BrowsePage() {
               </div>
             </div>
 
+            {/* Language */}
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+                Language
+              </h3>
+              <div className="space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="language"
+                    className="form-radio h-4 w-4 text-primary border-white/20 bg-surface-dark focus:ring-primary focus:ring-offset-0 transition duration-150 ease-in-out"
+                    checked={language === 'all'}
+                    onChange={() => {
+                      setLanguage('all');
+                      setCurrentPage(1);
+                    }}
+                  />
+                  <span className="text-gray-300 text-sm group-hover:text-white transition-colors">
+                    All Languages
+                  </span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="language"
+                    className="form-radio h-4 w-4 text-primary border-white/20 bg-surface-dark focus:ring-primary focus:ring-offset-0 transition duration-150 ease-in-out"
+                    checked={language === 'en'}
+                    onChange={() => {
+                      setLanguage('en');
+                      setCurrentPage(1);
+                    }}
+                  />
+                  <span className="text-gray-300 text-sm group-hover:text-white transition-colors">
+                    English
+                  </span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="language"
+                    className="form-radio h-4 w-4 text-primary border-white/20 bg-surface-dark focus:ring-primary focus:ring-offset-0 transition duration-150 ease-in-out"
+                    checked={language === 'bn'}
+                    onChange={() => {
+                      setLanguage('bn');
+                      setCurrentPage(1);
+                    }}
+                  />
+                  <span className="text-gray-300 text-sm group-hover:text-white transition-colors">
+                    Bangla
+                  </span>
+                </label>
+              </div>
+            </div>
+
             {/* Publication Year */}
             <div>
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
@@ -527,19 +573,11 @@ export default function BrowsePage() {
             </div>
 
             {/* Books Grid */}
-            {loading && books.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 opacity-50 pointer-events-none">
-                {books.map((book) => (
-                  <div key={book._id} className="group">
-                    <div className="card-hover-effect relative aspect-[2/3] rounded-lg overflow-hidden shadow-lg shadow-black/50 mb-4">
-                      <div className="w-full h-full bg-surface-dark animate-pulse"></div>
-                    </div>
-                    <div>
-                      <div className="h-5 bg-surface-dark rounded animate-pulse mb-2"></div>
-                      <div className="h-4 bg-surface-dark rounded w-2/3 animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
+            {loading && books.length === 0 ? (
+              <div className="text-center py-12 text-text-secondary">
+                <div className="flex justify-center mb-3">
+                  <Loader />
+                </div>
               </div>
             ) : !loading && books.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">
