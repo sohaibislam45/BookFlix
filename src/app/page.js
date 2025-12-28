@@ -20,6 +20,14 @@ export default function Home() {
   const statsRef = useRef(null);
   const sectionsRef = useRef([]);
   
+  // Stats state
+  const [stats, setStats] = useState({
+    totalBooks: 0,
+    activeMembers: 0,
+    totalLibraries: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+  
   // Book sections state
   const [topBorrowedBooks, setTopBorrowedBooks] = useState([]);
   const [newArrivalsBooks, setNewArrivalsBooks] = useState([]);
@@ -95,6 +103,28 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [isGeneralMember, user]);
+
+  // Fetch statistics
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setStats({
+            totalBooks: data.totalBooks || 0,
+            activeMembers: data.activeMembers || 0,
+            totalLibraries: data.totalLibraries || 0,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   // Fetch top borrowed books
   useEffect(() => {
@@ -235,6 +265,14 @@ export default function Home() {
     }
   };
 
+  // Format number with K suffix for thousands
+  const formatNumber = (num) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    }
+    return num.toString();
+  };
+
   return (
     <div className="relative min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden">
       {/* Header */}
@@ -320,21 +358,27 @@ export default function Home() {
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10">
             <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-100">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '15k+' : '0'}</span>
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? (stats.totalBooks >= 1000 ? formatNumber(stats.totalBooks) + '+' : stats.totalBooks + '+') : '0'}
+              </span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">auto_stories</span>
                 Books
               </span>
             </div>
             <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-200">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '1.2k' : '0'}</span>
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}
+              </span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-lg">headphones</span>
-                Audiobooks
+                <span className="material-symbols-outlined text-primary text-lg">group</span>
+                Active Members
               </span>
             </div>
             <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-300">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '50+' : '0'}</span>
+              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? stats.totalLibraries + '+' : '0'}
+              </span>
               <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">domain</span>
                 Libraries
