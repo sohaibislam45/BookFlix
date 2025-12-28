@@ -273,6 +273,26 @@ export default function BrowsePage() {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden">
+      {/* Full Page Loader */}
+      {loading && books.length === 0 && (
+        <div className="fixed inset-0 z-[60] bg-background-dark/95 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center animate-fade-in-up">
+            <div className="relative w-20 h-20 mb-6">
+              <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-primary rounded-full animate-spin"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-r-primary rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+            </div>
+            <div className="text-white text-xl font-bold mb-2">Loading Collection</div>
+            <div className="text-gray-400 text-sm">Fetching books from our library...</div>
+            <div className="mt-6 flex gap-2">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-[#121212]/90 backdrop-blur-md border-b border-white/5">
         <div className="max-w-[1600px] mx-auto px-6 h-20 flex items-center justify-between">
@@ -507,11 +527,21 @@ export default function BrowsePage() {
             </div>
 
             {/* Books Grid */}
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-gray-400">Loading books...</div>
+            {loading && books.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 opacity-50 pointer-events-none">
+                {books.map((book) => (
+                  <div key={book._id} className="group">
+                    <div className="card-hover-effect relative aspect-[2/3] rounded-lg overflow-hidden shadow-lg shadow-black/50 mb-4">
+                      <div className="w-full h-full bg-surface-dark animate-pulse"></div>
+                    </div>
+                    <div>
+                      <div className="h-5 bg-surface-dark rounded animate-pulse mb-2"></div>
+                      <div className="h-4 bg-surface-dark rounded w-2/3 animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : books.length === 0 ? (
+            ) : !loading && books.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <span className="material-symbols-outlined text-6xl text-gray-600 mb-4">
                   book
