@@ -15,7 +15,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
     description: '',
     coverImage: null,
     coverImagePreview: null,
-    language: 'en',
+    bookLanguage: 'en',
   });
   const [categories, setCategories] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -211,7 +211,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         description: formData.description.trim() || undefined,
         isbn: formData.isbn.trim() || undefined,
         publishedDate: formData.publishedYear ? `${formData.publishedYear}-01-01` : undefined,
-        language: formData.language || 'en',
+        bookLanguage: formData.bookLanguage || 'en',
       };
 
       // Create book
@@ -244,7 +244,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         description: '',
         coverImage: null,
         coverImagePreview: null,
-        language: 'en',
+        bookLanguage: 'en',
       });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -276,7 +276,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
       description: '',
       coverImage: null,
       coverImagePreview: null,
-      language: 'en',
+      bookLanguage: 'en',
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -471,10 +471,10 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
               <label className="text-white text-sm font-semibold tracking-wide">Language</label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-3.5 text-text-muted text-[20px]">language</span>
-                <select 
-                  name="language"
-                  value={formData.language}
-                  onChange={handleInputChange}
+                    <select 
+                      name="bookLanguage"
+                      value={formData.bookLanguage}
+                      onChange={handleInputChange}
                   className="w-full appearance-none rounded-lg bg-surface-dark border border-border-dark text-white placeholder-text-muted pl-10 pr-10 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm cursor-pointer"
                   required
                   disabled={submitting}

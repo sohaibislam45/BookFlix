@@ -67,7 +67,7 @@ export async function GET(request) {
 
     // Language filter
     if (language && language !== 'all') {
-      query.language = language;
+      query.bookLanguage = language;
     }
 
     // Build sort object
@@ -322,7 +322,7 @@ export async function POST(request) {
       category,
       publishedDate: publishedDate ? new Date(publishedDate) : undefined,
       publisher: publisher ? sanitizeInput(publisher, 200) : undefined,
-      language: language || 'en',
+      bookLanguage: language || 'en',
       pages: pages !== undefined && pages !== null ? Number(pages) : undefined,
       tags: tags ? tags.slice(0, 20).map(tag => sanitizeInput(String(tag), 50).toLowerCase()) : [],
     });

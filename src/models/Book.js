@@ -42,7 +42,7 @@ const bookSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  language: {
+  bookLanguage: {
     type: String,
     default: 'en',
     trim: true,
@@ -84,7 +84,11 @@ const bookSchema = new mongoose.Schema({
 });
 
 // Text index for search
-bookSchema.index({ title: 'text', author: 'text', description: 'text', tags: 'text' });
+// Set default_language to 'none' to prevent Atlas Search from using document's language field as override
+bookSchema.index(
+  { title: 'text', author: 'text', description: 'text', tags: 'text' },
+  { default_language: 'none' }
+);
 bookSchema.index({ category: 1, isActive: 1 });
 bookSchema.index({ rating: -1, ratingCount: -1 });
 

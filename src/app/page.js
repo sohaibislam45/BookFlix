@@ -422,7 +422,7 @@ export default function Home() {
                 topBorrowedBooks.map((book, index) => (
                   <Link
                     key={book._id}
-                    href={`/member/books/${book._id}`}
+                    href={`/book/${book._id}`}
                     className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
                     style={{ animationDelay: `${700 + index * 100}ms` }}
                   >
@@ -479,7 +479,7 @@ export default function Home() {
                 newArrivalsBooks.map((book, index) => (
                   <Link
                     key={book._id}
-                    href={`/member/books/${book._id}`}
+                    href={`/book/${book._id}`}
                     className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
                     style={{ animationDelay: `${800 + index * 100}ms` }}
                   >
@@ -536,7 +536,7 @@ export default function Home() {
                 banglaBooks.map((book, index) => (
                   <Link
                     key={book._id}
-                    href={`/member/books/${book._id}`}
+                    href={`/book/${book._id}`}
                     className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
                     style={{ animationDelay: `${900 + index * 100}ms` }}
                   >
@@ -593,7 +593,7 @@ export default function Home() {
                 englishBooks.map((book, index) => (
                   <Link
                     key={book._id}
-                    href={`/member/books/${book._id}`}
+                    href={`/book/${book._id}`}
                     className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
                     style={{ animationDelay: `${1000 + index * 100}ms` }}
                   >

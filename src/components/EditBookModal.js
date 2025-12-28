@@ -15,7 +15,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
     coverImage: null,
     coverImagePreview: null,
     existingCoverImage: null,
-    language: 'en',
+    bookLanguage: 'en',
   });
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
           coverImage: null,
           coverImagePreview: book.coverImage || null,
           existingCoverImage: book.coverImage || null,
-          language: book.language || 'en',
+          bookLanguage: book.bookLanguage || 'en',
         });
       } else {
         const error = await response.json();
@@ -192,7 +192,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
         description: formData.description.trim() || undefined,
         isbn: formData.isbn.trim() || undefined,
         publishedDate: formData.publishedYear ? `${formData.publishedYear}-01-01` : undefined,
-        language: formData.language || 'en',
+        bookLanguage: formData.bookLanguage || 'en',
       };
 
       // Update book
@@ -239,7 +239,7 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
       coverImage: null,
       coverImagePreview: null,
       existingCoverImage: null,
-      language: 'en',
+      bookLanguage: 'en',
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -383,8 +383,8 @@ export default function EditBookModal({ isOpen, onClose, onBookUpdated, bookId }
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-3.5 text-text-muted text-[20px]">language</span>
                     <select 
-                      name="language"
-                      value={formData.language}
+                      name="bookLanguage"
+                      value={formData.bookLanguage}
                       onChange={handleInputChange}
                       className="w-full appearance-none rounded-lg bg-surface-dark border border-border-dark text-white placeholder-text-muted pl-10 pr-10 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm cursor-pointer"
                       required

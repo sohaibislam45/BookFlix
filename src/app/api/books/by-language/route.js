@@ -52,7 +52,7 @@ export async function GET(request) {
 
     // Fetch books by language
     const books = await Book.find({
-      language: searchLanguage,
+      bookLanguage: searchLanguage,
       isActive: true,
     })
       .populate('category', 'name slug icon')

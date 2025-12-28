@@ -86,7 +86,7 @@ export async function PATCH(request, { params }) {
     }
 
     // Validate and sanitize update fields
-    const allowedFields = ['title', 'author', 'isbn', 'description', 'coverImage', 'category', 'publishedDate', 'publisher', 'language', 'pages', 'rating', 'ratingCount', 'tags', 'isActive'];
+    const allowedFields = ['title', 'author', 'isbn', 'description', 'coverImage', 'category', 'publishedDate', 'publisher', 'bookLanguage', 'pages', 'rating', 'ratingCount', 'tags', 'isActive'];
     const updateData = {};
 
     for (const [key, value] of Object.entries(body)) {
@@ -240,21 +240,36 @@ export async function PATCH(request, { params }) {
           );
         }
         updateData[key] = value;
+      } else if (key === 'bookLanguage') {
+        // Validate language code - only allow 'en' or 'bn'
+        const validLanguages = ['en', 'bn'];
+        if (!validLanguages.includes(value)) {
+          return NextResponse.json(
+            { error: `Language must be one of: ${validLanguages.join(', ')}` },
+            { status: 400 }
+          );
+        }
+        updateData[key] = value;
       } else {
         updateData[key] = value;
       }
     }
 
-    // Apply updates
-    Object.keys(updateData).forEach((key) => {
-      book[key] = updateData[key];
-    });
+    // Update all fields including bookLanguage (no longer need special handling since field is renamed)
+    if (Object.keys(updateData).length > 0) {
+      await Book.updateOne(
+        { _id: id },
+        { $set: updateData },
+        { runValidators: true }
+      );
+    }
 
-    await book.save();
-    await book.populate('category', 'name slug icon');
+    // Fetch the updated book
+    const updatedBook = await Book.findById(id)
+      .populate('category', 'name slug icon');
 
     return NextResponse.json(
-      { message: 'Book updated successfully', book },
+      { message: 'Book updated successfully', book: updatedBook },
       { status: 200 }
     );
   } catch (error) {

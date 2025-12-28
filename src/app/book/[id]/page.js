@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import Loader from '@/components/Loader';
 import { showError, showSuccess } from '@/lib/swal';
+import Swal from 'sweetalert2';
 
 export default function BookDetailsPage() {
   const params = useParams();
@@ -210,7 +211,20 @@ export default function BookDetailsPage() {
 
         if (response.ok) {
           setIsFavorite(true);
-          showSuccess('Added to Wishlist', 'Book has been added to your wishlist successfully!');
+          const result = await showSuccess(
+            'Added to Wishlist', 
+            'Book has been added to your wishlist successfully!',
+            {
+              showCancelButton: true,
+              confirmButtonText: 'OK',
+              cancelButtonText: 'Go to My Wishlist',
+            }
+          );
+          
+          // If user clicked "Go to My Wishlist" (cancel button), navigate to wishlist page
+          if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) {
+            router.push('/member/wishlist');
+          }
         } else {
           const errorData = await response.json();
           showError('Error', errorData.error || 'Failed to add to wishlist.');

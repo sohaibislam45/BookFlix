@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
-import Link from 'next/link';
 import Loader from '@/components/Loader';
 import AddBookModal from '@/components/AddBookModal';
+import EditBookModal from '@/components/EditBookModal';
+import { showError, showSuccess, showInput } from '@/lib/swal';
 
 export default function LibrarianInventoryPage() {
   const { userData } = useAuth();
@@ -27,6 +28,8 @@ export default function LibrarianInventoryPage() {
     outOfStock: 0,
   });
   const [addBookModalOpen, setAddBookModalOpen] = useState(false);
+  const [editBookModalOpen, setEditBookModalOpen] = useState(false);
+  const [editingBookId, setEditingBookId] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -147,6 +150,90 @@ export default function LibrarianInventoryPage() {
   const handleBookAdded = () => {
     fetchBooks();
     fetchStats();
+  };
+
+  const handleBookUpdated = () => {
+    fetchBooks();
+    fetchStats();
+  };
+
+  const handleEditBook = (bookId) => {
+    setEditingBookId(bookId);
+    setEditBookModalOpen(true);
+  };
+
+  const handleManageStock = async (bookId, bookTitle) => {
+    // Fetch current stock count
+    let currentStock = 0;
+    try {
+      const bookResponse = await fetch(`/api/books/${bookId}`);
+      if (bookResponse.ok) {
+        const bookData = await bookResponse.json();
+        currentStock = bookData.totalCopies || 0;
+      }
+    } catch (error) {
+      console.error('Error fetching book stock:', error);
+    }
+
+    // Show input for stock count with current value
+    const result = await showInput(
+      'Manage Stock',
+      `Enter the number of copies for "${bookTitle}"`,
+      { input: 'number' },
+      {
+        inputPlaceholder: 'Enter number of copies...',
+        inputValue: currentStock.toString(),
+        inputValidator: (value) => {
+          const num = parseInt(value);
+          if (value === '' || isNaN(num) || num < 0) {
+            return 'Please enter a valid number (minimum 0)';
+          }
+          if (num > 1000) {
+            return 'Maximum 1000 copies allowed';
+          }
+          return null;
+        },
+        confirmButtonText: 'Update Stock',
+        cancelButtonText: 'Cancel',
+      }
+    );
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const stockCount = parseInt(result.value);
+        
+        const response = await fetch(`/api/books/${bookId}/stock`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            copies: stockCount,
+          }),
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          return;
+        }
+
+        if (response.ok) {
+          showSuccess('Stock Updated!', `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`);
+          fetchBooks(); // Refresh the books list
+          fetchStats(); // Refresh stats
+        } else {
+          const errorMessage = data?.error || data?.message || `Failed to update stock (${response.status})`;
+          showError('Error', errorMessage);
+        }
+      } catch (error) {
+        console.error('Error updating stock:', error);
+        showError('Error', error.message || 'Failed to update stock. Please try again.');
+      }
+    }
   };
 
   const getLocationDisplay = (book) => {
@@ -413,25 +500,25 @@ export default function LibrarianInventoryPage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                              <Link
-                                href={`/librarian/inventory/${book._id}`}
-                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleManageStock(book._id, book.title);
+                                }}
+                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
                                 title="Manage Copies"
                               >
                                 <span className="material-symbols-outlined text-[20px]">library_books</span>
-                              </Link>
-                              <Link
-                                href={`/librarian/inventory/${book._id}/edit`}
-                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditBook(book._id);
+                                }}
+                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
                                 title="Edit Details"
                               >
                                 <span className="material-symbols-outlined text-[20px]">edit_square</span>
-                              </Link>
-                              <button
-                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                                title="Update Status"
-                              >
-                                <span className="material-symbols-outlined text-[20px]">update</span>
                               </button>
                             </div>
                           </td>
@@ -501,6 +588,15 @@ export default function LibrarianInventoryPage() {
         isOpen={addBookModalOpen}
         onClose={() => setAddBookModalOpen(false)}
         onBookAdded={handleBookAdded}
+      />
+      <EditBookModal
+        isOpen={editBookModalOpen}
+        onClose={() => {
+          setEditBookModalOpen(false);
+          setEditingBookId(null);
+        }}
+        onBookUpdated={handleBookUpdated}
+        bookId={editingBookId}
       />
     </>
   );

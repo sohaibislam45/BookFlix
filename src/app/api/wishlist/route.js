@@ -26,36 +26,68 @@ export async function GET(request) {
     }
 
     const wishlists = await Wishlist.find({ user: userId })
-      .populate('book', '-__v')
+      .populate({
+        path: 'book',
+        select: 'title author coverImage rating ratingCount isbn pages description category tags publishedDate',
+        populate: {
+          path: 'category',
+          select: 'name slug icon'
+        }
+      })
       .sort({ createdAt: -1 })
       .select('-__v')
       .lean();
 
+    // Filter out wishlist items where book is null (book might have been deleted)
+    const validWishlists = wishlists.filter(item => item.book && item.book._id);
+
     // Get availability counts for each book
     const wishlistsWithAvailability = await Promise.all(
-      wishlists.map(async (item) => {
-        const availableCopies = await BookCopy.countDocuments({
-          book: item.book._id,
-          status: 'available',
-          isActive: true,
-        });
-        const totalCopies = await BookCopy.countDocuments({
-          book: item.book._id,
-          isActive: true,
-        });
+      validWishlists.map(async (item) => {
+        if (!item.book || !item.book._id) {
+          // If book is missing, delete the wishlist entry
+          await Wishlist.findByIdAndDelete(item._id);
+          return null;
+        }
 
-        return {
-          ...item,
-          book: {
-            ...item.book,
-            availableCopies,
-            totalCopies,
-          },
-        };
+        try {
+          const availableCopies = await BookCopy.countDocuments({
+            book: item.book._id,
+            status: 'available',
+            isActive: true,
+          });
+          const totalCopies = await BookCopy.countDocuments({
+            book: item.book._id,
+            isActive: true,
+          });
+
+          return {
+            ...item,
+            book: {
+              ...item.book,
+              availableCopies,
+              totalCopies,
+            },
+          };
+        } catch (error) {
+          console.error('Error getting availability for book:', item.book._id, error);
+          // Return item with default availability
+          return {
+            ...item,
+            book: {
+              ...item.book,
+              availableCopies: 0,
+              totalCopies: 0,
+            },
+          };
+        }
       })
     );
 
-    return NextResponse.json({ wishlists: wishlistsWithAvailability }, { status: 200 });
+    // Filter out any null items
+    const filteredWishlists = wishlistsWithAvailability.filter(item => item !== null);
+
+    return NextResponse.json({ wishlists: filteredWishlists }, { status: 200 });
   } catch (error) {
     return handleApiError(error, 'fetch wishlist');
   }
