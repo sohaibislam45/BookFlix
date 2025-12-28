@@ -20,6 +20,7 @@ export default function LibrarianOverviewPage() {
     totalCatalog: 0,
     recentActivity: [],
     newMembers: [],
+    inventoryStatus: [],
   });
   const [loading, setLoading] = useState(true);
   const [activityFilter, setActivityFilter] = useState('all');
@@ -381,39 +382,60 @@ export default function LibrarianOverviewPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-white/70">Fiction (High Demand)</span>
-                      <span className="text-primary">82% Stocked</span>
+                  {loading && stats.inventoryStatus.length === 0 ? (
+                    <div className="text-center py-4 text-white/40 text-sm">
+                      <div className="flex justify-center">
+                        <Loader />
+                      </div>
                     </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-primary w-[82%] rounded-full shadow-[0_0_10px_rgba(170,31,239,0.5)]"></div>
+                  ) : stats.inventoryStatus.length === 0 ? (
+                    <div className="text-center py-4 text-white/40 text-sm">
+                      No inventory data available
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-white/70">Non-Fiction</span>
-                      <span className="text-emerald-400">95% Stocked</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-400 w-[95%] rounded-full shadow-[0_0_10px_rgba(52,211,153,0.3)]"></div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-white/70">Academic & Ref</span>
-                      <span className="text-yellow-400">64% Stocked</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-yellow-400 w-[64%] rounded-full shadow-[0_0_10px_rgba(250,204,21,0.3)]"></div>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-surface-dark/50 rounded-xl flex items-start gap-3 border border-white/5">
-                    <span className="material-symbols-outlined text-yellow-400 text-sm mt-0.5">lightbulb</span>
-                    <p className="text-xs text-white/60 leading-relaxed">
-                      Academic reference restocks are recommended before the semester begins.
-                    </p>
-                  </div>
+                  ) : (
+                    <>
+                      {stats.inventoryStatus.map((category, index) => {
+                        const colors = [
+                          { bg: 'bg-primary', text: 'text-primary', shadow: 'shadow-[0_0_10px_rgba(170,31,239,0.5)]' },
+                          { bg: 'bg-emerald-400', text: 'text-emerald-400', shadow: 'shadow-[0_0_10px_rgba(52,211,153,0.3)]' },
+                          { bg: 'bg-yellow-400', text: 'text-yellow-400', shadow: 'shadow-[0_0_10px_rgba(250,204,21,0.3)]' },
+                        ];
+                        const color = colors[index] || colors[0];
+                        const categoryName = category.categoryName 
+                          ? category.categoryName.charAt(0).toUpperCase() + category.categoryName.slice(1)
+                          : 'Unknown Category';
+                        const isLowStock = category.stockPercentage < 70;
+                        
+                        return (
+                          <div key={category._id || index} className="space-y-2">
+                            <div className="flex justify-between text-xs font-medium">
+                              <span className="text-white/70">
+                                {categoryName}
+                                {index === 0 && category.totalCopies > 50 && ' (High Demand)'}
+                              </span>
+                              <span className={color.text}>
+                                {category.stockPercentage}% Stocked
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${color.bg} rounded-full ${color.shadow}`}
+                                style={{ width: `${Math.min(category.stockPercentage, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {stats.inventoryStatus.some(cat => cat.stockPercentage < 70) && (
+                        <div className="p-3 bg-surface-dark/50 rounded-xl flex items-start gap-3 border border-white/5">
+                          <span className="material-symbols-outlined text-yellow-400 text-sm mt-0.5">lightbulb</span>
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            Some categories are running low on stock. Consider restocking soon.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 

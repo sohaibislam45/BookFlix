@@ -19,6 +19,9 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
   const [categories, setCategories] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showAddGenreModal, setShowAddGenreModal] = useState(false);
+  const [newGenreName, setNewGenreName] = useState('');
+  const [addingGenre, setAddingGenre] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +39,58 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleAddGenre = async () => {
+    if (!newGenreName.trim()) {
+      showError('Validation Error', 'Genre name is required');
+      return;
+    }
+
+    setAddingGenre(true);
+    const loadingSwal = showLoading('Adding Genre...', 'Please wait while we add the new genre.');
+
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newGenreName.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create genre');
+      }
+
+      close();
+      showSuccess('Genre Added!', 'The new genre has been successfully added.');
+      
+      // Refresh categories list
+      await fetchCategories();
+      
+      // Set the newly created genre as selected
+      const newCategory = result.category || result;
+      if (newCategory && newCategory._id) {
+        setFormData(prev => ({
+          ...prev,
+          genre: newCategory._id,
+        }));
+      }
+      
+      // Reset and close modal
+      setNewGenreName('');
+      setShowAddGenreModal(false);
+    } catch (error) {
+      close();
+      showError('Error', error.message || 'Failed to add genre. Please try again.');
+    } finally {
+      setAddingGenre(false);
     }
   };
 
@@ -328,7 +383,19 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             {/* Grid Row: Genre, Shelf, Stock */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-white text-sm font-semibold tracking-wide">Genre</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-white text-sm font-semibold tracking-wide">Genre</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddGenreModal(true)}
+                    disabled={submitting}
+                    className="text-xs text-primary hover:text-primary-hover font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                    title="Add New Genre"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Add Genre
+                  </button>
+                </div>
                 <div className="relative">
                   <select 
                     name="genre"
@@ -509,6 +576,69 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
           </button>
         </div>
       </div>
+
+      {/* Add Genre Modal */}
+      {showAddGenreModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-background-dark/90 backdrop-blur-sm"
+            onClick={() => !addingGenre && setShowAddGenreModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md bg-[#1c1022] rounded-2xl shadow-2xl border border-white/10 overflow-hidden animate-fade-in-up">
+            <div className="px-6 py-5 border-b border-border-dark bg-[#1c1022] flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">Add New Genre</h2>
+                <p className="text-sm text-text-muted mt-1">Create a new genre category for books.</p>
+              </div>
+              <button 
+                onClick={() => !addingGenre && setShowAddGenreModal(false)}
+                disabled={addingGenre}
+                className="group p-2 rounded-full hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-text-muted group-hover:text-white transition-colors">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-white text-sm font-semibold tracking-wide">Genre Name</label>
+                <input 
+                  value={newGenreName}
+                  onChange={(e) => setNewGenreName(e.target.value)}
+                  className="w-full rounded-lg bg-surface-dark border border-border-dark text-white placeholder-text-muted px-4 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm" 
+                  placeholder="e.g. Science Fiction, Mystery, Biography"
+                  type="text"
+                  disabled={addingGenre}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !addingGenre && newGenreName.trim()) {
+                      e.preventDefault();
+                      handleAddGenre();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-5 border-t border-border-dark bg-[#1c1022] flex flex-col-reverse sm:flex-row justify-end items-center gap-4">
+              <button 
+                type="button"
+                onClick={() => setShowAddGenreModal(false)}
+                disabled={addingGenre}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-border-dark text-white font-medium hover:bg-surface-dark hover:border-white/20 transition-all text-sm tracking-wide disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleAddGenre}
+                disabled={addingGenre || !newGenreName.trim()}
+                className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-primary text-white font-bold hover:bg-primary-hover shadow-[0_0_20px_rgba(170,31,239,0.3)] hover:shadow-[0_0_25px_rgba(170,31,239,0.5)] transition-all flex items-center justify-center gap-2 text-sm tracking-wide transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                {addingGenre ? 'Adding...' : 'Add Genre'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

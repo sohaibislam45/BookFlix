@@ -64,6 +64,89 @@ export async function GET(request) {
     // Total catalog count
     const totalCatalog = await Book.countDocuments({ isActive: true });
 
+    // Inventory Status by Category
+    const inventoryStatus = await Book.aggregate([
+      { $match: { isActive: true } },
+      {
+        $lookup: {
+          from: 'bookcopies',
+          let: { bookId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$book', '$$bookId'] },
+                    { $eq: ['$isActive', true] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'copies',
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category',
+          foreignField: '_id',
+          as: 'categoryInfo',
+        },
+      },
+      {
+        $unwind: {
+          path: '$categoryInfo',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: '$category',
+          categoryName: { $first: '$categoryInfo.name' },
+          totalCopies: { $sum: { $size: '$copies' } },
+          availableCopies: {
+            $sum: {
+              $size: {
+                $filter: {
+                  input: '$copies',
+                  as: 'copy',
+                  cond: { $eq: ['$$copy.status', 'available'] },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          categoryName: 1,
+          totalCopies: 1,
+          availableCopies: 1,
+          stockPercentage: {
+            $cond: {
+              if: { $gt: ['$totalCopies', 0] },
+              then: {
+                $round: [
+                  {
+                    $multiply: [
+                      { $divide: ['$availableCopies', '$totalCopies'] },
+                      100,
+                    ],
+                  },
+                  0,
+                ],
+              },
+              else: 0,
+            },
+          },
+        },
+      },
+      { $sort: { totalCopies: -1 } },
+      { $limit: 3 },
+    ]);
+
     // Get recent circulation activity (last 10)
     const recentActivity = await Borrowing.find()
       .populate('member', 'name email')
@@ -123,6 +206,7 @@ export async function GET(request) {
       totalCatalog,
       recentActivity: formattedActivity,
       newMembers,
+      inventoryStatus,
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching librarian stats:', error);
