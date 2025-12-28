@@ -26,6 +26,19 @@ export default function UpgradePlanPage() {
     }
   }, [userData, router, authLoading]);
 
+  // Handle scrolling to "Choose Your Plan" section when hash is present
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#choose-plan') {
+      // Small delay to ensure the page is fully rendered
+      setTimeout(() => {
+        const element = document.getElementById('choose-plan');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    }
+  }, []);
+
   const handleUpgrade = async (plan) => {
     if (!userData?._id) {
       showError('Error', 'User data not available. Please try again.');
@@ -194,7 +207,7 @@ export default function UpgradePlanPage() {
         </div>
 
         {/* Pricing Plans */}
-        <div>
+        <div id="choose-plan">
           <h3 className="text-2xl font-bold text-white mb-6 text-center">Choose Your Plan</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {plans.map((plan) => (

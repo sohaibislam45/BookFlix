@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import { showError } from '@/lib/swal';
@@ -12,6 +13,7 @@ export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const { user, userData } = useAuth();
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [ctaVisible, setCtaVisible] = useState(false);
@@ -84,6 +86,16 @@ export default function Home() {
 
   const togglePricingModal = () => {
     setPricingModalOpen(!pricingModalOpen);
+  };
+
+  const handleFreeRegistration = () => {
+    setPricingModalOpen(false);
+    router.push('/member/overview');
+  };
+
+  const handlePlanSelection = (plan) => {
+    setPricingModalOpen(false);
+    router.push('/member/upgrade#choose-plan');
   };
 
   const handleUpgradeSubscription = async (plan) => {
@@ -547,12 +559,12 @@ export default function Home() {
                           Email notifications
                         </li>
                       </ul>
-                      <Link
-                        href="/register"
-                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 transition-colors text-center"
+                      <button
+                        onClick={handleFreeRegistration}
+                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 transition-colors"
                       >
                         Free registration
-                      </Link>
+                      </button>
                     </div>
 
                     {/* Monthly Premium */}
@@ -588,11 +600,10 @@ export default function Home() {
                         </li>
                       </ul>
                       <button
-                        onClick={() => handleUpgradeSubscription('monthly')}
-                        disabled={processingSubscription}
-                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-primary/25"
+                        onClick={() => handlePlanSelection('monthly')}
+                        className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-hover transition-colors shadow-lg shadow-primary/25"
                       >
-                        {processingSubscription ? 'Processing...' : user ? 'Get Monthly' : 'Sign Up for Monthly'}
+                        {user ? 'Get Monthly' : 'Sign Up for Monthly'}
                       </button>
                     </div>
 
@@ -629,11 +640,10 @@ export default function Home() {
                         </li>
                       </ul>
                       <button
-                        onClick={() => handleUpgradeSubscription('yearly')}
-                        disabled={processingSubscription}
-                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => handlePlanSelection('yearly')}
+                        className="mt-8 w-full rounded-md border border-white/20 bg-transparent px-4 py-2 text-sm font-bold text-white hover:bg-white/5 transition-colors"
                       >
-                        {processingSubscription ? 'Processing...' : user ? 'Get Yearly' : 'Sign Up for Yearly'}
+                        {user ? 'Get Yearly' : 'Sign Up for Yearly'}
                       </button>
                     </div>
                   </div>

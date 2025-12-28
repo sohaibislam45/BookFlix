@@ -65,6 +65,11 @@ export default function MemberOverviewPage() {
   };
 
   const fetchActivityFeed = async () => {
+    if (!userData?._id) {
+      setActivityLoading(false);
+      return;
+    }
+
     try {
       setActivityLoading(true);
       const response = await fetch(`/api/notifications?userId=${userData._id}&limit=3`);
@@ -72,9 +77,14 @@ export default function MemberOverviewPage() {
       if (response.ok) {
         const data = await response.json();
         setActivityFeed(data.notifications || []);
+      } else {
+        // If API returns error, set empty array
+        setActivityFeed([]);
+        console.error('Failed to fetch activity feed:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching activity feed:', error);
+      setActivityFeed([]);
     } finally {
       setActivityLoading(false);
     }
