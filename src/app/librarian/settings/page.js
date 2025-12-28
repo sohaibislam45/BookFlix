@@ -269,15 +269,19 @@ export default function LibrarianSettingsPage() {
               <div className="mb-8">
                 <label className="text-white/80 text-sm font-medium mb-3 block">Profile Photo</label>
                 <div className="flex items-center gap-6">
-                  <div className="size-24 rounded-full bg-surface-dark border-2 border-white/10 overflow-hidden relative">
+                  <div className="size-24 rounded-full bg-surface-dark border-2 border-white/10 overflow-hidden bg-gradient-to-br from-primary/20 to-purple-500/20">
                     {profileData.profilePhotoPreview ? (
                       <img
                         src={profileData.profilePhotoPreview}
                         alt={profileData.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold bg-gradient-to-br from-primary/20 to-purple-500/20">
+                    ) : null}
+                    {!profileData.profilePhotoPreview && (
+                      <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
                         {getInitials(profileData.name)}
                       </div>
                     )}

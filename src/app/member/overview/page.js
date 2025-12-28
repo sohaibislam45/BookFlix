@@ -7,6 +7,7 @@ import Loader from '@/components/Loader';
 import { CardSkeleton } from '@/components/LoadingSkeleton';
 import { showError } from '@/lib/swal';
 import EmptyState from '@/components/EmptyState';
+import OptimizedImage from '@/components/OptimizedImage';
 
 export default function MemberOverviewPage() {
   const { userData } = useAuth();
@@ -245,11 +246,6 @@ export default function MemberOverviewPage() {
                     </p>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    {borrowing.renewalCount < 2 && (
-                      <button className="flex-1 bg-primary/10 hover:bg-primary text-primary hover:text-white text-xs font-bold py-2 rounded-lg transition-colors">
-                        Renew
-                      </button>
-                    )}
                     <Link
                       href={`/member/shelf?return=${borrowing._id}`}
                       className="flex-1 bg-[#3c2348] hover:bg-white/10 text-white text-xs font-bold py-2 rounded-lg transition-colors text-center"
