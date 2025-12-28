@@ -20,12 +20,20 @@ export default function MemberOverviewPage() {
     goalPercentage: 0,
     activeBorrowings: [],
     overdueBorrowings: [],
+    monthlyBorrowingData: [],
+    favoriteGenre: null,
+    favoriteGenrePercentage: 0,
+    averageReadingTime: 0,
+    upcomingDue: [],
   });
   const [loading, setLoading] = useState(true);
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     if (userData?._id) {
       fetchStats();
+      fetchActivityFeed();
     }
   }, [userData]);
 
@@ -40,12 +48,35 @@ export default function MemberOverviewPage() {
       }
       
       const data = await response.json();
-      setStats(data);
+      setStats({
+        ...data,
+        monthlyBorrowingData: data.monthlyBorrowingData || [],
+        favoriteGenre: data.favoriteGenre || null,
+        favoriteGenrePercentage: data.favoriteGenrePercentage || 0,
+        averageReadingTime: data.averageReadingTime || 0,
+        upcomingDue: data.upcomingDue || [],
+      });
     } catch (error) {
       console.error('Error fetching stats:', error);
       showError('Error Loading Stats', error.message || 'Failed to load your statistics. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchActivityFeed = async () => {
+    try {
+      setActivityLoading(true);
+      const response = await fetch(`/api/notifications?userId=${userData._id}&limit=3`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setActivityFeed(data.notifications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching activity feed:', error);
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -83,7 +114,7 @@ export default function MemberOverviewPage() {
             <div className="flex flex-col">
               <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Outstanding Fines</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold text-white">${stats.outstandingFines.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-white">{stats.outstandingFines.toFixed(2)} BDT</p>
                 {stats.outstandingFines > 0 && (
                   <span className="text-xs text-alert-red font-medium">Action Required</span>
                 )}
@@ -258,6 +289,216 @@ export default function MemberOverviewPage() {
             </div>
           )}
         </section>
+
+        {/* Bottom Section: Insights and Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Borrowing Insights Section */}
+          <section className="lg:col-span-2 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">analytics</span>
+                Borrowing Insights
+              </h3>
+              <select className="bg-surface-dark border border-[#3c2348] text-xs text-text-secondary rounded-lg px-2 py-1 focus:outline-none focus:border-primary">
+                <option>Last 6 Months</option>
+                <option>This Year</option>
+              </select>
+            </div>
+            <div className="bg-surface-dark border border-[#3c2348] rounded-2xl p-6">
+              <div className="flex flex-col gap-6">
+                {/* Bar Chart */}
+                <div className="flex justify-between items-end gap-2 h-40 pt-4">
+                  {stats.monthlyBorrowingData.length > 0 ? (
+                    stats.monthlyBorrowingData.map((monthData, index) => {
+                      const maxCount = Math.max(...stats.monthlyBorrowingData.map(m => m.count), 1);
+                      const heightPercentage = maxCount > 0 ? (monthData.count / maxCount) * 100 : 0;
+                      const isCurrentMonth = index === stats.monthlyBorrowingData.length - 1;
+                      
+                      return (
+                        <div key={index} className="flex flex-col items-center gap-2 flex-1 group cursor-pointer relative">
+                          <div 
+                            className={`w-full transition-colors rounded-t-sm relative ${
+                              isCurrentMonth
+                                ? 'bg-gradient-to-t from-primary to-fuchsia-500 shadow-[0_0_15px_rgba(170,31,239,0.3)]'
+                                : 'bg-[#3c2348] group-hover:bg-primary/50'
+                            }`}
+                            style={{ height: `${Math.max(heightPercentage, 5)}%` }}
+                          >
+                            {monthData.count > 0 && (
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {monthData.count} {monthData.count === 1 ? 'Book' : 'Books'}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-[10px] uppercase ${isCurrentMonth ? 'text-white font-bold' : 'text-text-secondary'}`}>
+                            {monthData.month}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    // Show empty bars if no data
+                    Array.from({ length: 6 }).map((_, index) => (
+                      <div key={index} className="flex flex-col items-center gap-2 flex-1">
+                        <div className="w-full bg-[#3c2348] rounded-t-sm" style={{ height: '5%' }}></div>
+                        <span className="text-[10px] text-text-secondary uppercase">---</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Stats Footer */}
+                <div className="border-t border-[#3c2348] pt-4 flex justify-between gap-4">
+                  <div className="flex gap-3">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-text-secondary">Favorite Genre</span>
+                      <span className="text-sm font-bold text-white">
+                        {stats.favoriteGenre || 'N/A'} {stats.favoriteGenrePercentage > 0 ? `(${stats.favoriteGenrePercentage}%)` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex flex-col text-right">
+                      <span className="text-xs text-text-secondary">Avg. Reading Time</span>
+                      <span className="text-sm font-bold text-white">
+                        {stats.averageReadingTime > 0 ? `${stats.averageReadingTime} days/book` : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Sidebar: Upcoming Due & Activity Feed */}
+          <aside className="flex flex-col gap-6">
+            {/* Upcoming Due Section */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">event_upcoming</span>
+                Upcoming Due
+              </h3>
+              <div className="bg-surface-dark border border-[#3c2348] rounded-2xl overflow-hidden">
+                {stats.upcomingDue.length === 0 ? (
+                  <div className="p-4 text-center text-text-secondary text-sm">
+                    No upcoming due dates
+                  </div>
+                ) : (
+                  <>
+                    {stats.upcomingDue.map((item, index) => {
+                      const dueDate = new Date(item.dueDate);
+                      const day = dueDate.getDate();
+                      const month = dueDate.toLocaleDateString('en-US', { month: 'short' });
+                      const isOverdue = item.daysRemaining < 0;
+                      const isSoon = item.daysRemaining <= 3 && item.daysRemaining >= 0;
+                      
+                      return (
+                        <div 
+                          key={item._id}
+                          className={`p-3 border-b border-[#3c2348] hover:bg-surface-hover transition-colors cursor-pointer flex items-center gap-3 ${
+                            index === stats.upcomingDue.length - 1 ? 'border-b-0' : ''
+                          }`}
+                        >
+                          <div className={`size-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 flex-col leading-none ${
+                            isOverdue
+                              ? 'bg-alert-red/10 text-alert-red'
+                              : isSoon
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-emerald-500/10 text-emerald-500'
+                          }`}>
+                            <span>{day}</span>
+                            <span className="text-[8px] uppercase">{month}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white truncate">
+                              {item.book?.title || 'Unknown Book'}
+                            </p>
+                            <p className={`text-xs font-medium ${
+                              isOverdue
+                                ? 'text-alert-red'
+                                : isSoon
+                                ? 'text-primary'
+                                : 'text-text-secondary'
+                            }`}>
+                              {isOverdue 
+                                ? `Overdue (${Math.abs(item.daysRemaining)} day${Math.abs(item.daysRemaining) !== 1 ? 's' : ''} ago)`
+                                : item.daysRemaining === 0
+                                ? 'Due today'
+                                : `Due in ${item.daysRemaining} day${item.daysRemaining !== 1 ? 's' : ''}`
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Activity Feed Section */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">notifications</span>
+                Activity Feed
+              </h3>
+              <div className="flex flex-col gap-2">
+                {activityLoading ? (
+                  <div className="text-center py-8 text-text-secondary text-sm">
+                    <Loader />
+                  </div>
+                ) : activityFeed.length === 0 ? (
+                  <div className="text-center py-8 text-text-secondary text-sm">
+                    No recent activity
+                  </div>
+                ) : (
+                  activityFeed.map((activity) => {
+                    // Determine color based on notification type
+                    let dotColor = 'bg-[#3c2348]';
+                    if (activity.type === 'borrowing_overdue' || activity.type === 'fine_issued') {
+                      dotColor = 'bg-alert-red';
+                    } else if (activity.type === 'reservation_ready' || activity.type === 'payment_received') {
+                      dotColor = 'bg-primary';
+                    }
+
+                    // Format time ago
+                    const createdAt = new Date(activity.createdAt);
+                    const now = new Date();
+                    const diffMs = now - createdAt;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHours / 24);
+                    
+                    let timeAgo = '';
+                    if (diffHours < 1) {
+                      const diffMins = Math.floor(diffMs / (1000 * 60));
+                      timeAgo = diffMins <= 1 ? 'Just now' : `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                    } else if (diffHours < 24) {
+                      timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                    } else if (diffDays === 1) {
+                      timeAgo = 'Yesterday';
+                    } else if (diffDays < 7) {
+                      timeAgo = `${diffDays} days ago`;
+                    } else {
+                      timeAgo = createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+
+                    return (
+                      <div key={activity._id} className="flex gap-3 p-3 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer">
+                        <div className={`size-2 rounded-full ${dotColor} mt-2 flex-shrink-0`}></div>
+                        <div>
+                          <p className="text-sm text-white">
+                            {activity.message}
+                          </p>
+                          <p className="text-xs text-text-secondary mt-1">{timeAgo}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

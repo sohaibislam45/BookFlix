@@ -70,13 +70,13 @@ export default function MemberSidebar() {
             <div className="border-t border-[#3c2348] my-2"></div>
             <Link
               href="/member/upgrade"
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 relative ${
                 isActive('/member/upgrade')
                   ? 'bg-primary/10 text-primary border border-primary/20'
-                  : 'bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary border border-primary/30 hover:border-primary/50'
+                  : 'bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary border border-primary/30 hover:border-primary/50 animate-pulse-glow'
               }`}
             >
-              <span className="material-symbols-outlined">stars</span>
+              <span className={`material-symbols-outlined ${!isActive('/member/upgrade') ? 'animate-twinkle' : ''}`}>stars</span>
               <p className="text-sm font-bold">Upgrade Plan</p>
             </Link>
           </>
