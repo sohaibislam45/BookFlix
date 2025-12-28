@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
-import { showConfirm } from '@/lib/swal';
+import { showConfirm, showSuccess, showError as showErrorAlert } from '@/lib/swal';
+import Loader from '@/components/Loader';
+import OptimizedImage from '@/components/OptimizedImage';
 
 export default function BillingPage() {
   const { userData } = useAuth();
@@ -26,11 +28,17 @@ export default function BillingPage() {
       // Check for payment success/cancel in URL params
       const params = new URLSearchParams(window.location.search);
       if (params.get('payment_success') === 'true') {
-        // Show success message and refresh
+        showSuccess('Payment Successful', 'Your payment has been processed successfully.');
+        // Refresh data
         setTimeout(() => {
           fetchFines();
           fetchPayments();
+          window.history.replaceState({}, '', window.location.pathname);
         }, 1000);
+      }
+      if (params.get('payment_cancelled') === 'true') {
+        setError('Payment was cancelled.');
+        window.history.replaceState({}, '', window.location.pathname);
       }
       if (params.get('subscription_success') === 'true') {
         setSuccessMessage('Subscription activated successfully!');
@@ -48,10 +56,14 @@ export default function BillingPage() {
 
   const fetchFines = async () => {
     try {
+      setLoading(true);
       const response = await fetch(`/api/fines?memberId=${userData._id}&status=pending`);
       if (response.ok) {
         const data = await response.json();
         setFines(data.fines || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching fines:', errorData.error || 'Failed to fetch fines');
       }
     } catch (error) {
       console.error('Error fetching fines:', error);
@@ -66,6 +78,9 @@ export default function BillingPage() {
       if (response.ok) {
         const data = await response.json();
         setPayments(data.payments || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching payments:', errorData.error || 'Failed to fetch payments');
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -184,8 +199,11 @@ export default function BillingPage() {
       setSuccessMessage('Subscription reactivated successfully!');
       fetchSubscription();
       setProcessingSubscription(false);
+      showSuccess('Subscription Reactivated', 'Your premium subscription has been reactivated.');
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.message || 'Failed to reactivate subscription. Please try again.';
+      setError(errorMessage);
+      showErrorAlert('Reactivation Failed', errorMessage);
       console.error('Error reactivating subscription:', err);
       setProcessingSubscription(false);
     }
@@ -214,7 +232,12 @@ export default function BillingPage() {
       }
 
       const paymentData = await paymentResponse.json();
-      const paymentId = paymentData.payment._id;
+      // Get payment ID - API returns payment object in both new and existing cases
+      const paymentId = paymentData.payment?._id;
+      
+      if (!paymentId) {
+        throw new Error('Failed to get payment ID');
+      }
 
       // Create Stripe Checkout session
       const checkoutResponse = await fetch(`/api/payments/${paymentId}/checkout`, {
@@ -235,7 +258,9 @@ export default function BillingPage() {
         throw new Error('No checkout URL returned');
       }
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.message || 'Failed to process payment. Please try again.';
+      setError(errorMessage);
+      showErrorAlert('Payment Error', errorMessage);
       console.error('Error processing payment:', err);
       setProcessingPayment(null);
     }
@@ -257,7 +282,7 @@ export default function BillingPage() {
           {totalOutstanding > 0 && (
             <div className="bg-alert-red/10 border border-alert-red/30 rounded-xl p-4">
               <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Total Outstanding</p>
-              <p className="text-2xl font-bold text-alert-red">${totalOutstanding.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-alert-red">{totalOutstanding.toFixed(2)} BDT</p>
             </div>
           )}
         </div>
@@ -284,7 +309,7 @@ export default function BillingPage() {
           </div>
 
           <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-            {subscription && isPremium({ subscription }) ? (
+            {subscription && (subscription.type === 'monthly' || subscription.type === 'yearly') && subscription.status === 'active' ? (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -436,11 +461,13 @@ export default function BillingPage() {
                     <div className="flex-1">
                       <div className="flex items-start gap-4">
                         {fine.borrowing?.book?.coverImage && (
-                          <div className="w-16 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                            <img
+                          <div className="w-16 h-20 rounded-lg overflow-hidden flex-shrink-0 relative">
+                            <OptimizedImage
                               src={fine.borrowing.book.coverImage}
-                              alt={fine.borrowing.book.title}
-                              className="w-full h-full object-cover"
+                              alt={fine.borrowing.book.title || 'Book cover'}
+                              fill
+                              className="rounded-lg"
+                              objectFit="cover"
                             />
                           </div>
                         )}
@@ -473,7 +500,7 @@ export default function BillingPage() {
                     <div className="flex flex-col items-end gap-3">
                       <div className="text-right">
                         <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Amount Due</p>
-                        <p className="text-2xl font-bold text-alert-red">${fine.amount.toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-alert-red">{fine.amount.toFixed(2)} BDT</p>
                       </div>
                       <button
                         onClick={() => handlePayFine(fine)}
@@ -594,7 +621,7 @@ export default function BillingPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-text-secondary text-xs font-bold uppercase tracking-wider">Amount</p>
-                      <p className="text-xl font-bold text-white">${payment.amount.toFixed(2)}</p>
+                      <p className="text-xl font-bold text-white">{payment.amount.toFixed(2)} BDT</p>
                     </div>
                   </div>
                 </div>

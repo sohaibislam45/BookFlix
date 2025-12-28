@@ -22,7 +22,9 @@ export default function MemberSidebar() {
   ];
 
   const subscriptionType = userData?.subscription?.type || 'free';
-  const memberType = subscriptionType === 'free' ? 'Standard Member' : 'Premium Member';
+  const subscriptionStatus = userData?.subscription?.status || 'active';
+  const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+  const memberType = isPremium ? 'Premium Member' : 'Standard Member';
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-[#3c2348]/50 bg-[#1c1022] hidden md:flex flex-col justify-between p-4">
@@ -61,6 +63,24 @@ export default function MemberSidebar() {
             );
           })}
         </nav>
+
+        {/* Upgrade Plan Button - Only for Standard Members */}
+        {!isPremium && (
+          <>
+            <div className="border-t border-[#3c2348] my-2"></div>
+            <Link
+              href="/member/upgrade"
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
+                isActive('/member/upgrade')
+                  ? 'bg-primary/10 text-primary border border-primary/20'
+                  : 'bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary border border-primary/30 hover:border-primary/50'
+              }`}
+            >
+              <span className="material-symbols-outlined">stars</span>
+              <p className="text-sm font-bold">Upgrade Plan</p>
+            </Link>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-surface-dark border border-[#3c2348]">
         <div className="size-10 rounded-full overflow-hidden bg-[#3c2348] flex items-center justify-center">
