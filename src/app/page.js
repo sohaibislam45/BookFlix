@@ -403,7 +403,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Top Borrowed This Week</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/member/browse"
+              href="/browse?sort=rating&order=desc"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -460,7 +460,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Fresh New Arrivals</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/member/browse"
+              href="/browse?sort=createdAt&order=desc"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -517,7 +517,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Bangla Books</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/member/browse"
+              href="/browse?language=bn"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -574,7 +574,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">English Books</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/member/browse"
+              href="/browse?language=en"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
