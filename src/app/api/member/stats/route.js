@@ -21,11 +21,12 @@ export async function GET(request) {
       return idValidation;
     }
 
-    // Get all non-returned borrowings (where returnedDate is null)
-    // This is the most reliable way to find currently borrowed books
+    // Get all non-returned borrowings (where returnedDate is null and status is ACTIVE or OVERDUE)
+    // This ensures we get all currently borrowed books regardless of data consistency
     const allBorrowings = await Borrowing.find({
       member: memberId,
       returnedDate: null,
+      status: { $in: [BORROWING_STATUS.ACTIVE, BORROWING_STATUS.OVERDUE] },
     })
       .populate('book', 'title author coverImage')
       .populate('bookCopy', 'copyNumber')
@@ -33,13 +34,14 @@ export async function GET(request) {
       .lean();
 
     // Categorize borrowings as active or overdue based on current date
-    const now = new Date();
+    // Use a single currentDate variable throughout the function to avoid duplicate declarations
+    const currentDate = new Date();
     const activeBorrowings = [];
     const overdueBorrowings = [];
 
     allBorrowings.forEach((borrowing) => {
       const dueDate = new Date(borrowing.dueDate);
-      if (dueDate < now) {
+      if (dueDate < currentDate) {
         // Past due date - overdue
         overdueBorrowings.push(borrowing);
       } else {
@@ -70,9 +72,8 @@ export async function GET(request) {
 
     // Calculate days remaining for active borrowings
     const activeWithDays = activeBorrowings.map((borrowing) => {
-      const now = new Date();
       const dueDate = new Date(borrowing.dueDate);
-      const diffTime = dueDate - now;
+      const diffTime = dueDate - currentDate;
       const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       return {
@@ -83,9 +84,8 @@ export async function GET(request) {
 
     // Calculate days overdue for overdue borrowings
     const overdueWithDays = overdueBorrowings.map((borrowing) => {
-      const now = new Date();
       const dueDate = new Date(borrowing.dueDate);
-      const diffTime = now - dueDate;
+      const diffTime = currentDate - dueDate;
       const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       return {
@@ -99,13 +99,12 @@ export async function GET(request) {
     const goalPercentage = Math.round((returnedThisYear / yearlyGoal) * 100);
 
     // Get monthly borrowing data (last 6 months)
-    const now = new Date();
     const monthlyData = [];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
     for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 1);
       
       const count = await Borrowing.countDocuments({
         member: memberId,
@@ -126,7 +125,7 @@ export async function GET(request) {
     const returnedBorrowings = await Borrowing.find({
       member: memberId,
       status: BORROWING_STATUS.RETURNED,
-      returnedDate: { $gte: new Date(now.getFullYear(), 0, 1) }, // This year
+      returnedDate: { $gte: new Date(currentDate.getFullYear(), 0, 1) }, // This year
     })
       .populate({
         path: 'book',

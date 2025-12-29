@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
@@ -9,6 +10,7 @@ import Loader from '@/components/Loader';
 import OptimizedImage from '@/components/OptimizedImage';
 
 export default function BillingPage() {
+  const router = useRouter();
   const { userData } = useAuth();
   const [fines, setFines] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -99,41 +101,9 @@ export default function BillingPage() {
     }
   };
 
-  const handleUpgradeSubscription = async (plan) => {
-    try {
-      setProcessingSubscription(true);
-      setError(null);
-      setSuccessMessage(null);
-
-      const response = await fetch('/api/subscriptions/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userData._id,
-          plan: plan,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create checkout session');
-      }
-
-      const data = await response.json();
-
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned');
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error('Error creating subscription checkout:', err);
-      setProcessingSubscription(false);
-    }
+  const handleUpgradeSubscription = (plan) => {
+    // Navigate to payment processing page with plan parameter
+    router.push(`/member/payment-processing?plan=${plan}`);
   };
 
   const handleCancelSubscription = async () => {
@@ -340,7 +310,14 @@ export default function BillingPage() {
                       disabled={processingSubscription}
                       className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
                     >
-                      {processingSubscription ? 'Processing...' : 'Reactivate Subscription'}
+                      {processingSubscription ? (
+                        <>
+                          <span className="material-symbols-outlined text-base animate-spin inline-block mr-2">refresh</span>
+                          Processing...
+                        </>
+                      ) : (
+                        'Reactivate Subscription'
+                      )}
                     </button>
                   </div>
                 ) : (
@@ -349,7 +326,14 @@ export default function BillingPage() {
                     disabled={processingSubscription}
                     className="bg-alert-red/10 hover:bg-alert-red/20 border border-alert-red/30 text-alert-red text-sm font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {processingSubscription ? 'Processing...' : 'Cancel Subscription'}
+                    {processingSubscription ? (
+                      <>
+                        <span className="material-symbols-outlined text-base animate-spin inline-block mr-2">refresh</span>
+                        Processing...
+                      </>
+                    ) : (
+                      'Cancel Subscription'
+                    )}
                   </button>
                 )}
               </div>
@@ -365,37 +349,17 @@ export default function BillingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => handleUpgradeSubscription('monthly')}
-                    disabled={processingSubscription}
-                    className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="bg-primary hover:bg-primary-hover text-white text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    {processingSubscription ? (
-                      <>
-                        <span className="material-symbols-outlined text-base animate-spin">refresh</span>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-base">workspace_premium</span>
-                        Upgrade to Monthly Premium
-                      </>
-                    )}
+                    <span className="material-symbols-outlined text-base">workspace_premium</span>
+                    Upgrade to Monthly Premium
                   </button>
                   <button
                     onClick={() => handleUpgradeSubscription('yearly')}
-                    disabled={processingSubscription}
                     className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    {processingSubscription ? (
-                      <>
-                        <span className="material-symbols-outlined text-base animate-spin">refresh</span>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-base">workspace_premium</span>
-                        Upgrade to Yearly Premium
-                      </>
-                    )}
+                    <span className="material-symbols-outlined text-base">workspace_premium</span>
+                    Upgrade to Yearly Premium
                   </button>
                 </div>
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
