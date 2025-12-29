@@ -11,8 +11,9 @@ const paymentSchema = new mongoose.Schema({
   fine: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Fine',
-    required: true,
+    required: false,
     index: true,
+    sparse: true,
   },
   amount: {
     type: Number,

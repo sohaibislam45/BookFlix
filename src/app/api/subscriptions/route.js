@@ -39,13 +39,30 @@ export async function GET(request) {
     const subscription = await Subscription.findOne({ user: userId });
 
     // Return subscription info
+    // Determine subscription type - prioritize Subscription collection, then User model
+    const subscriptionType = subscription?.plan || user.subscription?.type || 'free';
+    
+    // Determine status - if type is free, status should be 'active' (free is always active)
+    // Otherwise, use the actual status from subscription or user model
+    let subscriptionStatus;
+    if (subscriptionType === 'free') {
+      subscriptionStatus = 'active'; // Free plan is always active
+    } else {
+      // For premium plans, check actual status
+      subscriptionStatus = subscription?.status || user.subscription?.status;
+      // If no status found for premium plan, default to inactive
+      if (!subscriptionStatus) {
+        subscriptionStatus = 'inactive';
+      }
+    }
+    
     const subscriptionInfo = {
-      type: user.subscription?.type || 'free',
-      status: user.subscription?.status || 'active',
-      startDate: user.subscription?.startDate || null,
-      endDate: user.subscription?.endDate || null,
-      stripeSubscriptionId: user.subscription?.stripeSubscriptionId || null,
-      stripeCustomerId: user.subscription?.stripeCustomerId || null,
+      type: subscriptionType,
+      status: subscriptionStatus,
+      startDate: user.subscription?.startDate || subscription?.currentPeriodStart || null,
+      endDate: user.subscription?.endDate || subscription?.currentPeriodEnd || null,
+      stripeSubscriptionId: user.subscription?.stripeSubscriptionId || subscription?.stripeSubscriptionId || null,
+      stripeCustomerId: user.subscription?.stripeCustomerId || subscription?.stripeCustomerId || null,
       subscription: subscription ? {
         plan: subscription.plan,
         status: subscription.status,
@@ -57,6 +74,14 @@ export async function GET(request) {
         isExpired: subscription.isExpired,
       } : null,
     };
+    
+    console.log(`[Subscription API] Returning subscription info for user ${userId}:`, {
+      type: subscriptionInfo.type,
+      status: subscriptionInfo.status,
+      hasSubscriptionRecord: !!subscription,
+      userSubscriptionType: user.subscription?.type,
+      userSubscriptionStatus: user.subscription?.status,
+    });
 
     return NextResponse.json({
       subscription: subscriptionInfo,

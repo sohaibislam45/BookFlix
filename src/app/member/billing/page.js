@@ -49,8 +49,60 @@ export default function BillingPage() {
         // Clear URL params
         window.history.replaceState({}, '', window.location.pathname);
       }
+
+      // Auto-sync subscription if user has Stripe customer ID but subscription shows as free
+      // This handles cases where webhook didn't process
+      // Also try sync if user just completed checkout (might not have customer ID saved yet)
+      const shouldSync = (userData?.subscription?.stripeCustomerId && 
+          (!userData?.subscription?.type || userData.subscription.type === 'free')) ||
+          // Check if we're coming from a successful checkout
+          (window.location.search.includes('subscription_success'));
+          
+      if (shouldSync) {
+        console.log('[Billing] Attempting auto-sync...', {
+          hasCustomerId: !!userData?.subscription?.stripeCustomerId,
+          subscriptionType: userData?.subscription?.type,
+          hasSuccessParam: window.location.search.includes('subscription_success')
+        });
+        // Delay sync slightly to avoid race conditions
+        setTimeout(async () => {
+          try {
+            const syncResponse = await fetch('/api/subscriptions/sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: userData._id,
+              }),
+            });
+            if (syncResponse.ok) {
+              const syncData = await syncResponse.json();
+              console.log('[Billing] Auto-sync successful:', syncData);
+              if (syncData.subscription && syncData.subscription.type !== 'free') {
+                await refreshUserData();
+                await fetchSubscription();
+                await fetchPayments();
+              }
+            } else {
+              const errorData = await syncResponse.json().catch(() => ({}));
+              console.log('[Billing] Auto-sync failed (this is OK if user hasn\'t completed checkout):', errorData);
+            }
+          } catch (error) {
+            console.error('[Billing] Auto-sync error:', error);
+          }
+        }, 2000);
+      }
     }
   }, [userData]);
+
+  // Refetch subscription when userData subscription changes
+  useEffect(() => {
+    if (userData?._id && userData?.subscription) {
+      console.log('[Billing] UserData subscription changed, refetching subscription:', userData.subscription);
+      fetchSubscription();
+    }
+  }, [userData?.subscription?.type, userData?.subscription?.status]);
 
   const fetchFines = async () => {
     try {
@@ -107,6 +159,46 @@ export default function BillingPage() {
     // Clear URL params immediately
     window.history.replaceState({}, '', window.location.pathname);
 
+    // First, try to sync subscription from Stripe (fallback if webhook didn't process)
+    try {
+      console.log('[Billing] Attempting to sync subscription from Stripe...');
+      const syncResponse = await fetch('/api/subscriptions/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+        }),
+      });
+
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json();
+        console.log('[Billing] Sync successful:', syncData);
+        
+        // Refresh userData and subscription after sync
+        await refreshUserData();
+        await fetchSubscription();
+        await fetchPayments();
+        
+        // Check if subscription is now active
+        if (syncData.subscription && 
+            (syncData.subscription.type === 'monthly' || syncData.subscription.type === 'yearly') &&
+            syncData.subscription.status === 'active') {
+          setSuccessMessage(`Subscription activated successfully! Your ${getSubscriptionDisplayName(syncData.subscription.type)} plan is now active.`);
+          showSuccess('Subscription Activated', `Your ${getSubscriptionDisplayName(syncData.subscription.type)} subscription has been activated successfully!`);
+          return;
+        }
+      } else {
+        const errorData = await syncResponse.json().catch(() => ({}));
+        console.error('[Billing] Sync failed:', errorData);
+        // Don't stop the flow if sync fails - continue with polling
+      }
+    } catch (syncError) {
+      console.error('[Billing] Error syncing subscription:', syncError);
+      // Don't stop the flow if sync fails - continue with polling
+    }
+
     // Refresh userData from AuthContext
     try {
       await refreshUserData();
@@ -121,14 +213,59 @@ export default function BillingPage() {
 
     const pollSubscription = async () => {
       attempts++;
+      console.log(`[Billing] Polling subscription attempt ${attempts}/${maxAttempts}`);
+      
+      // Try sync again every few attempts
+      if (attempts % 3 === 0) {
+        try {
+          const syncResponse = await fetch('/api/subscriptions/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: userData._id,
+            }),
+          });
+          if (syncResponse.ok) {
+            await refreshUserData();
+            await fetchSubscription();
+            await fetchPayments();
+          } else {
+            const errorData = await syncResponse.json().catch(() => ({}));
+            console.error('[Billing] Sync retry failed:', errorData);
+          }
+        } catch (error) {
+          console.error('[Billing] Error during sync retry:', error);
+        }
+      }
+      
       const subscriptionData = await fetchSubscription();
+      console.log('[Billing] Subscription data:', subscriptionData);
+      
+      // Also check userData
+      const userDataPlan = userData?.subscription?.type;
+      const userDataStatus = userData?.subscription?.status;
+      console.log('[Billing] UserData subscription:', { type: userDataPlan, status: userDataStatus });
       
       // Check if subscription is active and matches the plan
-      if (subscriptionData && 
-          (subscriptionData.type === plan || subscriptionData.type === 'monthly' || subscriptionData.type === 'yearly') &&
-          subscriptionData.status === 'active') {
-        setSuccessMessage(`Subscription activated successfully! Your ${getSubscriptionDisplayName(plan)} plan is now active.`);
-        showSuccess('Subscription Activated', `Your ${getSubscriptionDisplayName(plan)} subscription has been activated successfully!`);
+      const subscriptionType = subscriptionData?.type || userDataPlan;
+      const subscriptionStatus = subscriptionData?.status || userDataStatus;
+      
+      const isActivePremium = subscriptionType && 
+        (subscriptionType === 'monthly' || subscriptionType === 'yearly') && 
+        subscriptionStatus === 'active';
+      
+      console.log('[Billing] Subscription check:', { 
+        type: subscriptionType, 
+        status: subscriptionStatus, 
+        isActivePremium,
+        expectedPlan: plan 
+      });
+      
+      if (isActivePremium) {
+        setSuccessMessage(`Subscription activated successfully! Your ${getSubscriptionDisplayName(subscriptionType)} plan is now active.`);
+        showSuccess('Subscription Activated', `Your ${getSubscriptionDisplayName(subscriptionType)} subscription has been activated successfully!`);
         
         // Refresh payment history
         fetchPayments();
@@ -140,9 +277,11 @@ export default function BillingPage() {
 
       // If not found yet and haven't exceeded max attempts, retry
       if (attempts < maxAttempts) {
+        console.log(`[Billing] Subscription not found yet, retrying in ${pollInterval}ms...`);
         setTimeout(pollSubscription, pollInterval);
       } else {
         // After max attempts, show message but still refresh
+        console.log('[Billing] Max polling attempts reached, subscription may not be processed yet');
         setSuccessMessage('Subscription payment received. Your subscription should be activated shortly. Please refresh the page if it doesn\'t update.');
         fetchPayments();
         await refreshUserData();
@@ -365,15 +504,21 @@ export default function BillingPage() {
           <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
             {(() => {
               // Check subscription from API or userData
-              const activeSubscription = subscription || (userData?.subscription && {
+              // Prioritize subscription API data, fallback to userData
+              const subscriptionData = subscription || (userData?.subscription ? {
                 type: userData.subscription.type,
                 status: userData.subscription.status,
                 subscription: subscription?.subscription
-              });
+              } : null);
               
-              const hasActivePremium = activeSubscription && 
-                (activeSubscription.type === 'monthly' || activeSubscription.type === 'yearly') && 
-                activeSubscription.status === 'active';
+              // Check if user has active premium subscription
+              // Must have type 'monthly' or 'yearly' AND status 'active'
+              const hasActivePremium = subscriptionData && 
+                (subscriptionData.type === 'monthly' || subscriptionData.type === 'yearly') && 
+                subscriptionData.status === 'active';
+              
+              // Use subscriptionData for display
+              const activeSubscription = subscriptionData;
               
               return hasActivePremium ? (
               <div className="flex flex-col gap-4">
@@ -466,8 +611,11 @@ export default function BillingPage() {
                   <p className="text-2xl font-bold text-white">
                     {(() => {
                       // Show plan from subscription API or userData, fallback to Free
-                      const planToShow = subscription?.type || userData?.subscription?.type;
-                      if (planToShow === 'monthly' || planToShow === 'yearly') {
+                      const planToShow = subscription?.type || userData?.subscription?.type || 'free';
+                      const statusToCheck = subscription?.status || userData?.subscription?.status;
+                      
+                      // Only show premium plan if status is active
+                      if ((planToShow === 'monthly' || planToShow === 'yearly') && statusToCheck === 'active') {
                         return getSubscriptionDisplayName(planToShow);
                       }
                       return 'Free';
@@ -475,8 +623,10 @@ export default function BillingPage() {
                   </p>
                   <p className="text-text-secondary text-sm mt-2">
                     {(() => {
-                      const planToShow = subscription?.type || userData?.subscription?.type;
-                      if (planToShow === 'monthly' || planToShow === 'yearly') {
+                      const planToShow = subscription?.type || userData?.subscription?.type || 'free';
+                      const statusToCheck = subscription?.status || userData?.subscription?.status;
+                      
+                      if ((planToShow === 'monthly' || planToShow === 'yearly') && statusToCheck === 'active') {
                         return 'Your premium subscription is active.';
                       }
                       return 'Upgrade to Premium for enhanced borrowing privileges';
@@ -698,9 +848,23 @@ export default function BillingPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="text-white font-bold">
-                          {payment.fine?.borrowing?.book?.title || payment.metadata?.subscriptionType ? 
-                            `${getSubscriptionDisplayName(payment.metadata.subscriptionType)} Subscription` : 
-                            'Fine Payment'}
+                          {(() => {
+                            // Check if this is a subscription payment
+                            const subscriptionType = payment.metadata?.subscriptionType || 
+                              (payment.metadata instanceof Map ? payment.metadata.get('subscriptionType') : null) ||
+                              (typeof payment.metadata === 'object' && payment.metadata !== null && !payment.fine ? 
+                                (payment.metadata.subscriptionType || payment.metadata.get?.('subscriptionType')) : null);
+                            
+                            if (subscriptionType) {
+                              return `${getSubscriptionDisplayName(subscriptionType)} Subscription`;
+                            }
+                            // Check if it's a fine payment
+                            if (payment.fine?.borrowing?.book?.title) {
+                              return payment.fine.borrowing.book.title;
+                            }
+                            // Default
+                            return 'Payment';
+                          })()}
                         </h4>
                         <span
                           className={`text-xs font-bold px-2 py-1 rounded ${

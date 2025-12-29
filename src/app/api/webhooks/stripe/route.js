@@ -169,6 +169,36 @@ async function handleCheckoutSessionCompleted(session) {
   if (userId && plan && session.subscription) {
     try {
       console.log(`[Webhook] Processing subscription checkout for userId: ${userId}, plan: ${plan}, subscriptionId: ${session.subscription}`);
+      
+      // Get payment amount from session
+      const amountTotal = session.amount_total ? session.amount_total / 100 : 0; // Convert from cents
+      
+      // Create payment record for subscription
+      try {
+        // Create metadata Map for subscription payment
+        const metadataMap = new Map();
+        metadataMap.set('subscriptionType', plan);
+        metadataMap.set('subscriptionId', session.subscription);
+        metadataMap.set('checkoutSessionId', session.id);
+        
+        const payment = new Payment({
+          member: userId,
+          fine: null, // Subscription payments don't have a fine
+          amount: amountTotal,
+          status: PAYMENT_STATUS.COMPLETED,
+          paymentMethod: 'stripe',
+          stripePaymentIntentId: session.payment_intent || session.id,
+          stripeCustomerId: session.customer,
+          completedDate: new Date(),
+          metadata: metadataMap,
+        });
+        await payment.save();
+        console.log(`[Webhook] Payment record created for subscription: ${payment._id}`);
+      } catch (paymentError) {
+        console.error('[Webhook] Error creating payment record for subscription:', paymentError);
+        // Don't throw - subscription update should still proceed
+      }
+      
       await handleSubscriptionCheckoutCompleted(userId, session.subscription, plan);
       console.log(`[Webhook] Successfully processed subscription checkout for userId: ${userId}`);
     } catch (error) {

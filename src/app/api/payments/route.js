@@ -73,11 +73,28 @@ export async function GET(request) {
       .limit(limit)
       .select('-__v')
       .lean();
+    
+    // Convert metadata Map to object for easier access in frontend
+    const paymentsWithMetadata = payments.map(payment => {
+      if (payment.metadata && payment.metadata instanceof Map) {
+        payment.metadata = Object.fromEntries(payment.metadata);
+      } else if (payment.metadata && typeof payment.metadata === 'object' && payment.metadata.constructor === Object) {
+        // Already an object, keep as is
+      } else if (payment.metadata) {
+        // Convert Map-like object to plain object
+        const metadataObj = {};
+        for (const [key, value] of Object.entries(payment.metadata)) {
+          metadataObj[key] = value;
+        }
+        payment.metadata = metadataObj;
+      }
+      return payment;
+    });
 
     const total = await Payment.countDocuments(query);
 
     return NextResponse.json({
-      payments,
+      payments: paymentsWithMetadata,
       pagination: {
         page,
         limit,
