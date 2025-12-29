@@ -243,7 +243,7 @@ export async function POST(request) {
 
     // Always create payment if it doesn't exist (regardless of subscription status)
     if (!existingPayment) {
-      console.log(`[Sync] No payment found for subscription ${activeSubscription.id}, creating payment record...`);
+      console.log(`[Sync] Creating payment record for subscription ${activeSubscription.id}...`);
       try {
         const latestInvoice = await stripe.invoices.list({
           subscription: activeSubscription.id,

@@ -109,7 +109,8 @@ export default function BillingPage() {
   const createSubscriptionPayment = async () => {
     if (!userData?._id) return;
     
-    console.log('[Billing] Manually triggering payment creation...');
+    console.log('[Billing] Creating payment record for subscription...');
+    
     try {
       // First try sync endpoint
       const syncResponse = await fetch('/api/subscriptions/sync', {
@@ -252,7 +253,7 @@ export default function BillingPage() {
         const data = await response.json();
         setSubscription(data.subscription);
         
-        // If subscription is active but no payments, trigger payment creation
+        // If subscription is active but no payments, trigger payment creation immediately
         const sub = data.subscription;
         if (sub && (sub.type === 'monthly' || sub.type === 'yearly') && sub.status === 'active') {
           // Check if we need to create payment
@@ -260,8 +261,12 @@ export default function BillingPage() {
           if (paymentsResponse.ok) {
             const paymentsData = await paymentsResponse.json();
             if (paymentsData.payments?.length === 0 && !paymentSyncTriggered.current) {
-              console.log('[Billing] Active subscription found but no payments, will trigger creation...');
-              // Don't trigger immediately, let the useEffect handle it
+              console.log('[Billing] Active subscription found but no payments, triggering creation NOW...');
+              paymentSyncTriggered.current = true;
+              // Trigger immediately - don't wait
+              createSubscriptionPayment().catch(err => {
+                console.error('[Billing] Error in createSubscriptionPayment:', err);
+              });
             }
           }
         }
