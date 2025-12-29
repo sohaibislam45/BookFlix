@@ -627,6 +627,19 @@ export default function BookDetailsPage() {
                             {book.availableCopies} {book.availableCopies === 1 ? 'copy' : 'copies'} available
                           </span>
                         </>
+                      ) : book.currentReserver ? (
+                        <>
+                          <span className="relative flex h-3 w-3">
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                          </span>
+                          <span className="text-white font-medium">Reserved</span>
+                          <span className="text-text-secondary text-sm ml-2">
+                            {book.currentReserver.member._id === userData?._id 
+                              ? 'You have reserved this book'
+                              : `Reserved by ${book.currentReserver.member.name}`
+                            }
+                          </span>
+                        </>
                       ) : (
                         <>
                           <span className="relative flex h-3 w-3">
@@ -634,7 +647,7 @@ export default function BookDetailsPage() {
                           </span>
                           <span className="text-white font-medium">Waitlist Only</span>
                           <span className="text-text-secondary text-sm ml-2">
-                            Join the waitlist to reserve
+                            {isPremium ? 'Reserve this book' : 'Premium members can reserve'}
                           </span>
                         </>
                       )}
@@ -704,29 +717,51 @@ export default function BookDetailsPage() {
                       ) : (
                         // Book is unavailable - show Reserve button only for premium members
                         isPremium ? (
-                          <button
-                            onClick={handleReserve}
-                            disabled={reserving || isReserved || !user || !isMember || checkingReservation}
-                            className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {reserving ? (
-                              <>
-                                <Loader />
-                                <span>Reserving...</span>
-                              </>
-                            ) : isReserved ? (
-                              <>
-                                <span className="material-symbols-outlined">check_circle</span>
+                          book.currentReserver ? (
+                            // Already reserved by someone
+                            <div className="flex-1 relative group/tooltip">
+                              <button
+                                disabled
+                                className="flex-1 bg-surface-dark/50 text-text-secondary font-bold h-12 px-6 rounded-lg border border-surface-border cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                <span className="material-symbols-outlined">lock</span>
                                 <span>Already Reserved</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined">local_library</span>
-                                <span>Join Waitlist</span>
-                                <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
-                              </>
-                            )}
-                          </button>
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-surface-border rounded text-center opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                                <p className="text-xs text-primary font-bold">Reserved</p>
+                                <p className="text-xs text-gray-400">
+                                  {book.currentReserver.member._id === userData?._id 
+                                    ? 'You have reserved this book'
+                                    : `Reserved by ${book.currentReserver.member.name}`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handleReserve}
+                              disabled={reserving || isReserved || !user || !isMember || checkingReservation}
+                              className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {reserving ? (
+                                <>
+                                  <Loader />
+                                  <span>Reserving...</span>
+                                </>
+                              ) : isReserved ? (
+                                <>
+                                  <span className="material-symbols-outlined">check_circle</span>
+                                  <span>Already Reserved</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined">local_library</span>
+                                  <span>Reserve Book</span>
+                                  <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
+                                </>
+                              )}
+                            </button>
+                          )
                         ) : (
                           <div className="flex-1 relative group/tooltip">
                             <button

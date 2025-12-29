@@ -203,12 +203,16 @@ function BrowseContent() {
 
       if (response.ok) {
         const data = await response.json();
-        showSuccess('Reservation Created!', `Your queue position: #${data.reservation.queuePosition}`);
-        // Refresh books to update available copies
+        showSuccess('Reservation Created!', 'Book has been reserved successfully. You will be notified when it\'s available.');
+        // Refresh books to update available copies and reservation status
         fetchBooks();
       } else {
         const error = await response.json();
-        showError('Error', error.error || 'Failed to reserve book');
+        if (error.reserver) {
+          showError('Already Reserved', `This book is already reserved by ${error.reserver.name}.`);
+        } else {
+          showError('Error', error.error || 'Failed to reserve book');
+        }
       }
     } catch (error) {
       console.error('Error reserving book:', error);
@@ -506,6 +510,9 @@ function BrowseContent() {
                                 const subscriptionType = userData?.subscription?.type || 'free';
                                 const subscriptionStatus = userData?.subscription?.status || 'active';
                                 const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+                                
+                                // Check if book is already reserved (we'll check this via API, but show button as enabled)
+                                // The API will return an error if already reserved
                                 
                                 return isPremium ? (
                                   <button

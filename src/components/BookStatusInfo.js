@@ -1,7 +1,5 @@
 'use client';
 
-import Image from 'next/image';
-
 export default function BookStatusInfo({ currentBorrower, currentReserver, isPremium }) {
   if (!currentBorrower && !currentReserver) {
     return null;
@@ -14,17 +12,21 @@ export default function BookStatusInfo({ currentBorrower, currentReserver, isPre
           <div className="flex items-center gap-3 flex-1">
             <div className="relative size-12 rounded-full overflow-hidden bg-surface-dark border border-surface-border flex-shrink-0">
               {currentBorrower.member.profilePhoto ? (
-                <Image
+                <img
                   src={currentBorrower.member.profilePhoto}
                   alt={currentBorrower.member.name}
-                  fill
-                  className="object-cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white text-lg font-bold bg-primary/20">
-                  {currentBorrower.member.name?.charAt(0)?.toUpperCase() || 'U'}
-                </div>
-              )}
+              ) : null}
+              <div 
+                className={`w-full h-full flex items-center justify-center text-white text-lg font-bold bg-primary/20 ${currentBorrower.member.profilePhoto ? 'hidden' : ''}`}
+              >
+                {currentBorrower.member.name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold uppercase text-text-secondary tracking-wider mb-1">
@@ -54,17 +56,21 @@ export default function BookStatusInfo({ currentBorrower, currentReserver, isPre
         <div className="flex items-center gap-3">
           <div className="relative size-12 rounded-full overflow-hidden bg-surface-dark border border-surface-border flex-shrink-0">
             {currentReserver.member.profilePhoto ? (
-              <Image
+              <img
                 src={currentReserver.member.profilePhoto}
                 alt={currentReserver.member.name}
-                fill
-                className="object-cover"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white text-lg font-bold bg-amber-500/20">
-                {currentReserver.member.name?.charAt(0)?.toUpperCase() || 'U'}
-              </div>
-            )}
+            ) : null}
+            <div 
+              className={`w-full h-full flex items-center justify-center text-white text-lg font-bold bg-amber-500/20 ${currentReserver.member.profilePhoto ? 'hidden' : ''}`}
+            >
+              {currentReserver.member.name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold uppercase text-text-secondary tracking-wider mb-1">
