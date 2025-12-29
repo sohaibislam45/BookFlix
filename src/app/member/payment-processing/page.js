@@ -34,7 +34,17 @@ export default function PaymentProcessingPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || 'Failed to create checkout session';
+        let errorMessage = errorData.error || 'Failed to create checkout session';
+        
+        // Provide more helpful messages for common errors
+        if (errorMessage.includes('Stripe price ID not configured')) {
+          errorMessage = 'Payment system is not fully configured. Please contact support or try again later.';
+        } else if (errorMessage.includes('already has an active subscription')) {
+          errorMessage = 'You already have an active premium subscription. Please manage it from the billing page.';
+        } else if (response.status === 500) {
+          errorMessage = 'A server error occurred. Please try again later or contact support if the problem persists.';
+        }
+        
         throw new Error(errorMessage);
       }
 

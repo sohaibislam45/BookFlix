@@ -168,10 +168,22 @@ async function handleCheckoutSessionCompleted(session) {
   
   if (userId && plan && session.subscription) {
     try {
+      console.log(`[Webhook] Processing subscription checkout for userId: ${userId}, plan: ${plan}, subscriptionId: ${session.subscription}`);
       await handleSubscriptionCheckoutCompleted(userId, session.subscription, plan);
+      console.log(`[Webhook] Successfully processed subscription checkout for userId: ${userId}`);
     } catch (error) {
       console.error('Error handling subscription checkout session completed:', error);
       throw error;
+    }
+  } else {
+    // Log if subscription checkout session is missing required data
+    if (session.mode === 'subscription') {
+      console.warn('[Webhook] Subscription checkout session missing required data:', {
+        hasUserId: !!userId,
+        hasPlan: !!plan,
+        hasSubscription: !!session.subscription,
+        metadata: metadata
+      });
     }
   }
 }
@@ -399,9 +411,13 @@ async function handleInvoicePaymentFailed(invoice) {
 async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan) {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      console.error(`Invalid user ID: ${userId}`);
+      console.error(`[Webhook] Invalid user ID: ${userId}`);
       return;
     }
+
+    // Normalize plan value
+    const normalizedPlan = plan === 'yearly' ? 'yearly' : 'monthly';
+    console.log(`[Webhook] Processing subscription for user ${userId}, plan: ${normalizedPlan}, subscriptionId: ${subscriptionId}`);
 
     // Get subscription from Stripe
     const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -409,24 +425,24 @@ async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan)
     // Find user
     const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found: ${userId}`);
+      console.error(`[Webhook] User not found: ${userId}`);
       return;
     }
+
+    const customerId = stripeSubscription.customer;
+    const status = stripeSubscription.status;
 
     // Create or update subscription record
     let subscriptionRecord = await Subscription.findOne({ 
       stripeSubscriptionId: subscriptionId 
     });
 
-    const customerId = stripeSubscription.customer;
-    const status = stripeSubscription.status;
-
     if (!subscriptionRecord) {
       subscriptionRecord = new Subscription({
         user: user._id,
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: customerId,
-        plan: plan === 'yearly' ? 'yearly' : 'monthly',
+        plan: normalizedPlan,
         status: status,
         currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
         currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
@@ -434,21 +450,24 @@ async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan)
         trialStart: stripeSubscription.trial_start ? new Date(stripeSubscription.trial_start * 1000) : null,
         trialEnd: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
       });
+      console.log(`[Webhook] Creating new subscription record for user ${userId}`);
     } else {
       subscriptionRecord.status = status;
       subscriptionRecord.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
       subscriptionRecord.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
       subscriptionRecord.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
+      console.log(`[Webhook] Updating existing subscription record for user ${userId}`);
     }
 
     await subscriptionRecord.save();
+    console.log(`[Webhook] Subscription record saved for user ${userId}`);
 
     // Update user subscription
     if (!user.subscription) {
       user.subscription = {};
     }
     
-    user.subscription.type = plan;
+    user.subscription.type = normalizedPlan;
     user.subscription.status = (status === 'active' || status === 'trialing') ? 'active' : 'cancelled';
     user.subscription.startDate = subscriptionRecord.currentPeriodStart;
     user.subscription.endDate = subscriptionRecord.currentPeriodEnd;
@@ -456,8 +475,9 @@ async function handleSubscriptionCheckoutCompleted(userId, subscriptionId, plan)
     user.subscription.stripeCustomerId = customerId;
     
     await user.save();
+    console.log(`[Webhook] User subscription updated successfully for user ${userId}: type=${normalizedPlan}, status=${user.subscription.status}`);
   } catch (error) {
-    console.error('Error handling subscription checkout completed:', error);
+    console.error('[Webhook] Error handling subscription checkout completed:', error);
     throw error;
   }
 }

@@ -53,6 +53,7 @@ const userSchema = new mongoose.Schema({
     startDate: Date,
     endDate: Date,
     stripeSubscriptionId: String,
+    stripeCustomerId: String,
   },
   isActive: {
     type: Boolean,

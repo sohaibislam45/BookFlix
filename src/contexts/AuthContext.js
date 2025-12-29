@@ -304,6 +304,52 @@ export default function AuthProvider({ children }) {
     }
   };
 
+  // Function to refresh user data from MongoDB
+  const refreshUserData = async () => {
+    if (!user) {
+      console.warn('[AuthContext] Cannot refresh user data: no user authenticated');
+      return { success: false, error: 'No user authenticated' };
+    }
+
+    try {
+      const response = await fetch(`/api/users?firebaseUid=${encodeURIComponent(user.uid)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        // If userData doesn't have profilePhoto but Firebase user has photoURL, update it
+        if (!data.profilePhoto && user.photoURL) {
+          // Update user profile photo in MongoDB
+          try {
+            const updateResponse = await fetch(`/api/users/${user.uid}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ profilePhoto: user.photoURL }),
+            });
+            if (updateResponse.ok) {
+              data.profilePhoto = user.photoURL;
+            }
+          } catch (error) {
+            console.error('[AuthContext] Error updating profile photo:', error);
+          }
+        }
+        // Ensure profilePhoto is set from Firebase if MongoDB doesn't have it
+        if (!data.profilePhoto && user.photoURL) {
+          data.profilePhoto = user.photoURL;
+        }
+        setUserData(data);
+        return { success: true, data };
+      } else {
+        console.error('[AuthContext] Error refreshing user data, status:', response.status);
+        return { success: false, error: `Failed to refresh user data: ${response.status}` };
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error refreshing user data:', error);
+      return { success: false, error: error.message || 'Failed to refresh user data' };
+    }
+  };
+
   const value = {
     user,
     userData,
@@ -314,6 +360,7 @@ export default function AuthProvider({ children }) {
     signOut,
     changePassword,
     setUserData,
+    refreshUserData,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

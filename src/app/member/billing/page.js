@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
@@ -10,8 +9,7 @@ import Loader from '@/components/Loader';
 import OptimizedImage from '@/components/OptimizedImage';
 
 export default function BillingPage() {
-  const router = useRouter();
-  const { userData } = useAuth();
+  const { userData, refreshUserData } = useAuth();
   const [fines, setFines] = useState([]);
   const [payments, setPayments] = useState([]);
   const [subscription, setSubscription] = useState(null);
@@ -43,10 +41,8 @@ export default function BillingPage() {
         window.history.replaceState({}, '', window.location.pathname);
       }
       if (params.get('subscription_success') === 'true') {
-        setSuccessMessage('Subscription activated successfully!');
-        fetchSubscription();
-        // Clear URL params
-        window.history.replaceState({}, '', window.location.pathname);
+        const plan = params.get('plan') || 'monthly';
+        handleSubscriptionSuccess(plan);
       }
       if (params.get('subscription_cancelled') === 'true') {
         setError('Subscription checkout was cancelled.');
@@ -95,15 +91,103 @@ export default function BillingPage() {
       if (response.ok) {
         const data = await response.json();
         setSubscription(data.subscription);
+        return data.subscription;
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
     }
+    return null;
   };
 
-  const handleUpgradeSubscription = (plan) => {
-    // Navigate to payment processing page with plan parameter
-    router.push(`/member/payment-processing?plan=${plan}`);
+  // Handle subscription success with polling/retry logic
+  const handleSubscriptionSuccess = async (plan) => {
+    setSuccessMessage('Processing your subscription...');
+    setError(null);
+    
+    // Clear URL params immediately
+    window.history.replaceState({}, '', window.location.pathname);
+
+    // Refresh userData from AuthContext
+    try {
+      await refreshUserData();
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+
+    // Poll subscription API with retry logic (webhook may take a moment to process)
+    let attempts = 0;
+    const maxAttempts = 10;
+    const pollInterval = 2000; // 2 seconds
+
+    const pollSubscription = async () => {
+      attempts++;
+      const subscriptionData = await fetchSubscription();
+      
+      // Check if subscription is active and matches the plan
+      if (subscriptionData && 
+          (subscriptionData.type === plan || subscriptionData.type === 'monthly' || subscriptionData.type === 'yearly') &&
+          subscriptionData.status === 'active') {
+        setSuccessMessage(`Subscription activated successfully! Your ${getSubscriptionDisplayName(plan)} plan is now active.`);
+        showSuccess('Subscription Activated', `Your ${getSubscriptionDisplayName(plan)} subscription has been activated successfully!`);
+        
+        // Refresh payment history
+        fetchPayments();
+        
+        // Refresh userData one more time to ensure it's up to date
+        await refreshUserData();
+        return;
+      }
+
+      // If not found yet and haven't exceeded max attempts, retry
+      if (attempts < maxAttempts) {
+        setTimeout(pollSubscription, pollInterval);
+      } else {
+        // After max attempts, show message but still refresh
+        setSuccessMessage('Subscription payment received. Your subscription should be activated shortly. Please refresh the page if it doesn\'t update.');
+        fetchPayments();
+        await refreshUserData();
+      }
+    };
+
+    // Start polling after initial delay
+    setTimeout(pollSubscription, 1000);
+  };
+
+  const handleUpgradeSubscription = async (plan) => {
+    try {
+      setProcessingSubscription(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const response = await fetch('/api/subscriptions/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+          plan: plan,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+
+      const data = await response.json();
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error creating subscription checkout:', err);
+      setProcessingSubscription(false);
+    }
   };
 
   const handleCancelSubscription = async () => {
@@ -279,15 +363,27 @@ export default function BillingPage() {
           </div>
 
           <div className="bg-surface-dark rounded-xl p-6 border border-[#3c2348]">
-            {subscription && (subscription.type === 'monthly' || subscription.type === 'yearly') && subscription.status === 'active' ? (
+            {(() => {
+              // Check subscription from API or userData
+              const activeSubscription = subscription || (userData?.subscription && {
+                type: userData.subscription.type,
+                status: userData.subscription.status,
+                subscription: subscription?.subscription
+              });
+              
+              const hasActivePremium = activeSubscription && 
+                (activeSubscription.type === 'monthly' || activeSubscription.type === 'yearly') && 
+                activeSubscription.status === 'active';
+              
+              return hasActivePremium ? (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Current Plan</p>
-                    <p className="text-2xl font-bold text-white">{getSubscriptionDisplayName(subscription.type)}</p>
-                    {subscription.subscription && (
+                    <p className="text-2xl font-bold text-white">{getSubscriptionDisplayName(activeSubscription.type)}</p>
+                    {activeSubscription.subscription && (
                       <p className="text-text-secondary text-sm mt-2">
-                        Renews on {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                        Renews on {new Date(activeSubscription.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                           month: 'long',
                           day: 'numeric',
                           year: 'numeric',
@@ -300,7 +396,33 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                {subscription.subscription?.cancelAtPeriodEnd ? (
+                {/* Disabled upgrade buttons showing current plan */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    disabled
+                    className={`${
+                      activeSubscription.type === 'monthly'
+                        ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
+                        : 'bg-primary/10 border border-primary/30'
+                    } text-white text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+                  >
+                    <span className="material-symbols-outlined text-base">workspace_premium</span>
+                    {activeSubscription.type === 'monthly' ? 'Subscribed - Monthly Premium' : 'Upgrade to Monthly Premium'}
+                  </button>
+                  <button
+                    disabled
+                    className={`${
+                      activeSubscription.type === 'yearly'
+                        ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
+                        : 'bg-primary/10 border border-primary/30'
+                    } text-white text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+                  >
+                    <span className="material-symbols-outlined text-base">workspace_premium</span>
+                    {activeSubscription.type === 'yearly' ? 'Subscribed - Yearly Premium' : 'Upgrade to Yearly Premium'}
+                  </button>
+                </div>
+
+                {activeSubscription.subscription?.cancelAtPeriodEnd ? (
                   <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
                     <p className="text-orange-400 text-sm mb-3">
                       Your subscription will be cancelled at the end of the current period.
@@ -341,27 +463,64 @@ export default function BillingPage() {
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-1">Current Plan</p>
-                  <p className="text-2xl font-bold text-white">Free</p>
+                  <p className="text-2xl font-bold text-white">
+                    {(() => {
+                      // Show plan from subscription API or userData, fallback to Free
+                      const planToShow = subscription?.type || userData?.subscription?.type;
+                      if (planToShow === 'monthly' || planToShow === 'yearly') {
+                        return getSubscriptionDisplayName(planToShow);
+                      }
+                      return 'Free';
+                    })()}
+                  </p>
                   <p className="text-text-secondary text-sm mt-2">
-                    Upgrade to Premium for enhanced borrowing privileges
+                    {(() => {
+                      const planToShow = subscription?.type || userData?.subscription?.type;
+                      if (planToShow === 'monthly' || planToShow === 'yearly') {
+                        return 'Your premium subscription is active.';
+                      }
+                      return 'Upgrade to Premium for enhanced borrowing privileges';
+                    })()}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => handleUpgradeSubscription('monthly')}
-                    className="bg-primary hover:bg-primary-hover text-white text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-base">workspace_premium</span>
-                    Upgrade to Monthly Premium
-                  </button>
-                  <button
-                    onClick={() => handleUpgradeSubscription('yearly')}
-                    className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-base">workspace_premium</span>
-                    Upgrade to Yearly Premium
-                  </button>
+                  {(() => {
+                    const currentPlan = subscription?.type || userData?.subscription?.type;
+                    const isActive = subscription?.status === 'active' || userData?.subscription?.status === 'active';
+                    const isMonthlyActive = currentPlan === 'monthly' && isActive;
+                    const isYearlyActive = currentPlan === 'yearly' && isActive;
+                    
+                    return (
+                      <>
+                        <button
+                          onClick={() => handleUpgradeSubscription('monthly')}
+                          disabled={isMonthlyActive || processingSubscription}
+                          className={`${
+                            isMonthlyActive 
+                              ? 'bg-primary/30 border border-primary/50 cursor-not-allowed' 
+                              : 'bg-primary hover:bg-primary-hover'
+                          } text-white text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+                        >
+                          <span className="material-symbols-outlined text-base">workspace_premium</span>
+                          {isMonthlyActive ? 'Subscribed - Monthly Premium' : 'Upgrade to Monthly Premium'}
+                        </button>
+                        <button
+                          onClick={() => handleUpgradeSubscription('yearly')}
+                          disabled={isYearlyActive || processingSubscription}
+                          className={`${
+                            isYearlyActive 
+                              ? 'bg-primary/30 border border-primary/50 cursor-not-allowed' 
+                              : 'bg-primary/10 hover:bg-primary/20 border border-primary/30'
+                          } text-primary text-sm font-bold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+                        >
+                          <span className="material-symbols-outlined text-base">workspace_premium</span>
+                          {isYearlyActive ? 'Subscribed - Yearly Premium' : 'Upgrade to Yearly Premium'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
+                {/* Premium Benefits Section - only shown when user doesn't have premium */}
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
                   <p className="text-text-secondary text-xs font-bold uppercase tracking-wider mb-2">Premium Benefits</p>
                   <ul className="text-text-secondary text-sm space-y-1">
@@ -380,7 +539,8 @@ export default function BillingPage() {
                   </ul>
                 </div>
               </div>
-            )}
+            );
+            })()}
           </div>
         </section>
 
@@ -538,7 +698,9 @@ export default function BillingPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="text-white font-bold">
-                          {payment.fine?.borrowing?.book?.title || 'Fine Payment'}
+                          {payment.fine?.borrowing?.book?.title || payment.metadata?.subscriptionType ? 
+                            `${getSubscriptionDisplayName(payment.metadata.subscriptionType)} Subscription` : 
+                            'Fine Payment'}
                         </h4>
                         <span
                           className={`text-xs font-bold px-2 py-1 rounded ${
