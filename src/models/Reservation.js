@@ -46,6 +46,7 @@ const reservationSchema = new mongoose.Schema({
   queuePosition: {
     type: Number,
     default: 1,
+    // Deprecated: kept for backward compatibility, but no longer used in single-reservation system
   },
   notes: {
     type: String,
@@ -72,7 +73,8 @@ const reservationSchema = new mongoose.Schema({
 reservationSchema.index({ member: 1, status: 1 });
 reservationSchema.index({ book: 1, status: 1 });
 reservationSchema.index({ status: 1, reservedDate: 1 });
-reservationSchema.index({ book: 1, status: 1, queuePosition: 1 });
+// Index for efficient lookup of active reservations per book
+reservationSchema.index({ book: 1, status: 1 });
 
 // Update the updatedAt field before saving
 reservationSchema.pre('save', async function() {
@@ -86,39 +88,30 @@ reservationSchema.pre('save', async function() {
     }
   }
   
-  // Calculate queue position for pending reservations
+  // Set queue position to 1 for single-reservation system (backward compatibility)
   if (this.status === RESERVATION_STATUS.PENDING && this.isNew) {
-    const count = await mongoose.model('Reservation').countDocuments({
-      book: this.book,
-      status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
-      _id: { $ne: this._id },
-      reservedDate: { $lt: this.reservedDate },
-    });
-    this.queuePosition = count + 1;
+    this.queuePosition = 1;
   }
 });
 
-// Static method to calculate queue position
-reservationSchema.statics.calculateQueuePosition = async function(bookId, reservedDate) {
-  const count = await this.countDocuments({
+// Static method to check if book has active reservation
+reservationSchema.statics.hasActiveReservation = async function(bookId) {
+  const activeReservation = await this.findOne({
     book: bookId,
     status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
-    reservedDate: { $lt: reservedDate },
-  });
-  return count + 1;
+  }).populate('member', 'name profilePhoto email');
+  return activeReservation;
 };
 
-// Static method to update queue positions for a book
+// Deprecated: kept for backward compatibility
+reservationSchema.statics.calculateQueuePosition = async function(bookId, reservedDate) {
+  return 1; // Always return 1 for single-reservation system
+};
+
+// Deprecated: kept for backward compatibility
 reservationSchema.statics.updateQueuePositions = async function(bookId) {
-  const reservations = await this.find({
-    book: bookId,
-    status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
-  }).sort({ reservedDate: 1 });
-  
-  for (let i = 0; i < reservations.length; i++) {
-    reservations[i].queuePosition = i + 1;
-    await reservations[i].save();
-  }
+  // No-op in single-reservation system
+  return;
 };
 
 // Virtual for days until expiry

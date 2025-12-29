@@ -10,6 +10,7 @@ import Loader from '@/components/Loader';
 import { showError, showSuccess } from '@/lib/swal';
 import Swal from 'sweetalert2';
 import { USER_ROLES, RESERVATION_STATUS } from '@/lib/constants';
+import BookStatusInfo from '@/components/BookStatusInfo';
 
 export default function BookDetailsPage() {
   const params = useParams();
@@ -127,6 +128,65 @@ export default function BookDetailsPage() {
     }
   };
 
+  // Handle borrow
+  const handleBorrow = async () => {
+    if (!user) {
+      showError('Login Required', 'You need to login first to borrow a book.');
+      sessionStorage.setItem('returnAfterLogin', `/book/${bookId}`);
+      router.push('/login');
+      return;
+    }
+
+    // Only members can borrow books
+    if (!isMember) {
+      showError('Borrowing Not Available', 'Book borrowing is only available for members. Please contact support if you need assistance.');
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Borrow Book',
+      text: 'Are you sure you want to borrow this book?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, borrow it',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setReserving(true);
+      const response = await fetch('/api/borrowings/borrow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          memberId: userData._id,
+          bookId: book._id,
+        }),
+      });
+
+      if (response.ok) {
+        showSuccess('Success!', 'Book borrowed successfully!');
+        // Refresh book data to update available copies
+        const bookResponse = await fetch(`/api/books/${bookId}`);
+        if (bookResponse.ok) {
+          const bookData = await bookResponse.json();
+          setBook(bookData);
+        }
+      } else {
+        const errorData = await response.json();
+        showError('Borrowing Failed', errorData.error || 'Could not borrow book. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error borrowing book:', error);
+      showError('Error', 'Failed to borrow book. Please try again.');
+    } finally {
+      setReserving(false);
+    }
+  };
+
   // Handle reservation
   const handleReserve = async () => {
     if (!user) {
@@ -140,6 +200,23 @@ export default function BookDetailsPage() {
     // Only members can reserve books
     if (!isMember) {
       showError('Reservation Not Available', 'Book reservations are only available for members. Please contact support if you need assistance.');
+      return;
+    }
+
+    // Check if user is premium
+    if (!isPremium) {
+      showError('Premium Feature', 'Reservations are only available for premium members. Please upgrade your plan to access this feature.');
+      router.push('/member/upgrade');
+      return;
+    }
+
+    // Check if book is already reserved
+    if (book.currentReserver) {
+      if (book.currentReserver.member._id === userData._id) {
+        showError('Already Reserved', 'You have already reserved this book.');
+      } else {
+        showError('Already Reserved', `This book is already reserved by ${book.currentReserver.member.name}.`);
+      }
       return;
     }
 
@@ -159,9 +236,19 @@ export default function BookDetailsPage() {
       if (response.ok) {
         setIsReserved(true);
         showSuccess('Reserved!', 'Book has been reserved successfully. You will be notified when it\'s available.');
+        // Refresh book data to update currentReserver
+        const bookResponse = await fetch(`/api/books/${bookId}`);
+        if (bookResponse.ok) {
+          const bookData = await bookResponse.json();
+          setBook(bookData);
+        }
       } else {
         const errorData = await response.json();
-        showError('Reservation Failed', errorData.error || 'Could not reserve book. Please try again.');
+        if (errorData.reserver) {
+          showError('Already Reserved', `This book is already reserved by ${errorData.reserver.name}.`);
+        } else {
+          showError('Reservation Failed', errorData.error || 'Could not reserve book. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Error reserving book:', error);
@@ -515,6 +602,15 @@ export default function BookDetailsPage() {
 
               {/* Availability & Actions */}
               <div className="bg-surface-dark/40 border border-surface-border rounded-xl p-6 backdrop-blur-sm">
+                {/* Borrower/Reserver Info */}
+                {book.currentBorrower || book.currentReserver ? (
+                  <BookStatusInfo 
+                    currentBorrower={book.currentBorrower}
+                    currentReserver={book.currentReserver}
+                    isPremium={isPremium}
+                  />
+                ) : null}
+
                 {/* Status Line */}
                 <div className="flex items-center justify-between mb-6 pb-6 border-b border-surface-border/50">
                   <div className="flex flex-col gap-1">
@@ -584,30 +680,69 @@ export default function BookDetailsPage() {
                   ) : (
                     /* Member Actions */
                     <>
-                      {/* Primary Action */}
-                      <button
-                        onClick={handleReserve}
-                        disabled={reserving || isReserved || (!isAvailable && !user) || !isMember || checkingReservation}
-                        className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {reserving ? (
-                          <>
-                            <Loader />
-                            <span>Reserving...</span>
-                          </>
-                        ) : isReserved ? (
-                          <>
-                            <span className="material-symbols-outlined">check_circle</span>
-                            <span>Already Reserved</span>
-                          </>
+                      {/* Primary Action - Show Borrow for available books, Reserve for unavailable (premium only) */}
+                      {isAvailable ? (
+                        // Book is available - show Borrow button for all members
+                        <button
+                          onClick={handleBorrow}
+                          disabled={reserving || !isMember}
+                          className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {reserving ? (
+                            <>
+                              <Loader />
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined">local_library</span>
+                              <span>Borrow</span>
+                              <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        // Book is unavailable - show Reserve button only for premium members
+                        isPremium ? (
+                          <button
+                            onClick={handleReserve}
+                            disabled={reserving || isReserved || !user || !isMember || checkingReservation}
+                            className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {reserving ? (
+                              <>
+                                <Loader />
+                                <span>Reserving...</span>
+                              </>
+                            ) : isReserved ? (
+                              <>
+                                <span className="material-symbols-outlined">check_circle</span>
+                                <span>Already Reserved</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined">local_library</span>
+                                <span>Join Waitlist</span>
+                                <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
+                              </>
+                            )}
+                          </button>
                         ) : (
-                          <>
-                            <span className="material-symbols-outlined">local_library</span>
-                            <span>{isAvailable ? 'Reserve for Pickup' : 'Join Waitlist'}</span>
-                            <span className="material-symbols-outlined opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all text-sm">arrow_forward</span>
-                          </>
-                        )}
-                      </button>
+                          <div className="flex-1 relative group/tooltip">
+                            <button
+                              disabled
+                              className="flex-1 bg-surface-dark/50 text-text-secondary font-bold h-12 px-6 rounded-lg border border-surface-border cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              <span className="material-symbols-outlined">lock</span>
+                              <span>Premium Feature</span>
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-surface-border rounded text-center opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                              <p className="text-xs text-primary font-bold">Premium Feature</p>
+                              <p className="text-xs text-gray-400">Upgrade to reserve books</p>
+                            </div>
+                          </div>
+                        )
+                      )}
 
                       {/* Secondary Action (Premium) */}
                       <div className="flex-1 relative group/tooltip">

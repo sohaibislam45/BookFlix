@@ -180,6 +180,16 @@ function BrowseContent() {
       return;
     }
 
+    // Check if user is premium
+    const subscriptionType = userData?.subscription?.type || 'free';
+    const subscriptionStatus = userData?.subscription?.status || 'active';
+    const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+    
+    if (!isPremium) {
+      showError('Premium Feature', 'Reservations are only available for premium members. Please upgrade your plan to access this feature.');
+      return;
+    }
+
     const result = await showConfirm('Reserve Book', 'Reserve this book? You will be added to the waitlist.');
     if (!result.isConfirmed) return;
 
@@ -492,16 +502,32 @@ function BrowseContent() {
                                 {borrowing ? 'Processing...' : 'Borrow'}
                               </button>
                             ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleReserve(book._id);
-                                }}
-                                disabled={borrowing}
-                                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {borrowing ? 'Processing...' : 'Reserve'}
-                              </button>
+                              (() => {
+                                const subscriptionType = userData?.subscription?.type || 'free';
+                                const subscriptionStatus = userData?.subscription?.status || 'active';
+                                const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+                                
+                                return isPremium ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleReserve(book._id);
+                                    }}
+                                    disabled={borrowing}
+                                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {borrowing ? 'Processing...' : 'Reserve'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="flex-1 bg-surface-dark/50 text-text-secondary text-xs font-bold py-2 rounded border border-surface-border cursor-not-allowed"
+                                    title="Premium feature - Upgrade to reserve books"
+                                  >
+                                    Premium Only
+                                  </button>
+                                );
+                              })()
                             )}
                             <button className="bg-white/10 hover:bg-white/20 text-white p-2 rounded transition-colors" title="Add to List">
                               <span className="material-symbols-outlined text-[18px] leading-none">bookmark_add</span>

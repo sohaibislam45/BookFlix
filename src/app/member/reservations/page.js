@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RESERVATION_STATUS } from '@/lib/constants';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import Loader from '@/components/Loader';
+import Link from 'next/link';
 
 export default function ReservationsPage() {
   const { userData } = useAuth();
@@ -117,6 +118,32 @@ export default function ReservationsPage() {
     ...reservations.expired,
     ...reservations.cancelled,
   ];
+
+  // Check if user is premium
+  const subscriptionType = userData?.subscription?.type || 'free';
+  const subscriptionStatus = userData?.subscription?.status || 'active';
+  const isPremiumMember = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+
+  // If not premium, show upgrade message
+  if (!isPremiumMember) {
+    return (
+      <div className="flex-1 overflow-y-auto p-8 pb-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-surface-dark rounded-xl p-8 border border-[#3c2348] text-center">
+            <span className="material-symbols-outlined text-5xl text-primary mb-4">lock</span>
+            <h2 className="text-2xl font-bold text-white mb-2">Premium Feature</h2>
+            <p className="text-text-secondary mb-6">Reservations are only available for premium members.</p>
+            <Link
+              href="/member/upgrade"
+              className="inline-block bg-primary hover:bg-primary-hover text-white font-bold px-6 py-3 rounded-lg transition-colors"
+            >
+              Upgrade to Premium
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-8 pb-20">

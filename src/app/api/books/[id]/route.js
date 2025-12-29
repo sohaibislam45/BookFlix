@@ -3,8 +3,11 @@ import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import BookCopy from '@/models/BookCopy';
 import Category from '@/models/Category';
+import Borrowing from '@/models/Borrowing';
+import Reservation from '@/models/Reservation';
 import { handleApiError, validateObjectId, sanitizeInput } from '@/lib/apiErrorHandler';
 import { isValidISBN, isValidDate } from '@/lib/validation';
+import { BORROWING_STATUS, RESERVATION_STATUS } from '@/lib/constants';
 import mongoose from 'mongoose';
 
 export async function GET(request, { params }) {
@@ -74,11 +77,69 @@ export async function GET(request, { params }) {
     console.log('GET book - location from DB:', book.location);
     console.log('GET book - final shelfLocation:', shelfLocation);
 
+    // Get active borrowing info (if book is currently borrowed)
+    let currentBorrower = null;
+    const activeBorrowing = await Borrowing.findOne({
+      book: id,
+      status: { $in: [BORROWING_STATUS.ACTIVE, BORROWING_STATUS.OVERDUE] },
+    })
+      .populate('member', 'name profilePhoto email')
+      .select('member dueDate borrowedDate daysRemaining daysOverdue status')
+      .lean();
+
+    if (activeBorrowing) {
+      const dueDate = new Date(activeBorrowing.dueDate);
+      const now = new Date();
+      const diffTime = dueDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      currentBorrower = {
+        member: {
+          _id: activeBorrowing.member._id,
+          name: activeBorrowing.member.name,
+          profilePhoto: activeBorrowing.member.profilePhoto,
+          email: activeBorrowing.member.email,
+        },
+        dueDate: activeBorrowing.dueDate,
+        borrowedDate: activeBorrowing.borrowedDate,
+        daysRemaining: diffDays > 0 ? diffDays : 0,
+        daysOverdue: diffDays < 0 ? Math.abs(diffDays) : 0,
+        status: activeBorrowing.status,
+      };
+    }
+
+    // Get active reservation info (if book is currently reserved)
+    let currentReserver = null;
+    const activeReservation = await Reservation.findOne({
+      book: id,
+      status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
+    })
+      .populate('member', 'name profilePhoto email')
+      .select('member reservedDate expiryDate readyDate status')
+      .lean();
+
+    if (activeReservation) {
+      currentReserver = {
+        member: {
+          _id: activeReservation.member._id,
+          name: activeReservation.member.name,
+          profilePhoto: activeReservation.member.profilePhoto,
+          email: activeReservation.member.email,
+        },
+        reservedDate: activeReservation.reservedDate,
+        expiryDate: activeReservation.expiryDate,
+        readyDate: activeReservation.readyDate,
+        status: activeReservation.status,
+      };
+    }
+
     return NextResponse.json({
       ...book,
       availableCopies,
       totalCopies,
       shelfLocation: shelfLocation, // Always include shelfLocation, even if empty
+      currentBorrower, // null if not borrowed
+      currentReserver, // null if not reserved
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching book:', error);

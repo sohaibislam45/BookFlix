@@ -58,7 +58,7 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
 
     const reservations = await Reservation.find(query)
-      .populate('member', 'name email')
+      .populate('member', 'name email profilePhoto')
       .populate('book', 'title author coverImage')
       .sort({ reservedDate: 1 })
       .skip(skip)
@@ -125,6 +125,18 @@ export async function POST(request) {
       );
     }
 
+    // Check if member has premium subscription
+    const subscriptionType = member.subscription?.type || 'free';
+    const subscriptionStatus = member.subscription?.status || 'active';
+    const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+
+    if (!isPremium) {
+      return NextResponse.json(
+        { error: 'Reservations are only available for premium members. Please upgrade your plan to access this feature.' },
+        { status: 403 }
+      );
+    }
+
     // Validate book exists
     const book = await Book.findById(bookId);
     if (!book) {
@@ -135,15 +147,35 @@ export async function POST(request) {
     }
 
     // Check if member already has an active reservation for this book
-    const existingReservation = await Reservation.findOne({
+    const existingMemberReservation = await Reservation.findOne({
       member: memberId,
       book: bookId,
       status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
     });
 
-    if (existingReservation) {
+    if (existingMemberReservation) {
       return NextResponse.json(
         { error: 'You already have an active reservation for this book' },
+        { status: 409 }
+      );
+    }
+
+    // Check if book already has an active reservation by another member (single reservation per book)
+    const existingBookReservation = await Reservation.findOne({
+      book: bookId,
+      status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
+    }).populate('member', 'name profilePhoto email');
+
+    if (existingBookReservation) {
+      return NextResponse.json(
+        { 
+          error: 'This book is already reserved by another member',
+          reserver: {
+            name: existingBookReservation.member.name,
+            profilePhoto: existingBookReservation.member.profilePhoto,
+            email: existingBookReservation.member.email,
+          },
+        },
         { status: 409 }
       );
     }
@@ -180,27 +212,21 @@ export async function POST(request) {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + RESERVATION_EXPIRY_DAYS);
 
-    // Calculate queue position
+    // Create reservation (single reservation per book, queue position always 1)
     const reservedDate = new Date();
-    const queuePosition = await Reservation.calculateQueuePosition(bookId, reservedDate);
-
-    // Create reservation
     const reservation = new Reservation({
       member: memberId,
       book: bookId,
       reservedDate,
       expiryDate,
       status: RESERVATION_STATUS.PENDING,
-      queuePosition,
+      queuePosition: 1, // Always 1 in single-reservation system
     });
 
     await reservation.save();
 
-    // Update queue positions for all pending reservations of this book
-    await Reservation.updateQueuePositions(bookId);
-
     // Populate relationships
-    await reservation.populate('member', 'name email');
+    await reservation.populate('member', 'name email profilePhoto');
     await reservation.populate('book', 'title author coverImage');
 
     return NextResponse.json(

@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
     }
 
     const reservation = await Reservation.findById(id)
-      .populate('member', 'name email')
+      .populate('member', 'name email profilePhoto')
       .populate('book', 'title author coverImage')
       .select('-__v')
       .lean();
@@ -119,9 +119,6 @@ export async function PATCH(request, { params }) {
         }
         await reservation.save();
 
-        // Update queue positions for the book
-        await Reservation.updateQueuePositions(reservation.book._id);
-
         return NextResponse.json(
           { message: 'Reservation cancelled successfully', reservation },
           { status: 200 }
@@ -181,9 +178,6 @@ export async function PATCH(request, { params }) {
         expiryDate.setDate(expiryDate.getDate() + 3);
         reservation.expiryDate = expiryDate;
         await reservation.save();
-
-        // Update queue positions
-        await Reservation.updateQueuePositions(reservation.book._id);
 
         // Send reservation ready notification
         notifyUser(
@@ -276,11 +270,8 @@ export async function PATCH(request, { params }) {
         reservation.completedDate = new Date();
         await reservation.save();
 
-        // Update queue positions
-        await Reservation.updateQueuePositions(reservation.book._id);
-
         // Populate borrowing for response
-        await borrowing.populate('member', 'name email');
+        await borrowing.populate('member', 'name email profilePhoto');
         await borrowing.populate('book', 'title author coverImage');
         await borrowing.populate('bookCopy', 'copyNumber barcode');
 
