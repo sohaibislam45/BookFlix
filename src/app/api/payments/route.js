@@ -55,11 +55,17 @@ export async function GET(request) {
 
     const skip = (page - 1) * limit;
 
+    // Debug: Log the query being used
+    console.log(`[Payments API] Query:`, JSON.stringify(query));
+    console.log(`[Payments API] Query member field type:`, typeof query.member, query.member);
+
+    // Find payments - don't filter by fine to include subscription payments
+    // This includes both fine payments (with fine field) and subscription payments (fine: null)
     const payments = await Payment.find(query)
       .populate('member', 'name email')
-      .populate('fine')
       .populate({
         path: 'fine',
+        options: { strictPopulate: false }, // Allow null fines (for subscription payments)
         populate: {
           path: 'borrowing',
           populate: {
@@ -71,26 +77,62 @@ export async function GET(request) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-__v')
-      .lean();
+      .select('-__v');
     
-    // Convert metadata Map to object for easier access in frontend
+    console.log(`[Payments API] Found ${payments.length} payments for query:`, JSON.stringify(query));
+    
+    // Debug: Log payment details
+    if (payments.length > 0) {
+      console.log(`[Payments API] Sample payment:`, {
+        id: payments[0]._id,
+        member: payments[0].member?._id || payments[0].member,
+        fine: payments[0].fine,
+        amount: payments[0].amount,
+        hasMetadata: !!payments[0].metadata,
+      });
+    } else {
+      // If no payments found, check if there are any payments for this member at all
+      const allPaymentsForMember = await Payment.find({ member: query.member }).countDocuments();
+      console.log(`[Payments API] Total payments for member ${query.member}: ${allPaymentsForMember}`);
+    }
+    
+    // Convert to plain objects and handle metadata Map
     const paymentsWithMetadata = payments.map(payment => {
-      if (payment.metadata && payment.metadata instanceof Map) {
-        payment.metadata = Object.fromEntries(payment.metadata);
-      } else if (payment.metadata && typeof payment.metadata === 'object' && payment.metadata.constructor === Object) {
-        // Already an object, keep as is
-      } else if (payment.metadata) {
-        // Convert Map-like object to plain object
-        const metadataObj = {};
-        for (const [key, value] of Object.entries(payment.metadata)) {
-          metadataObj[key] = value;
+      const paymentObj = payment.toObject ? payment.toObject() : payment;
+      
+      // Convert metadata Map to plain object if needed
+      if (paymentObj.metadata) {
+        if (paymentObj.metadata instanceof Map) {
+          paymentObj.metadata = Object.fromEntries(paymentObj.metadata);
+        } else if (paymentObj.metadata.constructor && paymentObj.metadata.constructor.name === 'Object') {
+          // Already a plain object, no conversion needed
+        } else {
+          // Handle Mongoose Map-like object - convert to plain object
+          const metadataObj = {};
+          if (paymentObj.metadata.get && typeof paymentObj.metadata.get === 'function') {
+            // It's a Map-like object with get method
+            if (paymentObj.metadata.keys && typeof paymentObj.metadata.keys === 'function') {
+              for (const key of paymentObj.metadata.keys()) {
+                metadataObj[key] = paymentObj.metadata.get(key);
+              }
+            }
+          } else {
+            // Try to convert directly - iterate over properties
+            for (const key in paymentObj.metadata) {
+              if (paymentObj.metadata.hasOwnProperty(key)) {
+                metadataObj[key] = paymentObj.metadata[key];
+              }
+            }
+          }
+          paymentObj.metadata = metadataObj;
         }
-        payment.metadata = metadataObj;
       }
-      return payment;
+      
+      return paymentObj;
     });
-
+    
+    console.log(`[Payments API] Returning ${paymentsWithMetadata.length} payments for member ${memberId || 'all'}`);
+    
     const total = await Payment.countDocuments(query);
 
     return NextResponse.json({

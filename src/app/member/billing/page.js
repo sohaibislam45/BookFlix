@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { isPremium, getSubscriptionDisplayName } from '@/lib/utils';
@@ -18,9 +18,14 @@ export default function BillingPage() {
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const hasInitialized = useRef(false);
+  const syncTriggered = useRef(false);
+  const paymentSyncTriggered = useRef(false);
 
+  // Initial load - only run once when userData is available
   useEffect(() => {
-    if (userData?._id) {
+    if (userData?._id && !hasInitialized.current) {
+      hasInitialized.current = true;
       fetchFines();
       fetchPayments();
       fetchSubscription();
@@ -49,16 +54,20 @@ export default function BillingPage() {
         // Clear URL params
         window.history.replaceState({}, '', window.location.pathname);
       }
+    }
+  }, [userData?._id]);
 
-      // Auto-sync subscription if user has Stripe customer ID but subscription shows as free
-      // This handles cases where webhook didn't process
-      // Also try sync if user just completed checkout (might not have customer ID saved yet)
+  // Auto-sync subscription if user has Stripe customer ID but subscription shows as free
+  // This handles cases where webhook didn't process
+  useEffect(() => {
+    if (userData?._id && !syncTriggered.current) {
       const shouldSync = (userData?.subscription?.stripeCustomerId && 
           (!userData?.subscription?.type || userData.subscription.type === 'free')) ||
           // Check if we're coming from a successful checkout
           (window.location.search.includes('subscription_success'));
           
       if (shouldSync) {
+        syncTriggered.current = true;
         console.log('[Billing] Attempting auto-sync...', {
           hasCustomerId: !!userData?.subscription?.stripeCustomerId,
           subscriptionType: userData?.subscription?.type,
@@ -94,15 +103,112 @@ export default function BillingPage() {
         }, 2000);
       }
     }
-  }, [userData]);
+  }, [userData?._id, userData?.subscription?.stripeCustomerId, userData?.subscription?.type]);
 
-  // Refetch subscription when userData subscription changes
-  useEffect(() => {
-    if (userData?._id && userData?.subscription) {
-      console.log('[Billing] UserData subscription changed, refetching subscription:', userData.subscription);
-      fetchSubscription();
+  // Function to create payment for subscription
+  const createSubscriptionPayment = async () => {
+    if (!userData?._id) return;
+    
+    console.log('[Billing] Manually triggering payment creation...');
+    try {
+      // First try sync endpoint
+      const syncResponse = await fetch('/api/subscriptions/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData._id,
+        }),
+      });
+      
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json();
+        console.log('[Billing] Sync completed:', syncData);
+        
+        // Wait a bit then fetch payments
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await fetchPayments();
+        await refreshUserData();
+        
+        // Check again after fetching
+        const paymentsResponse = await fetch(`/api/payments?memberId=${userData._id}`);
+        if (paymentsResponse.ok) {
+          const paymentsData = await paymentsResponse.json();
+          const currentPaymentsCount = paymentsData.payments?.length || 0;
+          
+          // If still no payments, try manual creation endpoint
+          if (currentPaymentsCount === 0) {
+            console.log('[Billing] Still no payments after sync, trying manual payment creation...');
+            try {
+              const createResponse = await fetch('/api/payments/create-subscription-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: userData._id,
+                }),
+              });
+              
+              if (createResponse.ok) {
+                const createData = await createResponse.json();
+                console.log('[Billing] Manual payment creation:', createData);
+                await fetchPayments();
+                showSuccess('Payment Created', 'Payment record has been created successfully.');
+              } else {
+                const errorData = await createResponse.json().catch(() => ({}));
+                console.error('[Billing] Manual payment creation failed:', errorData);
+                setError(errorData.error || 'Failed to create payment record');
+              }
+            } catch (createError) {
+              console.error('[Billing] Error creating payment manually:', createError);
+              setError('Error creating payment: ' + createError.message);
+            }
+          } else {
+            showSuccess('Payments Found', `Found ${currentPaymentsCount} payment(s).`);
+          }
+        }
+      } else {
+        const errorData = await syncResponse.json().catch(() => ({}));
+        console.error('[Billing] Sync failed:', errorData);
+        setError(errorData.error || 'Failed to sync subscription');
+      }
+    } catch (error) {
+      console.error('[Billing] Error syncing for payment creation:', error);
+      setError('Error: ' + error.message);
     }
-  }, [userData?.subscription?.type, userData?.subscription?.status]);
+  };
+
+  // Check if user has active subscription but no payments - trigger sync to create payment
+  // Only run once after initial data is loaded
+  useEffect(() => {
+    // Wait for subscription to be loaded
+    if (userData?._id && !paymentSyncTriggered.current) {
+      // Check subscription from both subscription state and userData
+      const subType = subscription?.type || userData?.subscription?.type;
+      const subStatus = subscription?.status || userData?.subscription?.status;
+      const hasActiveSubscription = (subType === 'monthly' || subType === 'yearly') && 
+        subStatus === 'active';
+      const hasStripeCustomer = userData?.subscription?.stripeCustomerId;
+      
+      if (hasActiveSubscription && hasStripeCustomer && payments.length === 0) {
+        paymentSyncTriggered.current = true;
+        console.log('[Billing] User has active subscription but no payments, triggering sync to create payment...', {
+          subType,
+          subStatus,
+          hasStripeCustomer,
+          paymentsCount: payments.length
+        });
+        // Delay to avoid multiple calls
+        const timeoutId = setTimeout(() => {
+          createSubscriptionPayment();
+        }, 3000);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [userData?._id, subscription?.type, subscription?.status, userData?.subscription?.type, userData?.subscription?.status, payments.length]);
 
   const fetchFines = async () => {
     try {
@@ -127,6 +233,8 @@ export default function BillingPage() {
       const response = await fetch(`/api/payments?memberId=${userData._id}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('[Billing] Fetched payments:', data.payments?.length || 0, 'payments');
+        console.log('[Billing] Payment details:', data.payments);
         setPayments(data.payments || []);
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -143,6 +251,21 @@ export default function BillingPage() {
       if (response.ok) {
         const data = await response.json();
         setSubscription(data.subscription);
+        
+        // If subscription is active but no payments, trigger payment creation
+        const sub = data.subscription;
+        if (sub && (sub.type === 'monthly' || sub.type === 'yearly') && sub.status === 'active') {
+          // Check if we need to create payment
+          const paymentsResponse = await fetch(`/api/payments?memberId=${userData._id}`);
+          if (paymentsResponse.ok) {
+            const paymentsData = await paymentsResponse.json();
+            if (paymentsData.payments?.length === 0 && !paymentSyncTriggered.current) {
+              console.log('[Billing] Active subscription found but no payments, will trigger creation...');
+              // Don't trigger immediately, let the useEffect handle it
+            }
+          }
+        }
+        
         return data.subscription;
       }
     } catch (error) {
@@ -179,7 +302,12 @@ export default function BillingPage() {
         // Refresh userData and subscription after sync
         await refreshUserData();
         await fetchSubscription();
+        
+        // Fetch payments immediately and again after delay
         await fetchPayments();
+        setTimeout(async () => {
+          await fetchPayments();
+        }, 2000);
         
         // Check if subscription is now active
         if (syncData.subscription && 
@@ -359,7 +487,11 @@ export default function BillingPage() {
       }
 
       setSuccessMessage('Subscription will be cancelled at the end of the current period.');
-      fetchSubscription();
+      
+      // Refresh subscription and userData to update UI
+      await fetchSubscription();
+      await refreshUserData();
+      
       setProcessingSubscription(false);
     } catch (err) {
       setError(err.message);
@@ -541,30 +673,41 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                {/* Disabled upgrade buttons showing current plan */}
+                {/* Upgrade buttons - enabled if cancelled, disabled if active */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    disabled
-                    className={`${
-                      activeSubscription.type === 'monthly'
-                        ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
-                        : 'bg-primary/10 border border-primary/30'
-                    } text-white text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
-                  >
-                    <span className="material-symbols-outlined text-base">workspace_premium</span>
-                    {activeSubscription.type === 'monthly' ? 'Subscribed - Monthly Premium' : 'Upgrade to Monthly Premium'}
-                  </button>
-                  <button
-                    disabled
-                    className={`${
-                      activeSubscription.type === 'yearly'
-                        ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
-                        : 'bg-primary/10 border border-primary/30'
-                    } text-white text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
-                  >
-                    <span className="material-symbols-outlined text-base">workspace_premium</span>
-                    {activeSubscription.type === 'yearly' ? 'Subscribed - Yearly Premium' : 'Upgrade to Yearly Premium'}
-                  </button>
+                  {(() => {
+                    const isMonthlyActive = activeSubscription.type === 'monthly' && activeSubscription.status === 'active';
+                    const isYearlyActive = activeSubscription.type === 'yearly' && activeSubscription.status === 'active';
+                    
+                    return (
+                      <>
+                        <button
+                          onClick={() => handleUpgradeSubscription('monthly')}
+                          disabled={isMonthlyActive || processingSubscription}
+                          className={`${
+                            isMonthlyActive
+                              ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
+                              : 'bg-primary hover:bg-primary-hover'
+                          } text-white text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-colors`}
+                        >
+                          <span className="material-symbols-outlined text-base">workspace_premium</span>
+                          {isMonthlyActive ? 'Subscribed - Monthly Premium' : 'Upgrade to Monthly Premium'}
+                        </button>
+                        <button
+                          onClick={() => handleUpgradeSubscription('yearly')}
+                          disabled={isYearlyActive || processingSubscription}
+                          className={`${
+                            isYearlyActive
+                              ? 'bg-primary/30 border border-primary/50 cursor-not-allowed'
+                              : 'bg-primary/10 hover:bg-primary/20 border border-primary/30'
+                          } text-primary text-sm font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-colors`}
+                        >
+                          <span className="material-symbols-outlined text-base">workspace_premium</span>
+                          {isYearlyActive ? 'Subscribed - Yearly Premium' : 'Upgrade to Yearly Premium'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {activeSubscription.subscription?.cancelAtPeriodEnd ? (
@@ -636,7 +779,10 @@ export default function BillingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(() => {
                     const currentPlan = subscription?.type || userData?.subscription?.type;
-                    const isActive = subscription?.status === 'active' || userData?.subscription?.status === 'active';
+                    const subscriptionStatus = subscription?.status || userData?.subscription?.status;
+                    // Only consider subscription active if status is 'active' (not 'cancelled' or 'expired')
+                    const isActive = subscriptionStatus === 'active' && 
+                      (currentPlan === 'monthly' || currentPlan === 'yearly');
                     const isMonthlyActive = currentPlan === 'monthly' && isActive;
                     const isYearlyActive = currentPlan === 'yearly' && isActive;
                     
@@ -808,15 +954,41 @@ export default function BillingPage() {
               <span className="material-symbols-outlined text-primary">history</span>
               Payment History
             </h3>
-            {payments.length > 0 && (
-              <button
-                onClick={() => fetchPayments()}
-                className="text-sm text-primary hover:text-white transition-colors font-medium flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-base">refresh</span>
-                Refresh
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {(() => {
+                const subType = subscription?.type || userData?.subscription?.type;
+                const subStatus = subscription?.status || userData?.subscription?.status;
+                const hasActiveSubscription = (subType === 'monthly' || subType === 'yearly') && 
+                  subStatus === 'active';
+                
+                // Show "Create Payment Record" button if user has active subscription but no payments
+                if (hasActiveSubscription && payments.length === 0) {
+                  return (
+                    <button
+                      onClick={createSubscriptionPayment}
+                      className="text-sm text-primary hover:text-white transition-colors font-medium flex items-center gap-1"
+                      title="Create payment record for your subscription"
+                    >
+                      <span className="material-symbols-outlined text-base">add_circle</span>
+                      Create Payment Record
+                    </button>
+                  );
+                }
+                // Show refresh button if there are payments
+                if (payments.length > 0) {
+                  return (
+                    <button
+                      onClick={() => fetchPayments()}
+                      className="text-sm text-primary hover:text-white transition-colors font-medium flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-base">refresh</span>
+                      Refresh
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           </div>
 
           {loading ? (
@@ -850,10 +1022,19 @@ export default function BillingPage() {
                         <h4 className="text-white font-bold">
                           {(() => {
                             // Check if this is a subscription payment
-                            const subscriptionType = payment.metadata?.subscriptionType || 
-                              (payment.metadata instanceof Map ? payment.metadata.get('subscriptionType') : null) ||
-                              (typeof payment.metadata === 'object' && payment.metadata !== null && !payment.fine ? 
-                                (payment.metadata.subscriptionType || payment.metadata.get?.('subscriptionType')) : null);
+                            // Handle metadata - could be Map, object, or Map-like
+                            let subscriptionType = null;
+                            if (payment.metadata) {
+                              if (payment.metadata instanceof Map) {
+                                subscriptionType = payment.metadata.get('subscriptionType');
+                              } else if (payment.metadata.get && typeof payment.metadata.get === 'function') {
+                                // Map-like object
+                                subscriptionType = payment.metadata.get('subscriptionType');
+                              } else if (typeof payment.metadata === 'object') {
+                                // Plain object
+                                subscriptionType = payment.metadata.subscriptionType;
+                              }
+                            }
                             
                             if (subscriptionType) {
                               return `${getSubscriptionDisplayName(subscriptionType)} Subscription`;
