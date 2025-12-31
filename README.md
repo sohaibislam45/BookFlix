@@ -1,5 +1,51 @@
 # BookFlix - Online Library Management System
 
+## Table of Contents
+
+- [Short Description](#short-description)
+- [Technologies Used](#technologies-used)
+  - [Frontend Framework & UI](#frontend-framework--ui)
+  - [Backend & Database](#backend--database)
+  - [Authentication & Security](#authentication--security)
+  - [Payment Processing](#payment-processing)
+  - [Third-Party Services](#third-party-services)
+  - [Development Tools](#development-tools)
+- [Features - Problems Solved & Solutions](#features---problems-solved--solutions)
+  - [1. Role-Based Access Control](#1-role-based-access-control)
+  - [2. Book Management & Discovery](#2-book-management--discovery)
+  - [3. Borrowing System with Tiered Access](#3-borrowing-system-with-tiered-access)
+  - [4. Reservation Queue System](#4-reservation-queue-system)
+  - [5. Automated Fine Management](#5-automated-fine-management)
+  - [6. Premium Subscription System](#6-premium-subscription-system)
+  - [7. Real-Time Notifications](#7-real-time-notifications)
+  - [8. Inventory Management](#8-inventory-management)
+  - [9. Payment Processing](#9-payment-processing)
+  - [10. Analytics & Reporting](#10-analytics--reporting)
+- [The Process - How I Built It](#the-process---how-i-built-it)
+  - [Phase 1: Project Setup & Architecture](#phase-1-project-setup--architecture)
+  - [Phase 2: Database Design & Models](#phase-2-database-design--models)
+  - [Phase 3: Authentication System](#phase-3-authentication-system)
+  - [Phase 4: Core Features Development](#phase-4-core-features-development)
+  - [Phase 5: Payment Integration](#phase-5-payment-integration)
+  - [Phase 6: Notification System](#phase-6-notification-system)
+  - [Phase 7: Role-Based Dashboards](#phase-7-role-based-dashboards)
+  - [Phase 8: API Development](#phase-8-api-development)
+  - [Phase 9: UI/UX Polish](#phase-9-uiux-polish)
+  - [Phase 10: Testing & Optimization](#phase-10-testing--optimization)
+- [What I Learned & Future Improvements](#what-i-learned--future-improvements)
+  - [Key Learnings](#key-learnings)
+  - [Potential Improvements](#potential-improvements)
+- [How to Run the Project](#how-to-run-the-project)
+  - [Prerequisites](#prerequisites)
+  - [Installation Steps](#installation-steps)
+  - [Available Scripts](#available-scripts)
+  - [Project Structure](#project-structure)
+  - [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
+
+---
+
 ## Short Description
 
 BookFlix is a modern, full-stack library management system that digitizes the traditional library experience. It enables libraries to manage their collections, members, and operations entirely online while providing members with a seamless experience to browse, reserve, borrow books, and manage their accounts. The platform features role-based access control for members, librarians, and administrators, automated fine calculations, subscription management, and real-time notifications.
@@ -407,7 +453,7 @@ BookFlix is a modern, full-stack library management system that digitizes the tr
    CRON_SECRET=your_cron_secret_key
    ```
 
-   > **Note**: See `SETUP.md` for detailed instructions on obtaining each API key.
+   > **Note**: For detailed instructions on obtaining each API key, refer to the respective service documentation.
 
 4. **Set Up External Services**
 
@@ -480,7 +526,7 @@ bookfiix/
 - **Image Upload Failures**: Verify ImgBB API key is valid and has sufficient quota
 - **Email Not Sending**: Check Resend API key and verify sender email domain
 
-For more detailed setup instructions, refer to `SETUP.md`.
+For more detailed setup instructions, refer to the service documentation for each external service.
 
 ---
 
