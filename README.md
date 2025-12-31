@@ -538,4 +538,4 @@ This project is private and proprietary.
 
 ## Contact
 
-For questions or support, please refer to the project documentation or contact the development team.
+For questions or support, please email to sohaibislam45@gmail.com
