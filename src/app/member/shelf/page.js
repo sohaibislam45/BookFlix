@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import Loader from '@/components/Loader';
 
-export default function MyShelfPage() {
+function MyShelfPageContent() {
   const { userData } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -299,5 +299,13 @@ export default function MyShelfPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MyShelfPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <MyShelfPageContent />
+    </Suspense>
   );
 }

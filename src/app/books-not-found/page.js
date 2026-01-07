@@ -1,12 +1,12 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import ErrorNavbar from '@/components/ErrorNavbar';
 import Lottie from 'lottie-react';
 
-export default function BooksNotFound() {
+function BooksNotFoundContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const searchQuery = searchParams.get('q') || searchParams.get('query') || 'your search';
@@ -148,5 +148,22 @@ export default function BooksNotFound() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function BooksNotFound() {
+  return (
+    <Suspense fallback={
+      <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display text-gray-900 dark:text-white overflow-x-hidden">
+        <ErrorNavbar />
+        <main className="flex-grow flex flex-col items-center justify-center px-4 py-12">
+          <div className="text-center">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">Loading...</h1>
+          </div>
+        </main>
+      </div>
+    }>
+      <BooksNotFoundContent />
+    </Suspense>
   );
 }

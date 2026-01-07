@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ErrorNavbar from '@/components/ErrorNavbar';
 import Lottie from 'lottie-react';
 
-export default function AuthError() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message') || 'You need to be authenticated to access this page.';
   const [animationData, setAnimationData] = useState(null);
@@ -138,5 +138,24 @@ export default function AuthError() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function AuthError() {
+  return (
+    <Suspense fallback={
+      <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display text-gray-900 dark:text-white overflow-x-hidden">
+        <ErrorNavbar />
+        <main className="flex-grow flex flex-col items-center justify-center px-4 py-12 md:py-20">
+          <div className="text-center">
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-4">
+              Loading...
+            </h1>
+          </div>
+        </main>
+      </div>
+    }>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

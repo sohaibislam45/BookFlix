@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import Loader from '@/components/Loader';
 
-export default function BrowsePage() {
+function BrowsePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -968,6 +968,14 @@ export default function BrowsePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BrowsePage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <BrowsePageContent />
+    </Suspense>
   );
 }
 

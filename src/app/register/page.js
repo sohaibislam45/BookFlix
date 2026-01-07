@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { getRoleOverviewRoute } from '@/lib/utils';
 import Loader from '@/components/Loader';
 import { isValidEmail, validatePassword, isValidPhone, validateForm } from '@/lib/validation';
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -632,6 +632,14 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <RegisterPageContent />
+    </Suspense>
   );
 }
 

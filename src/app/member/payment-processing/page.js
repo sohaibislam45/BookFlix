@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptionDisplayName } from '@/lib/utils';
 import { showError as showErrorAlert } from '@/lib/swal';
 import Loader from '@/components/Loader';
 
-export default function PaymentProcessingPage() {
+function PaymentProcessingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData } = useAuth();
@@ -240,6 +240,14 @@ export default function PaymentProcessingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentProcessingPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <PaymentProcessingPageContent />
+    </Suspense>
   );
 }
 
