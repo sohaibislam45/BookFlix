@@ -15,7 +15,7 @@ function BrowsePageContent() {
 
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [selectedGenres, setSelectedGenres] = useState(searchParams.get('category') ? [searchParams.get('category')] : []);
   const [availability, setAvailability] = useState(searchParams.get('availability') || 'all');
   const [language, setLanguage] = useState(searchParams.get('language') || 'all');
   const [yearFrom, setYearFrom] = useState('');
@@ -118,6 +118,7 @@ function BrowsePageContent() {
         if (searchQuery) newParams.set('search', searchQuery);
         if (availability !== 'all') newParams.set('availability', availability);
         if (language && language !== 'all') newParams.set('language', language);
+        if (selectedGenres.length > 0) newParams.set('category', selectedGenres[0]);
         if (sortBy !== 'createdAt') newParams.set('sort', sortBy);
         if (sortOrder !== 'desc') newParams.set('order', sortOrder);
         if (currentPage > 1) newParams.set('page', currentPage.toString());

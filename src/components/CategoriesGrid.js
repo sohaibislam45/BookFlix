@@ -4,25 +4,29 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const iconMap = {
-  'Fiction': 'theater_comedy',
-  'Sci-Fi': 'rocket_launch',
-  'Biography': 'history_edu',
-  'Mystery': 'search',
-  'Business': 'trending_up',
-  'History': 'account_balance',
-  'Science': 'biotech',
-  'Art': 'palette',
+  'fiction': 'theater_comedy',
+  'sci-fi': 'rocket_launch',
+  'biography': 'history_edu',
+  'mystery': 'search',
+  'mistry': 'search',
+  'business': 'trending_up',
+  'history': 'account_balance',
+  'science': 'biotech',
+  'art': 'palette',
+  'novel': 'auto_stories',
 };
 
 const colorMap = {
-  'Fiction': 'from-blue-500/20 to-blue-600/20',
-  'Sci-Fi': 'from-purple-500/20 to-purple-600/20',
-  'Biography': 'from-amber-500/20 to-amber-600/20',
-  'Mystery': 'from-red-500/20 to-red-600/20',
-  'Business': 'from-emerald-500/20 to-emerald-600/20',
-  'History': 'from-orange-500/20 to-orange-600/20',
-  'Science': 'from-cyan-500/20 to-cyan-600/20',
-  'Art': 'from-pink-500/20 to-pink-600/20',
+  'fiction': 'from-blue-500/20 to-blue-600/20',
+  'sci-fi': 'from-purple-500/20 to-purple-600/20',
+  'biography': 'from-amber-500/20 to-amber-600/20',
+  'mystery': 'from-red-500/20 to-red-600/20',
+  'mistry': 'from-red-500/20 to-red-600/20',
+  'business': 'from-emerald-500/20 to-emerald-600/20',
+  'history': 'from-orange-500/20 to-orange-600/20',
+  'science': 'from-cyan-500/20 to-cyan-600/20',
+  'art': 'from-pink-500/20 to-pink-600/20',
+  'novel': 'from-indigo-500/20 to-indigo-600/20',
 };
 
 const CategoriesGrid = () => {
@@ -74,10 +78,10 @@ const CategoriesGrid = () => {
             <Link 
               key={cat._id}
               href={`/browse?category=${cat._id}`}
-              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4`}
+              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name.toLowerCase()] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4`}
             >
               <span className={`material-symbols-outlined text-4xl text-white group-hover:scale-110 transition-transform duration-300`}>
-                {cat.icon || iconMap[cat.name] || 'book'}
+                {cat.icon || iconMap[cat.name.toLowerCase()] || 'book'}
               </span>
               <span className="text-xl font-bold text-white group-hover:text-primary transition-colors capitalize">{cat.name}</span>
             </Link>
