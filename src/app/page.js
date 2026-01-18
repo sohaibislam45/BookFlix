@@ -5,12 +5,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import UserProfile from '@/components/UserProfile';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import HeroSlider from '@/components/HeroSlider';
+import Features from '@/components/Features';
+import CategoriesGrid from '@/components/CategoriesGrid';
+import Testimonials from '@/components/Testimonials';
+import FAQ from '@/components/FAQ';
+import Newsletter from '@/components/Newsletter';
 import { showError } from '@/lib/swal';
 import { USER_ROLES } from '@/lib/constants';
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [countdown, setCountdown] = useState(5);
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const { user, userData } = useAuth();
   const router = useRouter();
@@ -103,6 +111,28 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [isGeneralMember, user]);
+
+  // Auto-close pricing modal and redirect after 5 seconds
+  useEffect(() => {
+    let interval;
+    if (pricingModalOpen) {
+      setCountdown(5); // Reset countdown when modal opens
+      interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setPricingModalOpen(false);
+            router.push('/register');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [pricingModalOpen, router]);
 
   // Fetch statistics
   useEffect(() => {
@@ -275,124 +305,60 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 to-transparent animate-slide-down">
-        <div className="max-w-[1400px] mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
-            <span className="material-symbols-outlined text-3xl text-primary">auto_stories</span>
-            <h1 className="text-white text-2xl font-black tracking-tighter">Bookflix</h1>
-          </Link>
-          <div className="flex items-center gap-4">
-            {user ? (
-              <UserProfile />
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-                >
-                  Sign In
-                </Link>
-                <button
-                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:shadow-[0_0_20px_rgba(170,31,239,0.5)] hover:scale-105 active:scale-95"
-                  onClick={togglePricingModal}
-                >
-                  Join Now
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-hero-gradient z-10"></div>
-          <Image
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCyDl6Ydl0fjXvdPpWK70bp9YmcxzROe9R8B6O9TQ2RHas7rIWvoNAiylNrZwXf5bUdZGXamxLoHuaQ6W8Bghg0P3g8gRItLPO2U5PyBQKtQJCliTZOoeKK07Lak-RZlAWwVY-ldaPqTLQjxA7ME5uUi7BYhpK77Lc8Q9VyHVgpud7xSs_yJJZXvzl0mYJGkHIfbClEDgxpjOWWJkeSUcva2YiDmLH7plqW280-oEaVwdPcclydgX074xXCDbGwVreuqDKEIqc1kY"
-            alt="Library bookshelf background"
-            fill
-            className="object-cover opacity-20 blur-sm scale-110 transition-transform duration-1000"
-            style={{ transform: `translateY(${scrollY * 0.3}px) scale(1.1)` }}
-            priority
-            quality={75}
-          />
-        </div>
-        <div className="relative z-20 w-full max-w-4xl px-4 flex flex-col items-center text-center mt-10">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 drop-shadow-xl animate-fade-in-up animation-delay-200">
-            Your Library,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#aa1fef] to-[#c084fc] animate-gradient-shift">
-              Reimagined.
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl font-light animate-fade-in-up animation-delay-400">
-            Reserve online, pick up in-store, or get it delivered directly to your doorstep.
-          </p>
-          <div className="w-full max-w-2xl group animate-fade-in-up animation-delay-600">
-            <label className="glass-panel flex items-center w-full h-16 rounded-full px-2 transition-all group-focus-within:bg-black/80 group-focus-within:border-primary/50 group-focus-within:scale-105 duration-300">
-              <div className="pl-4 pr-2 text-primary transition-colors">
-                <span className="material-symbols-outlined text-2xl">search</span>
-              </div>
-              <input
-                className="bg-transparent border-none text-white w-full h-full text-lg placeholder:text-gray-400 focus:ring-0 focus:outline-none"
-                placeholder="Search by Title, Author, or ISBN..."
-                type="text"
-              />
-              <button className="hidden sm:flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white rounded-full h-12 px-6 font-semibold ml-2 transition-all shadow-lg shadow-primary/30 hover:scale-105 active:scale-95">
-                <span className="material-symbols-outlined text-lg text-white">search</span>
-                Search
-              </button>
-            </label>
-          </div>
-        </div>
-      </section>
+      <Navbar togglePricingModal={togglePricingModal} />
+      <HeroSlider />
 
       {/* Main Content */}
-      <main className="relative z-20 -mt-32 pb-20 space-y-12 px-6 md:px-12 max-w-[1600px] mx-auto w-full">
+      <main className="relative z-20 -mt-20 pb-20 space-y-24 px-6 md:px-12 max-w-[1600px] mx-auto w-full">
         {/* Stats */}
         <div 
           ref={statsRef}
-          className="glass-panel w-full rounded-2xl p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0 transition-opacity duration-1000"
+          className="glass-panel w-full rounded-[2rem] p-3 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0 transition-opacity duration-1000"
           style={{ opacity: isVisible ? 1 : 0 }}
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10">
-            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-100">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? (stats.totalBooks >= 1000 ? formatNumber(stats.totalBooks) + '+' : stats.totalBooks + '+') : '0'}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10 text-center">
+            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-100">
+              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? (stats.totalBooks >= 1000 ? formatNumber(stats.totalBooks) : stats.totalBooks) : '0'}
               </span>
-              <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-lg">auto_stories</span>
+              <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">auto_stories</span>
                 Books
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-200">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}+
+            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-200">
+              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}
               </span>
-              <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-lg">group</span>
+              <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">group</span>
                 Active Members
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-300">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? stats.totalLibraries + '+' : '0'}
+            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-300">
+              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
+                {isVisible && !loadingStats ? stats.totalLibraries : '0'}
               </span>
-              <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-lg">domain</span>
+              <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">domain</span>
                 Libraries
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center text-center p-2 animate-fade-in-up animation-delay-400">
-              <span className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">{isVisible ? '24/7' : '0'}</span>
-              <span className="text-sm text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-lg">public</span>
+            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-400">
+              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">{isVisible ? '24/7' : '0'}</span>
+              <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">public</span>
                 Access
               </span>
             </div>
           </div>
         </div>
+
+        {/* Features Section */}
+        <Features />
+
+        {/* Categories Section */}
+        <CategoriesGrid />
 
         {/* Top Borrowed Section */}
         <div 
@@ -626,32 +592,36 @@ export default function Home() {
         {(isGeneralMember || !user) && (
           <div 
             ref={(el) => (sectionsRef.current[4] = el)}
-            className={`relative rounded-3xl overflow-hidden mt-12 group ${ctaVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+            className={`relative rounded-[3rem] overflow-hidden mt-12 group ${ctaVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ '--animation-delay': '100ms' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#aa1fef] to-[#7000ff] opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-900 opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <div className="relative z-10 px-8 py-16 md:px-20 md:py-20 flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left border border-white/10 rounded-3xl bg-background-dark/60 backdrop-blur-xl transform transition-all duration-500 hover:scale-[1.02]">
-              <div className="max-w-2xl space-y-4">
-                <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                  Ready to Reimagine Your Reading?
+            <div className="relative z-10 px-8 py-16 md:px-20 md:py-24 flex flex-col lg:flex-row items-center justify-between gap-12 text-center lg:text-left border border-white/10 rounded-[3rem] bg-background-dark/60 backdrop-blur-xl transform transition-all duration-500 hover:scale-[1.01]">
+              <div className="max-w-2xl space-y-6">
+                <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
+                  Ready to Reimagine Your <span className="text-primary">Reading?</span>
                 </h2>
-                <p className="text-gray-300 text-lg font-light leading-relaxed">
-                  Join Bookflix today and get instant access to our curated collection. No late fees on the premium plan.
+                <p className="text-gray-300 text-xl font-light leading-relaxed">
+                  Join Bookflix today and get instant access to our curated collection. No late fees, no hassles, just pure stories.
                 </p>
-                <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-gray-400 pt-2">
-                  <span className="flex items-center gap-1 animate-pulse-slow">
-                    <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-gray-400 pt-4">
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-green-400">check_circle</span>
                     Cancel anytime
                   </span>
-                  <span className="flex items-center gap-1 animate-pulse-slow" style={{ animationDelay: '0.5s' }}>
-                    <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-green-400">check_circle</span>
                     Free 7-day trial
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-green-400">check_circle</span>
+                    15k+ Titles
                   </span>
                 </div>
               </div>
               <button
-                className="shrink-0 bg-white text-black hover:bg-gray-100 px-10 py-5 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 flex items-center gap-2 animate-bounce-subtle"
+                className="shrink-0 bg-primary hover:bg-primary-hover text-white px-12 py-6 rounded-full font-bold text-xl transition-all shadow-glow hover:scale-105 active:scale-95 flex items-center gap-3"
                 onClick={togglePricingModal}
               >
                 Get Started Now <span className="material-symbols-outlined">arrow_forward</span>
@@ -659,98 +629,18 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* Testimonials Section */}
+        <Testimonials />
+
+        {/* FAQ Section */}
+        <FAQ />
+
+        {/* Newsletter Section */}
+        <Newsletter />
       </main>
 
-      {/* Footer */}
-      <footer className="bg-black/50 border-t border-white/5 py-16 px-6 mt-auto">
-        <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-sm">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-2xl text-primary">auto_stories</span>
-              <h2 className="text-white text-xl font-bold">Bookflix</h2>
-            </div>
-            <p className="text-gray-400 leading-relaxed">
-              Reinventing the way you discover, borrow, and read books. The modern library experience.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-white font-bold mb-4 uppercase tracking-wider text-xs">Browse</h3>
-            <ul className="space-y-3 text-gray-400">
-              <li>
-                <Link className="hover:text-primary transition-colors" href="/member/browse">
-                  Top Borrowed
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="/member/browse">
-                  New Arrivals
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="/member/browse">
-                  Bangla Books
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="/member/browse">
-                  English Books
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-white font-bold mb-4 uppercase tracking-wider text-xs">Support</h3>
-            <ul className="space-y-3 text-gray-400">
-              <li>
-                <Link className="hover:text-primary transition-colors" href="#">
-                  Library Policies
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="#">
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="#">
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-primary transition-colors" href="#">
-                  Locations
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-white font-bold mb-4 uppercase tracking-wider text-xs">Connect</h3>
-            <div className="flex gap-4">
-              <Link
-                className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-white hover:bg-primary transition-colors"
-                href="#"
-              >
-                <span className="material-symbols-outlined text-lg">public</span>
-              </Link>
-              <Link
-                className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-white hover:bg-primary transition-colors"
-                href="#"
-              >
-                <span className="material-symbols-outlined text-lg">mail</span>
-              </Link>
-              <Link
-                className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-white hover:bg-primary transition-colors"
-                href="#"
-              >
-                <span className="material-symbols-outlined text-lg">group</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-[1200px] mx-auto mt-12 pt-8 border-t border-white/5 text-center text-gray-500 text-xs">
-          © 2024 Bookflix Library Services. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
 
       {/* Pricing Modal */}
       {pricingModalOpen && (
@@ -896,6 +786,11 @@ export default function Home() {
                         {user ? 'Get Yearly' : 'Sign Up for Yearly'}
                       </button>
                     </div>
+                  </div>
+                  <div className="mt-10 pt-6 border-t border-white/5 text-center">
+                    <p className="text-gray-500 text-md">
+                      Redirecting to registration in <span className="text-primary font-bold">{countdown}</span> seconds...
+                    </p>
                   </div>
                 </div>
               </div>

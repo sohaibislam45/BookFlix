@@ -38,7 +38,7 @@ export async function GET(request) {
 
     // Fetch the image with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
 
     try {
       const imageResponse = await fetch(imageUrl, {
@@ -52,9 +52,9 @@ export async function GET(request) {
       clearTimeout(timeoutId);
 
       if (!imageResponse.ok) {
-        console.error('[Image Proxy] Failed to fetch image:', imageUrl, 'Status:', imageResponse.status);
+        console.error(`[Image Proxy] External request failed for ${imageUrl}. Status: ${imageResponse.status}`);
         return NextResponse.json(
-          { error: 'Failed to fetch image' },
+          { error: `Failed to fetch image from source (${imageResponse.status})` },
           { status: imageResponse.status }
         );
       }
@@ -76,12 +76,13 @@ export async function GET(request) {
     } catch (fetchError) {
       clearTimeout(timeoutId);
       if (fetchError.name === 'AbortError') {
-        console.error('[Image Proxy] Request timeout:', imageUrl);
+        console.error(`[Image Proxy] Timeout limit reached (20s) for: ${imageUrl}`);
         return NextResponse.json(
-          { error: 'Request timeout' },
+          { error: 'The request for the image timed out. The external server might be slow or unresponsive.' },
           { status: 504 }
         );
       }
+      console.error(`[Image Proxy] Fetch error for ${imageUrl}:`, fetchError.message);
       throw fetchError;
     }
   } catch (error) {
