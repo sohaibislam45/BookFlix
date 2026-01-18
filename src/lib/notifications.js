@@ -20,7 +20,7 @@ function getEmailTemplate(type, data) {
           <p>This is a reminder that your borrowed book <strong>"${data.bookTitle}"</strong> by ${data.bookAuthor} is due in ${data.daysRemaining} day(s).</p>
           <p><strong>Due Date:</strong> ${new Date(data.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           <p>Please return the book on time to avoid late fees.</p>
-          <a href="${baseUrl}/member/shelf" style="display: inline-block; background-color: #aa1fef; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">View My Shelf</a>
+          <a href="${baseUrl}/member/my-borrowings" style="display: inline-block; background-color: #aa1fef; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">View My Borrowings</a>
         </div>
       `,
     },
@@ -34,7 +34,7 @@ function getEmailTemplate(type, data) {
           <p><strong>Due Date:</strong> ${new Date(data.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           <p><strong>Days Overdue:</strong> ${data.daysOverdue}</p>
           <p>Please return the book as soon as possible. Late fees may apply.</p>
-          <a href="${baseUrl}/member/shelf" style="display: inline-block; background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Return Book</a>
+          <a href="${baseUrl}/member/my-borrowings" style="display: inline-block; background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Return Book</a>
         </div>
       `,
     },

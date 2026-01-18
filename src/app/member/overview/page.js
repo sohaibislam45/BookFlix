@@ -192,7 +192,7 @@ export default function MemberOverviewPage() {
               <span className="material-symbols-outlined text-primary">auto_stories</span>
               Currently Borrowed
             </h3>
-            <Link className="text-sm text-primary hover:text-white transition-colors font-medium" href="/member/shelf">
+            <Link className="text-sm text-primary hover:text-white transition-colors font-medium" href="/member/my-borrowings">
               View all loans
             </Link>
           </div>
@@ -240,7 +240,7 @@ export default function MemberOverviewPage() {
                   </div>
                   <div className="mt-4 flex gap-2">
                     <Link
-                      href={`/member/shelf?return=${borrowing._id}`}
+                      href={`/member/my-borrowings?return=${borrowing._id}`}
                       className="flex-1 bg-alert-red hover:bg-red-600 text-white text-xs font-bold py-2 rounded-lg transition-colors shadow-lg shadow-red-900/20 text-center"
                     >
                       Return Now
@@ -288,7 +288,7 @@ export default function MemberOverviewPage() {
                   </div>
                   <div className="mt-4 flex gap-2">
                     <Link
-                      href={`/member/shelf?return=${borrowing._id}`}
+                      href={`/member/my-borrowings?return=${borrowing._id}`}
                       className="flex-1 bg-[#3c2348] hover:bg-white/10 text-white text-xs font-bold py-2 rounded-lg transition-colors text-center"
                     >
                       Return

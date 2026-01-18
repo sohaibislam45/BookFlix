@@ -121,7 +121,7 @@ export default function NotificationsPage() {
 
   const getActionLink = (notification) => {
     if (notification.metadata?.borrowing) {
-      return '/member/shelf';
+      return '/member/my-borrowings';
     }
     if (notification.metadata?.reservation) {
       return '/member/reservations';

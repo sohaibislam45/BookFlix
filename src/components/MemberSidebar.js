@@ -20,7 +20,7 @@ export default function MemberSidebar() {
   const navItems = [
     { href: '/member/overview', label: 'Overview', icon: 'home' },
     { href: '/member/explore', label: 'Browse', icon: 'explore' },
-    { href: '/member/shelf', label: 'My Shelf', icon: 'shelves' },
+    { href: '/member/my-borrowings', label: 'My Borrowings', icon: 'shelves' },
     // Only show reservations for premium members
     ...(isPremium ? [{ href: '/member/reservations', label: 'Reservations', icon: 'event_seat' }] : []),
     { href: '/member/billing', label: 'Billing & Profile', icon: 'receipt_long' },

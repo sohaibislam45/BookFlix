@@ -20,12 +20,12 @@ export default function ErrorNavbar() {
           <Link href="/" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">
             Home
           </Link>
-          <Link href="/member/browse" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">
+          <Link href="/explore" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">
             Browse
           </Link>
           {user && (
             <>
-              <Link href="/member/shelf" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">
+              <Link href="/member/my-borrowings" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">
                 My List
               </Link>
               <Link href="/member/notifications" className="text-white/80 hover:text-primary transition-colors text-sm font-medium leading-normal">

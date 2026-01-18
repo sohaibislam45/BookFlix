@@ -101,7 +101,7 @@ function AuthErrorContent() {
                 
                 {/* Card 2 */}
                 <Link
-                  href="/member/browse"
+                  href="/explore"
                   className="group relative flex flex-col gap-3 rounded-xl border border-[#3c2348] bg-[#2b1934]/50 p-6 transition-all duration-300 hover:bg-[#2b1934] hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1"
                 >
                   <div className="bg-primary/10 rounded-lg w-12 h-12 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-300 text-primary">

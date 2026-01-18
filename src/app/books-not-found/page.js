@@ -28,12 +28,12 @@ function BooksNotFoundContent() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchValue.trim()) {
-      router.push(`/member/browse?q=${encodeURIComponent(searchValue.trim())}`);
+      router.push(`/explore?q=${encodeURIComponent(searchValue.trim())}`);
     }
   };
 
   const handleClearFilters = () => {
-    router.push('/member/browse');
+    router.push('/explore');
   };
 
   return (
@@ -105,14 +105,14 @@ function BooksNotFoundContent() {
               <span className="material-symbols-outlined text-[16px] text-white/50 group-hover:text-white">close</span>
             </button>
             <Link
-              href="/member/browse"
+              href="/explore"
               className="flex h-9 items-center justify-center gap-x-2 rounded-full border border-border-dark bg-white/5 hover:bg-white/10 px-5 transition-all cursor-pointer group"
             >
               <span className="text-white/80 group-hover:text-white text-sm font-medium">Browse Categories</span>
               <span className="material-symbols-outlined text-[16px] text-white/50 group-hover:text-white">category</span>
             </Link>
             <Link
-              href="/member/browse?sort=rating"
+              href="/explore?sort=rating"
               className="flex h-9 items-center justify-center gap-x-2 rounded-full border border-border-dark bg-white/5 hover:bg-white/10 px-5 transition-all cursor-pointer group"
             >
               <span className="text-white/80 group-hover:text-white text-sm font-medium">View Top Rated</span>

@@ -14,7 +14,6 @@ if (typeof window !== 'undefined') {
 
 export default function AboutPage() {
   const heroRef = useRef(null);
-  const statsRef = useRef(null);
   const storyRef = useRef(null);
 
   useEffect(() => {
@@ -32,22 +31,6 @@ export default function AboutPage() {
       { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out', delay: 0.2 }
     );
 
-    // Stats Counter Animation
-    const stats = statsRef.current.querySelectorAll('.stat-item');
-    gsap.fromTo(stats,
-      { opacity: 0, scale: 0.5 },
-      { 
-        opacity: 1, 
-        scale: 1, 
-        duration: 0.8, 
-        stagger: 0.2, 
-        ease: 'back.out(1.7)',
-        scrollTrigger: {
-          trigger: statsRef.current,
-          start: 'top 85%',
-        }
-      }
-    );
 
     // Story Section Reveal
     gsap.fromTo(storyRef.current,
@@ -107,26 +90,6 @@ export default function AboutPage() {
               Bookflix bridges the gap between traditional wisdom and modern technology, 
               bringing thousands of titles to your doorstep.
             </p>
-          </div>
-        </section>
-
-        {/* Stats Section */}
-        <section ref={statsRef} className="py-20 px-6 bg-surface-dark/30 border-y border-white/5">
-          <div className="max-w-[1400px] mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12">
-            {[
-              { label: 'Books Available', val: '15,000+', icon: 'auto_stories' },
-              { label: 'Active Members', val: '12,500+', icon: 'groups' },
-              { label: 'Genres Covered', val: '80+', icon: 'category' },
-              { label: 'Branches', val: '12', icon: 'location_on' },
-            ].map((stat, i) => (
-              <div key={i} className="stat-item flex flex-col items-center text-center opacity-0">
-                <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
-                  <span className="material-symbols-outlined text-3xl text-primary">{stat.icon}</span>
-                </div>
-                <h3 className="text-3xl md:text-5xl font-black text-white mb-2">{stat.val}</h3>
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">{stat.label}</p>
-              </div>
-            ))}
           </div>
         </section>
 

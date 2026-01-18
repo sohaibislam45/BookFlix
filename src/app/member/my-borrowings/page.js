@@ -90,7 +90,7 @@ function MyShelfPageContent() {
       if (response.ok) {
         showSuccess('Success!', 'Book returned successfully!');
         await fetchBorrowings();
-        router.push('/member/shelf');
+        router.push('/member/my-borrowings');
       } else {
         const error = await response.json();
         showError('Error', error.error || 'Failed to return book');
@@ -115,7 +115,7 @@ function MyShelfPageContent() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col gap-6">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-white mb-2">My Shelf</h2>
+            <h2 className="text-3xl font-black tracking-tight text-white mb-2">My Borrowings</h2>
             <p className="text-text-secondary">Your borrowed books and reading history</p>
           </div>
 
