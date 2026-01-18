@@ -73,7 +73,7 @@ export default function NotFound() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Card 1 */}
                 <Link
-                  href="/member/browse"
+                  href="/member/explore"
                   className="group relative flex flex-col gap-3 rounded-xl border border-[#3c2348] bg-[#2b1934]/50 p-6 transition-all duration-300 hover:bg-[#2b1934] hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1"
                 >
                   <div className="bg-primary/10 rounded-lg w-12 h-12 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-300 text-primary">
@@ -101,7 +101,7 @@ export default function NotFound() {
                 
                 {/* Card 3 */}
                 <Link
-                  href="/member/browse?sort=new"
+                  href="/member/explore?sort=new"
                   className="group relative flex flex-col gap-3 rounded-xl border border-[#3c2348] bg-[#2b1934]/50 p-6 transition-all duration-300 hover:bg-[#2b1934] hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1"
                 >
                   <div className="bg-primary/10 rounded-lg w-12 h-12 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-300 text-primary">

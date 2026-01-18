@@ -15,6 +15,12 @@ import FAQ from '@/components/FAQ';
 import Newsletter from '@/components/Newsletter';
 import { showError } from '@/lib/swal';
 import { USER_ROLES } from '@/lib/constants';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export default function Home() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
@@ -22,12 +28,10 @@ export default function Home() {
   const [processingSubscription, setProcessingSubscription] = useState(false);
   const { user, userData } = useAuth();
   const router = useRouter();
-  const [isVisible, setIsVisible] = useState(false);
   const [scrollY, setScrollY] = useState(0);
-  const [ctaVisible, setCtaVisible] = useState(false);
   const statsRef = useRef(null);
   const sectionsRef = useRef([]);
-  
+
   // Stats state
   const [stats, setStats] = useState({
     totalBooks: 0,
@@ -56,61 +60,65 @@ export default function Home() {
      userData.subscription.status !== 'active' ||
      !['monthly', 'yearly'].includes(userData.subscription.type));
 
-  // Handle scroll for parallax and visibility
+  // GSAP Animations
+  useEffect(() => {
+    // Stats Animation
+    if (statsRef.current) {
+      gsap.fromTo(statsRef.current,
+        { opacity: 0, scale: 0.95, y: 30 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          y: 0, 
+          duration: 1, 
+          ease: 'power4.out',
+          scrollTrigger: {
+            trigger: statsRef.current,
+            start: 'top 90%',
+          }
+        }
+      );
+    }
+
+    sectionsRef.current.forEach((section, index) => {
+      if (!section) return;
+
+      const title = section.querySelector('h2');
+      const content = section.querySelector('.section-content');
+      const cards = section.querySelectorAll('.animate-on-scroll');
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top 80%',
+          toggleActions: 'play none none none'
+        }
+      });
+
+      if (title) tl.from(title, { opacity: 0, y: 30, duration: 0.8, ease: 'power3.out' });
+      if (content) tl.from(content, { opacity: 0, y: 30, duration: 0.8, ease: 'power3.out' }, '-=0.5');
+      if (cards.length > 0) {
+        tl.from(cards, { 
+          opacity: 0, 
+          y: 40, 
+          duration: 0.8, 
+          stagger: 0.15, 
+          ease: 'power2.out' 
+        }, '-=0.5');
+      }
+    });
+  }, [loadingStats]); // Recalculate if stats load
+
+  // Handle scroll for parallax
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
-      
-      // Check if stats section is visible
-      if (statsRef.current) {
-        const rect = statsRef.current.getBoundingClientRect();
-        const isInView = rect.top < window.innerHeight && rect.bottom > 0;
-        if (isInView && !isVisible) {
-          setIsVisible(true);
-        }
-      }
     };
 
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Check on mount
-    
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isVisible]);
-
-  // Intersection Observer for section animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fade-in-up');
-            entry.target.style.opacity = '1';
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
-
-    sectionsRef.current.forEach((section) => {
-      if (section) observer.observe(section);
-    });
-
-    return () => {
-      sectionsRef.current.forEach((section) => {
-        if (section) observer.unobserve(section);
-      });
-    };
   }, []);
 
-  // Ensure CTA section becomes visible when conditionally rendered
-  useEffect(() => {
-    if (isGeneralMember || !user) {
-      const timer = setTimeout(() => {
-        setCtaVisible(true);
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [isGeneralMember, user]);
 
   // Auto-close pricing modal and redirect after 5 seconds
   useEffect(() => {
@@ -313,39 +321,38 @@ export default function Home() {
         {/* Stats */}
         <div 
           ref={statsRef}
-          className="glass-panel w-full rounded-[2rem] p-3 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0 transition-opacity duration-1000"
-          style={{ opacity: isVisible ? 1 : 0 }}
+          className="glass-panel w-full rounded-[2rem] p-3 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0"
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10 text-center">
-            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-100">
+            <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? (stats.totalBooks >= 1000 ? formatNumber(stats.totalBooks) : stats.totalBooks) : '0'}
+                {!loadingStats ? (stats.totalBooks >= 1000 ? formatNumber(stats.totalBooks) : stats.totalBooks) : '0'}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">auto_stories</span>
                 Books
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-200">
+            <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}
+                {!loadingStats ? (stats.activeMembers >= 1000 ? formatNumber(stats.activeMembers) : stats.activeMembers) : '0'}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">group</span>
                 Active Members
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-300">
+            <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
-                {isVisible && !loadingStats ? stats.totalLibraries : '0'}
+                {!loadingStats ? stats.totalLibraries : '0'}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">domain</span>
                 Libraries
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center p-4 animate-fade-in-up animation-delay-400">
-              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">{isVisible ? '24/7' : '0'}</span>
+            <div className="flex flex-col items-center justify-center p-4">
+              <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">24/7</span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">public</span>
                 Access
@@ -369,7 +376,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Top Borrowed This Week</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/browse?sort=rating&order=desc"
+              href="/explore?sort=rating&order=desc"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -389,8 +396,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                    style={{ animationDelay: `${700 + index * 100}ms` }}
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -426,7 +432,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Fresh New Arrivals</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/browse?sort=createdAt&order=desc"
+              href="/explore?sort=createdAt&order=desc"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -446,8 +452,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                    style={{ animationDelay: `${800 + index * 100}ms` }}
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -483,7 +488,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Bangla Books</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/browse?language=bn"
+              href="/explore?language=bn"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -503,8 +508,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                    style={{ animationDelay: `${900 + index * 100}ms` }}
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -540,7 +544,7 @@ export default function Home() {
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">English Books</h2>
             <Link
               className="text-xs font-semibold text-primary hover:text-white uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all"
-              href="/browse?language=en"
+              href="/explore?language=en"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
@@ -560,8 +564,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-fade-in-up"
-                    style={{ animationDelay: `${1000 + index * 100}ms` }}
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -592,8 +595,7 @@ export default function Home() {
         {(isGeneralMember || !user) && (
           <div 
             ref={(el) => (sectionsRef.current[4] = el)}
-            className={`relative rounded-[3rem] overflow-hidden mt-12 group ${ctaVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
-            style={{ '--animation-delay': '100ms' }}
+            className={`relative rounded-[3rem] overflow-hidden mt-12 group`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-900 opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>

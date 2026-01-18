@@ -132,7 +132,7 @@ function BrowseContent() {
         params.delete(key);
       }
     });
-    router.push(`/member/browse?${params.toString()}`, { scroll: false });
+    router.push(`/member/explore?${params.toString()}`, { scroll: false });
   };
 
   const loadMore = () => {

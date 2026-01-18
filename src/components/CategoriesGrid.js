@@ -68,7 +68,7 @@ const CategoriesGrid = () => {
             <h2 className="text-sm font-bold text-primary uppercase tracking-[0.3em] mb-4">Browse by Genre</h2>
             <h3 className="text-3xl md:text-5xl font-black text-white">Find Your Next Story</h3>
           </div>
-          <Link href="/browse" className="text-primary hover:text-white font-bold flex items-center gap-2 group transition-colors">
+          <Link href="/explore" className="text-primary hover:text-white font-bold flex items-center gap-2 group transition-colors">
             View All Categories <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
           </Link>
         </div>
@@ -77,8 +77,8 @@ const CategoriesGrid = () => {
           {categories.slice(0, 8).map((cat) => (
             <Link 
               key={cat._id}
-              href={`/browse?category=${cat._id}`}
-              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name.toLowerCase()] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4`}
+              href={`/explore?category=${cat._id}`}
+              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name.toLowerCase()] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4 opacity-0 animate-on-scroll`}
             >
               <span className={`material-symbols-outlined text-4xl text-white group-hover:scale-110 transition-transform duration-300`}>
                 {cat.icon || iconMap[cat.name.toLowerCase()] || 'book'}

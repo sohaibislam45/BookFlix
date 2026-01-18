@@ -14,7 +14,7 @@ export default function MemberHeader({ onSearch, initialSearch = '' }) {
     if (onSearch) {
       onSearch(searchQuery);
     } else {
-      router.push(`/member/browse?search=${encodeURIComponent(searchQuery)}`);
+      router.push(`/member/explore?search=${encodeURIComponent(searchQuery)}`);
     }
   };
 

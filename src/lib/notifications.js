@@ -59,7 +59,7 @@ function getEmailTemplate(type, data) {
           <p>Hi ${data.userName},</p>
           <p>Your reservation for <strong>"${data.bookTitle}"</strong> by ${data.bookAuthor} has expired.</p>
           <p>The book has been made available to the next person in the queue.</p>
-          <a href="${baseUrl}/member/browse" style="display: inline-block; background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Browse Books</a>
+          <a href="${baseUrl}/member/explore" style="display: inline-block; background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Browse Books</a>
         </div>
       `,
     },
@@ -95,7 +95,7 @@ function getEmailTemplate(type, data) {
           <h2 style="color: #3b82f6;">Book Available</h2>
           <p>Hi ${data.userName},</p>
           <p>The book <strong>"${data.bookTitle}"</strong> by ${data.bookAuthor} is now available for borrowing.</p>
-          <a href="${baseUrl}/member/browse?book=${data.bookId}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Borrow Now</a>
+          <a href="${baseUrl}/member/explore?book=${data.bookId}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">Borrow Now</a>
         </div>
       `,
     },

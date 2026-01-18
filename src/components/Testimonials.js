@@ -35,7 +35,7 @@ const Testimonials = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((t, index) => (
-            <div key={index} className="glass-panel p-10 rounded-3xl border border-white/5 bg-white/5 relative group">
+            <div key={index} className="glass-panel p-10 rounded-3xl border border-white/5 bg-white/5 relative group opacity-0 animate-on-scroll">
               <div className="flex gap-1 text-primary mb-6">
                 {[...Array(5)].map((_, i) => (
                   <span key={i} className="material-symbols-outlined text-sm">

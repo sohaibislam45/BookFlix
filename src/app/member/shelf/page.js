@@ -181,7 +181,7 @@ function MyShelfPageContent() {
               </p>
               {filter !== 'returned' && (
                 <Link
-                  href="/member/browse"
+                  href="/member/explore"
                   className="inline-block mt-4 text-primary hover:text-white transition-colors font-medium"
                 >
                   Browse our collection →

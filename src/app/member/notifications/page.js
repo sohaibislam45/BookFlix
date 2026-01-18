@@ -130,7 +130,7 @@ export default function NotificationsPage() {
       return '/member/billing';
     }
     if (notification.metadata?.book) {
-      return `/member/browse?book=${notification.metadata.book}`;
+      return `/member/explore?book=${notification.metadata.book}`;
     }
     return null;
   };

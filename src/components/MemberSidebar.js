@@ -19,7 +19,7 @@ export default function MemberSidebar() {
 
   const navItems = [
     { href: '/member/overview', label: 'Overview', icon: 'home' },
-    { href: '/member/browse', label: 'Browse', icon: 'explore' },
+    { href: '/member/explore', label: 'Browse', icon: 'explore' },
     { href: '/member/shelf', label: 'My Shelf', icon: 'shelves' },
     // Only show reservations for premium members
     ...(isPremium ? [{ href: '/member/reservations', label: 'Reservations', icon: 'event_seat' }] : []),

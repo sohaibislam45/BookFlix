@@ -206,7 +206,7 @@ export default function MemberOverviewPage() {
               title="No books currently borrowed"
               description="Start exploring our collection and borrow your first book!"
               actionLabel="Browse Collection"
-              actionHref="/member/browse"
+              actionHref="/member/explore"
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

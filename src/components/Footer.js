@@ -36,17 +36,17 @@ const Footer = () => {
           <h3 className="text-white font-bold mb-6 uppercase tracking-widest text-xs">Explore</h3>
           <ul className="space-y-4 text-gray-400">
             <li>
-              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/browse">
+              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/explore">
                 <span className="material-symbols-outlined text-base">explore</span> Browse All
               </Link>
             </li>
             <li>
-              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/browse?sort=rating">
+              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/explore?sort=rating">
                 <span className="material-symbols-outlined text-base">star</span> Top Rated
               </Link>
             </li>
             <li>
-              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/browse?sort=createdAt">
+              <Link className="hover:text-primary transition-colors flex items-center gap-2" href="/explore?sort=createdAt">
                 <span className="material-symbols-outlined text-base">new_releases</span> New Arrivals
               </Link>
             </li>

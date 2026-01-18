@@ -36,7 +36,7 @@ const Features = () => {
           {features.map((feature, index) => (
             <div 
               key={index}
-              className="glass-panel p-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 group hover:-translate-y-2"
+              className="glass-panel p-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 group hover:-translate-y-2 opacity-0 animate-on-scroll"
             >
               <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined text-3xl">{feature.icon}</span>

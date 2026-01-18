@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfile from '@/components/UserProfile';
 import { USER_ROLES } from '@/lib/constants';
 
 const Navbar = ({ togglePricingModal }) => {
   const { user, userData } = useAuth();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -19,22 +21,35 @@ const Navbar = ({ togglePricingModal }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const isPremium = userData?.subscription?.status === 'active';
+
   const loggedOutRoutes = [
     { name: 'Home', href: '/' },
-    { name: 'Explore', href: '/browse' },
-    { name: 'Pricing', href: '/#pricing' },
-    { name: 'About', href: '/#about' },
+    { name: 'Explore', href: '/explore' },
+    { name: 'Pricing', href: '/pricing' },
+    { name: 'About', href: '/about' },
   ];
 
   const loggedInRoutes = [
     { name: 'Home', href: '/' },
-    { name: 'Explore', href: '/browse' },
+    { name: 'Explore', href: '/explore' },
     { name: 'My Borrowings', href: '/member/my-borrowings', roles: [USER_ROLES.MEMBER] },
+    ...(!isPremium ? [{ name: 'Premium', href: '/pricing', roles: [USER_ROLES.MEMBER] }] : []),
     { name: 'Dashboard', href: userData?.role === USER_ROLES.ADMIN ? '/admin/overview' : userData?.role === USER_ROLES.LIBRARIAN ? '/librarian/overview' : '/member/overview' },
-    { name: 'Premium', href: '/#pricing', roles: [USER_ROLES.MEMBER] },
   ];
 
   const routes = user ? loggedInRoutes : loggedOutRoutes;
+
+  const handleLoginClick = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('redirectAfterLogin', pathname);
+    }
+  };
+ bitumen
+  const isActive = (href) => {
+    if (href === '/' && pathname !== '/') return false;
+    return pathname.startsWith(href);
+  };
 
   return (
     <header className={`fixed top-0 w-full z-50 transition-all duration-500 ${
@@ -54,10 +69,14 @@ const Navbar = ({ togglePricingModal }) => {
               <Link
                 key={route.name}
                 href={route.href}
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors relative group"
+                className={`text-sm font-medium transition-colors relative group ${
+                  isActive(route.href) ? 'text-primary' : 'text-white/70 hover:text-white'
+                }`}
               >
                 {route.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                <span className={`absolute -bottom-1 left-0 h-0.5 bg-primary transition-all duration-300 ${
+                  isActive(route.href) ? 'w-full' : 'w-0 group-hover:w-full'
+                }`}></span>
               </Link>
             )
           ))}
@@ -71,13 +90,17 @@ const Navbar = ({ togglePricingModal }) => {
             <>
               <Link
                 href="/login"
+                onClick={handleLoginClick}
                 className="hidden sm:block text-white/80 hover:text-white text-sm font-medium transition-colors"
               >
                 Sign In
               </Link>
               <button
                 className="bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(170,31,239,0.3)] hover:scale-105 active:scale-95"
-                onClick={togglePricingModal}
+                onClick={() => {
+                  handleLoginClick();
+                  togglePricingModal();
+                }}
               >
                 Join Now
               </button>
@@ -102,24 +125,30 @@ const Navbar = ({ togglePricingModal }) => {
            <nav className="flex flex-col gap-6 items-start">
             {routes.map((route) => (
               (!route.roles || (userData && (route.roles.includes(userData.role) || userData.role === USER_ROLES.ADMIN))) && (
-                <Link
-                  key={route.name}
-                  href={route.href}
-                  className="text-2xl font-bold text-white hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {route.name}
-                </Link>
+                  <Link
+                    key={route.name}
+                    href={route.href}
+                    className={`text-2xl font-bold transition-colors ${
+                      isActive(route.href) ? 'text-primary' : 'text-white hover:text-primary'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {route.name}
+                  </Link>
               )
             ))}
             {!user && (
               <Link
                 href="/login"
+                onClick={() => {
+                  handleLoginClick();
+                  setIsMobileMenuOpen(false);
+                }}
                 className="text-2xl font-bold text-white/60 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sign In
               </Link>
+ bitumen
             )}
             {!user && (
                <button

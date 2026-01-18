@@ -98,7 +98,7 @@ export default function BookDetailsPage() {
           }
         } else {
           showError('Book Not Found', 'The book you are looking for does not exist.');
-          router.push('/browse');
+          router.push('/explore');
         }
       } catch (error) {
         console.error('Error fetching book:', error);
@@ -456,7 +456,7 @@ export default function BookDetailsPage() {
                 <h2 className="text-white text-xl font-bold leading-tight tracking-[-0.015em]">Bookflix</h2>
               </Link>
               <div className="hidden md:flex items-center gap-9">
-                <Link className="text-white text-sm font-medium leading-normal hover:text-primary transition-colors" href="/browse">
+                <Link className="text-white text-sm font-medium leading-normal hover:text-primary transition-colors" href="/explore">
                   Browse
                 </Link>
               </div>
@@ -495,13 +495,13 @@ export default function BookDetailsPage() {
               Home
             </Link>
             <span className="text-text-secondary/50">/</span>
-            <Link href="/browse" className="text-text-secondary font-medium hover:text-white transition-colors">
+            <Link href="/explore" className="text-text-secondary font-medium hover:text-white transition-colors">
               Browse
             </Link>
             {book.category && (
               <>
                 <span className="text-text-secondary/50">/</span>
-                <Link href={`/browse?category=${book.category._id}`} className="text-text-secondary font-medium hover:text-white transition-colors capitalize">
+                <Link href={`/explore?category=${book.category._id}`} className="text-text-secondary font-medium hover:text-white transition-colors capitalize">
                   {book.category.name}
                 </Link>
               </>
@@ -545,7 +545,7 @@ export default function BookDetailsPage() {
               <div className="flex flex-col gap-4 mb-6">
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight">{book.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-text-secondary text-base">
-                  <Link href={`/browse?search=${encodeURIComponent(book.author)}`} className="font-medium text-white hover:text-primary transition-colors flex items-center gap-1">
+                  <Link href={`/explore?search=${encodeURIComponent(book.author)}`} className="font-medium text-white hover:text-primary transition-colors flex items-center gap-1">
                     <span className="material-symbols-outlined !text-[18px]">person</span>
                     {book.author}
                   </Link>
