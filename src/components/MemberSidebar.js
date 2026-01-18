@@ -12,6 +12,11 @@ export default function MemberSidebar() {
     return pathname === path;
   };
 
+  const subscriptionType = userData?.subscription?.type || 'free';
+  const subscriptionStatus = userData?.subscription?.status || 'active';
+  const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
+  const memberType = isPremium ? 'Premium Member' : 'Standard Member';
+
   const navItems = [
     { href: '/member/overview', label: 'Overview', icon: 'home' },
     { href: '/member/browse', label: 'Browse', icon: 'explore' },
@@ -21,11 +26,6 @@ export default function MemberSidebar() {
     { href: '/member/billing', label: 'Billing & Profile', icon: 'receipt_long' },
     { href: '/member/settings', label: 'Settings', icon: 'settings' },
   ];
-
-  const subscriptionType = userData?.subscription?.type || 'free';
-  const subscriptionStatus = userData?.subscription?.status || 'active';
-  const isPremium = (subscriptionType === 'monthly' || subscriptionType === 'yearly') && subscriptionStatus === 'active';
-  const memberType = isPremium ? 'Premium Member' : 'Standard Member';
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-[#3c2348]/50 bg-[#1c1022] hidden md:flex flex-col justify-between p-4">

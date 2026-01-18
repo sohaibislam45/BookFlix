@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
   try {
     await connectDB();
 
-    const { bookId } = params;
+    const { bookId } = await params;
 
     const reservations = await Reservation.find({
       book: bookId,

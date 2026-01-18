@@ -7,7 +7,7 @@ export async function PATCH(request, { params }) {
   try {
     await connectDB();
 
-    const { id } = params;
+    const { id } = await params;
 
     const notification = await Notification.findById(id);
     if (!notification) {
@@ -40,7 +40,7 @@ export async function DELETE(request, { params }) {
   try {
     await connectDB();
 
-    const { id } = params;
+    const { id } = await params;
 
     const notification = await Notification.findByIdAndDelete(id);
     if (!notification) {

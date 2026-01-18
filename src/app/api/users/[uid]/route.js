@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
   try {
     await connectDB();
 
-    const { uid } = params;
+    const { uid } = await params;
     const user = await User.findOne({ firebaseUid: uid }).select('-__v');
 
     if (!user) {
@@ -30,7 +30,7 @@ export async function PATCH(request, { params }) {
   try {
     await connectDB();
 
-    const { uid } = params;
+    const { uid } = await params;
     const body = await request.json();
 
     const user = await User.findOneAndUpdate(

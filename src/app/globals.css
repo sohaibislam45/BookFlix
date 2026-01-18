@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
 
 :root {
   --background: #ffffff;
@@ -63,6 +65,18 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --color-background: #0a0a0a;
+  --color-foreground: #ededed;
+  --color-background-light: #121212;
+  --color-background-dark: #121212;
+  --color-surface-dark: #1c1c1c;
+  --color-card-dark: #2b1934;
+  --color-border-dark: #553267;
 }
 
 body {

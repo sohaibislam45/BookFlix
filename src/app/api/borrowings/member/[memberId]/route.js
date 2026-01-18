@@ -9,7 +9,7 @@ export async function GET(request, { params }) {
   try {
     await connectDB();
 
-    const { memberId } = params;
+    const { memberId } = await params;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 

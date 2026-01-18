@@ -23,8 +23,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} font-display antialiased`}>
+    <html lang="en" className="dark" data-theme="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} font-display antialiased`} suppressHydrationWarning>
         <ErrorBoundary>
           <MaterialSymbolsLoader />
           <AuthProvider>

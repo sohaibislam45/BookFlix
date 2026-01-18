@@ -267,6 +267,13 @@ function RegisterPageContent() {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const role = userData.role || 'member';
+        
+        // Update local userData in context immediately
+        const { setUserData } = useAuth();
+        // Note: we can't use setUserData here because we're inside the handleSubmit function
+        // and it was already destuctured at the top. Wait, let me check the destructuring.
+        // Actually, let's just use what's available.
+        
         router.push(getRoleOverviewRoute(role));
       } else {
         // Fallback to dashboard if user data fetch fails

@@ -71,6 +71,7 @@ export default function AuthProvider({ children }) {
             const fallbackData = {
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               email: firebaseUser.email,
+              role: 'member',
             };
             if (firebaseUser.photoURL) {
               fallbackData.profilePhoto = firebaseUser.photoURL;
@@ -82,6 +83,7 @@ export default function AuthProvider({ children }) {
             const fallbackData = {
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               email: firebaseUser.email,
+              role: 'member',
             };
             if (firebaseUser.photoURL) {
               fallbackData.profilePhoto = firebaseUser.photoURL;
@@ -94,6 +96,7 @@ export default function AuthProvider({ children }) {
           const fallbackData = {
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
             email: firebaseUser.email,
+            role: 'member',
           };
           if (firebaseUser.photoURL) {
             fallbackData.profilePhoto = firebaseUser.photoURL;
