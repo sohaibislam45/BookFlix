@@ -15,12 +15,17 @@ if (typeof window !== 'undefined') {
 }
 
 export default function PricingPage() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const router = useRouter();
   const titleRef = useRef(null);
   const cardsRef = useRef(null);
 
   useEffect(() => {
+    // Redirect if already premium
+    if (userData?.subscription?.status === 'active') {
+      router.replace('/');
+      return;
+    }
     // Title Animation
     gsap.fromTo(titleRef.current,
       { opacity: 0, scale: 0.9, y: 50 },
@@ -43,6 +48,22 @@ export default function PricingPage() {
         }
       }
     );
+
+    // Global animate-on-scroll elements
+    const scrollElements = document.querySelectorAll('.animate-on-scroll');
+    scrollElements.forEach((el) => {
+      gsap.to(el, {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%',
+          toggleActions: 'play none none none'
+        }
+      });
+    });
   }, []);
 
   const handlePlanSelection = (plan) => {

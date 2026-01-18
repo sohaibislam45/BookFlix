@@ -33,19 +33,21 @@ const Navbar = ({ togglePricingModal }) => {
   const loggedInRoutes = [
     { name: 'Home', href: '/' },
     { name: 'Explore', href: '/explore' },
+    { name: 'About', href: '/about' },
     { name: 'My Borrowings', href: '/member/my-borrowings', roles: [USER_ROLES.MEMBER] },
     ...(!isPremium ? [{ name: 'Premium', href: '/pricing', roles: [USER_ROLES.MEMBER] }] : []),
     { name: 'Dashboard', href: userData?.role === USER_ROLES.ADMIN ? '/admin/overview' : userData?.role === USER_ROLES.LIBRARIAN ? '/librarian/overview' : '/member/overview' },
   ];
 
+
   const routes = user ? loggedInRoutes : loggedOutRoutes;
 
   const handleLoginClick = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('redirectAfterLogin', pathname);
+      sessionStorage.setItem('returnAfterLogin', pathname);
     }
   };
- bitumen
+
   const isActive = (href) => {
     if (href === '/' && pathname !== '/') return false;
     return pathname.startsWith(href);
@@ -148,7 +150,7 @@ const Navbar = ({ togglePricingModal }) => {
               >
                 Sign In
               </Link>
- bitumen
+
             )}
             {!user && (
                <button

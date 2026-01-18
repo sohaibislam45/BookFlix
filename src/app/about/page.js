@@ -63,6 +63,22 @@ export default function AboutPage() {
         }
       }
     );
+
+    // Global animate-on-scroll elements
+    const scrollElements = document.querySelectorAll('.animate-on-scroll');
+    scrollElements.forEach((el) => {
+      gsap.to(el, {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%',
+          toggleActions: 'play none none none'
+        }
+      });
+    });
   }, []);
 
   return (
