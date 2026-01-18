@@ -1,0 +1,133 @@
+
+> bookfiix@0.1.0 dev
+> next dev --webpack
+
+▲ Next.js 16.1.1 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.101:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 1678ms
+○ Compiling / ...
+ GET / 200 in 6.1s (compile: 5.8s, render: 258ms)
+(node:9100) [MONGOOSE] Warning: Duplicate schema index on {"email":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9100) [MONGOOSE] Warning: Duplicate schema index on {"firebaseUid":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+ GET / 200 in 153ms (compile: 73ms, render: 80ms)
+ GET /api/books/top-borrowed?limit=10 200 in 5.2s (compile: 3.1s, render: 2.1s)
+ GET /api/stats 200 in 5.4s (compile: 3.1s, render: 2.3s)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 5.7s (compile: 3.1s, render: 2.5s)
+ GET /api/books/by-language?language=bn&limit=12 200 in 5.8s (compile: 3.1s, render: 2.7s)
+ GET /api/books/by-language?language=en&limit=12 200 in 5.9s (compile: 3.1s, render: 2.8s)
+⨯ upstream image response timed out for https://i.ibb.co/6R52QZn7/1cc2c86e5366.jpg
+ GET / 200 in 188ms (compile: 11ms, render: 176ms)
+ GET / 200 in 72ms (compile: 7ms, render: 65ms)
+ GET /api/books/top-borrowed?limit=10 200 in 214ms (compile: 37ms, render: 177ms)
+ GET /api/stats 200 in 306ms (compile: 17ms, render: 289ms)
+ GET /api/books/by-language?language=bn&limit=12 200 in 400ms (compile: 58ms, render: 342ms)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 407ms (compile: 45ms, render: 362ms)
+ GET /api/books/by-language?language=en&limit=12 200 in 404ms (compile: 56ms, render: 348ms)
+ GET /api/books/top-borrowed?limit=10 200 in 188ms (compile: 25ms, render: 163ms)
+ GET /api/stats 200 in 275ms (compile: 15ms, render: 260ms)
+ GET /api/books/by-language?language=bn&limit=12 200 in 359ms (compile: 39ms, render: 320ms)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 368ms (compile: 32ms, render: 337ms)
+ GET /api/books/by-language?language=en&limit=12 200 in 367ms (compile: 35ms, render: 332ms)
+ GET / 200 in 53ms (compile: 5ms, render: 48ms)
+ GET /api/books/top-borrowed?limit=10 200 in 175ms (compile: 10ms, render: 164ms)
+ GET /api/stats 200 in 254ms (compile: 7ms, render: 248ms)
+ GET /api/books/by-language?language=bn&limit=12 200 in 330ms (compile: 20ms, render: 310ms)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 334ms (compile: 14ms, render: 320ms)
+ GET /api/books/by-language?language=en&limit=12 200 in 342ms (compile: 20ms, render: 322ms)
+  Reload env: .env.local
+ GET / 200 in 162ms (compile: 113ms, render: 49ms)
+ GET / 200 in 167ms (compile: 116ms, render: 51ms)
+  Reload env: .env.local
+ GET / 200 in 103ms (compile: 58ms, render: 45ms)
+ GET / 200 in 104ms (compile: 59ms, render: 46ms)
+  Reload env: .env.local
+ GET / 200 in 60ms (compile: 29ms, render: 31ms)
+ GET / 200 in 62ms (compile: 31ms, render: 31ms)
+  Reload env: .env.local
+ GET / 200 in 68ms (compile: 30ms, render: 38ms)
+ GET / 200 in 70ms (compile: 31ms, render: 39ms)
+  Reload env: .env.local
+ GET / 200 in 61ms (compile: 30ms, render: 32ms)
+ GET / 200 in 62ms (compile: 29ms, render: 33ms)
+  Reload env: .env.local
+ GET / 200 in 61ms (compile: 30ms, render: 31ms)
+ GET / 200 in 63ms (compile: 31ms, render: 32ms)
+  Reload env: .env.local
+ GET / 200 in 60ms (compile: 32ms, render: 28ms)
+ GET / 200 in 63ms (compile: 33ms, render: 29ms)
+  Reload env: .env.local
+ GET / 200 in 65ms (compile: 38ms, render: 28ms)
+ GET / 200 in 68ms (compile: 40ms, render: 29ms)
+  Reload env: .env.local
+ GET / 200 in 50ms (compile: 24ms, render: 26ms)
+ GET / 200 in 52ms (compile: 25ms, render: 27ms)
+  Reload env: .env.local
+ GET / 200 in 57ms (compile: 30ms, render: 27ms)
+ GET / 200 in 59ms (compile: 31ms, render: 28ms)
+  Reload env: .env.local
+ GET / 200 in 64ms (compile: 32ms, render: 32ms)
+ GET / 200 in 65ms (compile: 31ms, render: 34ms)
+  Reload env: .env.local
+ GET / 200 in 58ms (compile: 29ms, render: 29ms)
+ GET / 200 in 60ms (compile: 30ms, render: 30ms)
+  Reload env: .env.local
+ GET / 200 in 54ms (compile: 26ms, render: 29ms)
+ GET / 200 in 57ms (compile: 27ms, render: 30ms)
+  Reload env: .env.local
+ GET / 200 in 52ms (compile: 25ms, render: 27ms)
+ GET / 200 in 54ms (compile: 26ms, render: 28ms)
+  Reload env: .env.local
+ GET / 200 in 61ms (compile: 28ms, render: 34ms)
+ GET / 200 in 64ms (compile: 28ms, render: 35ms)
+  Reload env: .env.local
+ GET / 200 in 49ms (compile: 24ms, render: 24ms)
+ GET / 200 in 50ms (compile: 25ms, render: 25ms)
+ GET / 200 in 62ms (compile: 30ms, render: 32ms)
+ GET / 200 in 64ms (compile: 31ms, render: 33ms)
+ GET / 200 in 63ms (compile: 28ms, render: 35ms)
+ GET / 200 in 64ms (compile: 29ms, render: 36ms)
+  Reload env: .env.local
+ GET / 200 in 97ms (compile: 49ms, render: 48ms)
+ GET / 200 in 100ms (compile: 52ms, render: 49ms)
+  Reload env: .env.local
+ GET / 200 in 66ms (compile: 29ms, render: 37ms)
+ GET / 200 in 67ms (compile: 30ms, render: 38ms)
+  Reload env: .env.local
+ GET / 200 in 45ms (compile: 27ms, render: 19ms)
+  Reload env: .env.local
+ GET / 200 in 44ms (compile: 27ms, render: 17ms)
+  Reload env: .env.local
+ GET / 200 in 53ms (compile: 33ms, render: 20ms)
+  Reload env: .env.local
+ GET / 200 in 61ms (compile: 29ms, render: 32ms)
+  Reload env: .env.local
+ GET / 200 in 49ms (compile: 33ms, render: 17ms)
+ GET / 200 in 40ms (compile: 24ms, render: 16ms)
+  Reload env: .env.local
+ GET / 200 in 46ms (compile: 27ms, render: 18ms)
+ GET / 200 in 44ms (compile: 7ms, render: 38ms)
+ GET / 200 in 30ms (compile: 5ms, render: 25ms)
+ GET / 200 in 28ms (compile: 5ms, render: 22ms)
+ GET / 200 in 24ms (compile: 5ms, render: 19ms)
+ GET / 200 in 25ms (compile: 7ms, render: 19ms)
+ GET / 200 in 23ms (compile: 5ms, render: 19ms)
+ GET / 200 in 24ms (compile: 6ms, render: 18ms)
+ GET / 200 in 215ms (compile: 2ms, render: 213ms)
+ GET / 200 in 73ms (compile: 5ms, render: 68ms)
+(node:9100) [MONGOOSE] Warning: Duplicate schema index on {"email":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:9100) [MONGOOSE] Warning: Duplicate schema index on {"firebaseUid":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+ GET /api/books/top-borrowed?limit=10 200 in 1257ms (compile: 1024ms, render: 233ms)
+ GET /api/stats 200 in 1308ms (compile: 1027ms, render: 282ms)
+ GET /api/books/by-language?language=bn&limit=12 200 in 1381ms (compile: 1023ms, render: 358ms)
+ GET /api/books/by-language?language=en&limit=12 200 in 1383ms (compile: 1022ms, render: 361ms)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 1918ms (compile: 1023ms, render: 895ms)
+ GET /api/books/top-borrowed?limit=10 200 in 177ms (compile: 10ms, render: 167ms)
+ GET /api/stats 200 in 247ms (compile: 5ms, render: 242ms)
+ GET /api/books/by-language?language=en&limit=12 200 in 335ms (compile: 19ms, render: 316ms)
+ GET /api/books/by-language?language=bn&limit=12 200 in 338ms (compile: 20ms, render: 318ms)
+ GET /api/books?limit=12&sort=createdAt&order=desc 200 in 342ms (compile: 15ms, render: 327ms)
