@@ -493,7 +493,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                className="w-full min-h-[120px] rounded-lg bg-surface-dark border border-border-dark text-white placeholder-text-muted px-4 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm resize-none leading-relaxed" 
+                className="w-full min-h-[120px] rounded-lg bg-surface-dark border border-border-dark text-white mb-7 placeholder-text-muted px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm resize-none leading-relaxed" 
                 placeholder="Write a brief description of the book..."
                 disabled={submitting}
               />

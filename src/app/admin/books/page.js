@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import AdminHeader from '@/components/AdminHeader';
-import Link from 'next/link';
-import Loader from '@/components/Loader';
-import AddBookModal from '@/components/AddBookModal';
-import EditBookModal from '@/components/EditBookModal';
-import { showError, showSuccess, showInput, showConfirm } from '@/lib/swal';
-import swalTheme from '@/lib/swal';
-import Swal from 'sweetalert2';
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import AdminHeader from "@/components/AdminHeader";
+import Link from "next/link";
+import Loader from "@/components/Loader";
+import AddBookModal from "@/components/AddBookModal";
+import EditBookModal from "@/components/EditBookModal";
+import { showError, showSuccess, showInput, showConfirm } from "@/lib/swal";
+import swalTheme from "@/lib/swal";
+import Swal from "sweetalert2";
 
 export default function AdminBooksPage() {
   const { userData } = useAuth();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [languageFilter, setLanguageFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [availabilityFilter, setAvailabilityFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [stats, setStats] = useState({
@@ -28,6 +28,12 @@ export default function AdminBooksPage() {
     lowStock: 0,
     overdueBooks: 0,
     pendingReservations: 0,
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -41,38 +47,61 @@ export default function AdminBooksPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        limit: '10',
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
         ...(searchQuery && { search: searchQuery }),
-        ...(languageFilter && languageFilter !== 'all' && { language: languageFilter }),
+        ...(languageFilter &&
+          languageFilter !== "all" && { language: languageFilter }),
         ...(categoryFilter && { category: categoryFilter }),
-        ...(availabilityFilter && availabilityFilter !== 'all' && { availability: availabilityFilter }),
+        ...(availabilityFilter &&
+          availabilityFilter !== "all" && { availability: availabilityFilter }),
       });
       const response = await fetch(`/api/books?${params}`);
       if (response.ok) {
         const data = await response.json();
         setBooks(data.books || []);
+        if (data.pagination) {
+          setPagination((prev) => ({
+            ...prev,
+            total: data.pagination.total || 0,
+            pages: data.pagination.pages || 0,
+          }));
+        }
       }
     } catch (error) {
-      console.error('Error fetching books:', error);
+      console.error("Error fetching books:", error);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, languageFilter, categoryFilter, availabilityFilter]);
+  }, [
+    searchQuery,
+    languageFilter,
+    categoryFilter,
+    availabilityFilter,
+    pagination.page,
+    pagination.limit,
+  ]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(event.target)
+      ) {
         setIsCategoryDropdownOpen(false);
       }
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+      if (
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(event.target)
+      ) {
         setIsFilterDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -92,7 +121,7 @@ export default function AdminBooksPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats');
+      const response = await fetch("/api/admin/stats");
       if (response.ok) {
         const data = await response.json();
         setStats({
@@ -105,23 +134,23 @@ export default function AdminBooksPage() {
         });
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     }
   };
 
   const fetchGenres = async () => {
     try {
       setGenresLoading(true);
-      const response = await fetch('/api/categories?isActive=true');
+      const response = await fetch("/api/categories?isActive=true");
       if (response.ok) {
         const data = await response.json();
         setGenres(data);
       } else {
-        showError('Error', 'Failed to fetch genres');
+        showError("Error", "Failed to fetch genres");
       }
     } catch (error) {
-      console.error('Error fetching genres:', error);
-      showError('Error', 'Failed to fetch genres');
+      console.error("Error fetching genres:", error);
+      showError("Error", "Failed to fetch genres");
     } finally {
       setGenresLoading(false);
     }
@@ -130,17 +159,23 @@ export default function AdminBooksPage() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(event.target)
+      ) {
         setIsCategoryDropdownOpen(false);
       }
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+      if (
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(event.target)
+      ) {
         setIsFilterDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -173,40 +208,40 @@ export default function AdminBooksPage() {
         currentStock = bookData.totalCopies || 0;
       }
     } catch (error) {
-      console.error('Error fetching book stock:', error);
+      console.error("Error fetching book stock:", error);
     }
 
     // Show input for stock count with current value
     const result = await showInput(
-      'Manage Stock',
+      "Manage Stock",
       `Enter the number of copies for "${bookTitle}"`,
-      { input: 'number' },
+      { input: "number" },
       {
-        inputPlaceholder: 'Enter number of copies...',
+        inputPlaceholder: "Enter number of copies...",
         inputValue: currentStock.toString(),
         inputValidator: (value) => {
           const num = parseInt(value);
-          if (value === '' || isNaN(num) || num < 0) {
-            return 'Please enter a valid number (minimum 0)';
+          if (value === "" || isNaN(num) || num < 0) {
+            return "Please enter a valid number (minimum 0)";
           }
           if (num > 1000) {
-            return 'Maximum 1000 copies allowed';
+            return "Maximum 1000 copies allowed";
           }
           return null;
         },
-        confirmButtonText: 'Update Stock',
-        cancelButtonText: 'Cancel',
-      }
+        confirmButtonText: "Update Stock",
+        cancelButtonText: "Cancel",
+      },
     );
 
     if (result.isConfirmed && result.value) {
       try {
         const stockCount = parseInt(result.value);
-        
+
         const response = await fetch(`/api/books/${bookId}/stock`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             copies: stockCount,
@@ -217,108 +252,144 @@ export default function AdminBooksPage() {
         try {
           data = await response.json();
         } catch (jsonError) {
-          console.error('Error parsing JSON response:', jsonError);
-          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          console.error("Error parsing JSON response:", jsonError);
+          showError(
+            "Error",
+            `Server error (${response.status}). Please check the server logs.`,
+          );
           return;
         }
 
         if (response.ok) {
-          showSuccess('Stock Updated!', `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`);
+          showSuccess(
+            "Stock Updated!",
+            `Stock count for "${bookTitle}" has been updated to ${stockCount} copies.`,
+          );
           fetchBooks(); // Refresh the books list
           fetchStats(); // Refresh stats
         } else {
-          const errorMessage = data?.error || data?.message || `Failed to update stock (${response.status})`;
-          showError('Error', errorMessage);
+          const errorMessage =
+            data?.error ||
+            data?.message ||
+            `Failed to update stock (${response.status})`;
+          showError("Error", errorMessage);
         }
       } catch (error) {
-        console.error('Error updating stock:', error);
-        showError('Error', error.message || 'Failed to update stock. Please try again.');
+        console.error("Error updating stock:", error);
+        showError(
+          "Error",
+          error.message || "Failed to update stock. Please try again.",
+        );
       }
     }
   };
 
   const handleDeleteBook = async (bookId, bookTitle) => {
     const result = await showConfirm(
-      'Delete Book',
+      "Delete Book",
       `Are you sure you want to delete "${bookTitle}"? This action will deactivate the book and all its copies.`,
       {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
-      }
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel",
+      },
     );
 
     if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/books/${bookId}`, {
-          method: 'DELETE',
+          method: "DELETE",
         });
 
         let data;
         try {
           data = await response.json();
         } catch (jsonError) {
-          console.error('Error parsing JSON response:', jsonError);
-          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          console.error("Error parsing JSON response:", jsonError);
+          showError(
+            "Error",
+            `Server error (${response.status}). Please check the server logs.`,
+          );
           return;
         }
 
         if (response.ok) {
-          showSuccess('Book Deleted!', `"${bookTitle}" has been successfully deleted.`);
+          showSuccess(
+            "Book Deleted!",
+            `"${bookTitle}" has been successfully deleted.`,
+          );
           fetchBooks(); // Refresh the books list
           fetchStats(); // Refresh stats
         } else {
-          const errorMessage = data?.error || data?.message || `Failed to delete book (${response.status})`;
-          showError('Error', errorMessage);
+          const errorMessage =
+            data?.error ||
+            data?.message ||
+            `Failed to delete book (${response.status})`;
+          showError("Error", errorMessage);
         }
       } catch (error) {
-        console.error('Error deleting book:', error);
-        showError('Error', error.message || 'Failed to delete book. Please try again.');
+        console.error("Error deleting book:", error);
+        showError(
+          "Error",
+          error.message || "Failed to delete book. Please try again.",
+        );
       }
     }
   };
 
   const handleDeleteGenre = async (genreId, genreName) => {
     const result = await showConfirm(
-      'Delete Genre',
+      "Delete Genre",
       `Are you sure you want to delete the genre "${genreName}"? This action cannot be undone.`,
       {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
-      }
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel",
+      },
     );
 
     if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/categories?id=${genreId}`, {
-          method: 'DELETE',
+          method: "DELETE",
         });
 
         let data;
         try {
           data = await response.json();
         } catch (jsonError) {
-          console.error('Error parsing JSON response:', jsonError);
-          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          console.error("Error parsing JSON response:", jsonError);
+          showError(
+            "Error",
+            `Server error (${response.status}). Please check the server logs.`,
+          );
           return;
         }
 
         if (response.ok) {
-          showSuccess('Genre Deleted!', `The genre "${genreName}" has been successfully deleted.`);
+          showSuccess(
+            "Genre Deleted!",
+            `The genre "${genreName}" has been successfully deleted.`,
+          );
           fetchGenres(); // Refresh the genres list
         } else {
-          const errorMessage = data?.error || data?.message || `Failed to delete genre (${response.status})`;
-          showError('Error', errorMessage);
+          const errorMessage =
+            data?.error ||
+            data?.message ||
+            `Failed to delete genre (${response.status})`;
+          showError("Error", errorMessage);
         }
       } catch (error) {
-        console.error('Error deleting genre:', error);
-        showError('Error', error.message || 'Failed to delete genre. Please try again.');
+        console.error("Error deleting genre:", error);
+        showError(
+          "Error",
+          error.message || "Failed to delete genre. Please try again.",
+        );
       }
     }
   };
 
   const handleAddGenre = async () => {
     const result = await swalTheme.fire({
-      title: 'Add New Genre',
+      title: "Add New Genre",
       html: `
         <div style="text-align: left; margin-top: 1rem;">
           <label style="display: block; color: #b791ca; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">
@@ -336,31 +407,35 @@ export default function AdminBooksPage() {
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Create Genre',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#aa1fef',
-      cancelButtonColor: '#3c2348',
-      background: '#1c1c1c',
-      color: '#ffffff',
+      confirmButtonText: "Create Genre",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#aa1fef",
+      cancelButtonColor: "#3c2348",
+      background: "#1c1c1c",
+      color: "#ffffff",
       customClass: {
-        popup: 'swal-popup',
-        confirmButton: 'swal-confirm',
-        cancelButton: 'swal-cancel',
+        popup: "swal-popup",
+        confirmButton: "swal-confirm",
+        cancelButton: "swal-cancel",
       },
       preConfirm: () => {
-        const nameInput = document.getElementById('swal-genre-name');
-        const name = nameInput?.value?.trim() || '';
+        const nameInput = document.getElementById("swal-genre-name");
+        const name = nameInput?.value?.trim() || "";
 
         if (!name || name.length === 0) {
-          Swal.showValidationMessage('Genre name is required');
+          Swal.showValidationMessage("Genre name is required");
           return false;
         }
         if (name.length < 2) {
-          Swal.showValidationMessage('Genre name must be at least 2 characters');
+          Swal.showValidationMessage(
+            "Genre name must be at least 2 characters",
+          );
           return false;
         }
         if (name.length > 100) {
-          Swal.showValidationMessage('Genre name must be no more than 100 characters');
+          Swal.showValidationMessage(
+            "Genre name must be no more than 100 characters",
+          );
           return false;
         }
 
@@ -370,10 +445,10 @@ export default function AdminBooksPage() {
 
     if (result.isConfirmed && result.value) {
       try {
-        const response = await fetch('/api/categories', {
-          method: 'POST',
+        const response = await fetch("/api/categories", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: result.value.name,
@@ -384,62 +459,96 @@ export default function AdminBooksPage() {
         try {
           data = await response.json();
         } catch (jsonError) {
-          console.error('Error parsing JSON response:', jsonError);
-          showError('Error', `Server error (${response.status}). Please check the server logs.`);
+          console.error("Error parsing JSON response:", jsonError);
+          showError(
+            "Error",
+            `Server error (${response.status}). Please check the server logs.`,
+          );
           return;
         }
 
         if (response.ok) {
-          showSuccess('Genre Created!', `The genre "${data.category.name}" has been successfully created.`);
+          showSuccess(
+            "Genre Created!",
+            `The genre "${data.category.name}" has been successfully created.`,
+          );
           fetchGenres(); // Refresh the genres list
         } else {
-          const errorMessage = data?.error || data?.message || `Failed to create genre (${response.status})`;
-          showError('Error', errorMessage);
+          const errorMessage =
+            data?.error ||
+            data?.message ||
+            `Failed to create genre (${response.status})`;
+          showError("Error", errorMessage);
         }
       } catch (error) {
-        console.error('Error creating genre:', error);
-        showError('Error', error.message || 'Failed to create genre. Please try again.');
+        console.error("Error creating genre:", error);
+        showError(
+          "Error",
+          error.message || "Failed to create genre. Please try again.",
+        );
       }
     }
   };
 
   const getStockStatus = (book) => {
     const available = book.availableCopies || 0;
-    if (available === 0) return { label: 'Out of Stock', color: 'red', textColor: 'red-400' };
-    if (available <= 3) return { label: 'Low Stock', color: 'orange', textColor: 'orange-400' };
-    return { label: 'Available', color: 'emerald', textColor: 'emerald-400' };
+    if (available === 0)
+      return { label: "Out of Stock", color: "red", textColor: "red-400" };
+    if (available <= 3)
+      return { label: "Low Stock", color: "orange", textColor: "orange-400" };
+    return { label: "Available", color: "emerald", textColor: "emerald-400" };
   };
 
   return (
     <>
-      <AdminHeader title="Admin Books Management" subtitle="Comprehensive inventory control, stock management, and catalog reporting." />
+      <AdminHeader
+        title="Admin Books Management"
+        subtitle="Comprehensive inventory control, stock management, and catalog reporting."
+      />
       <div className="flex-1 overflow-y-auto">
         <header className="px-8 py-6 border-b border-white/5 bg-background-dark z-10">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 text-text-secondary text-sm">
-                  <span className="hover:text-white cursor-pointer transition-colors">Dashboard</span>
-                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-                  <span className="text-white font-medium">Books Management</span>
+                  <span className="hover:text-white cursor-pointer transition-colors">
+                    Dashboard
+                  </span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    chevron_right
+                  </span>
+                  <span className="text-white font-medium">
+                    Books Management
+                  </span>
                 </div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mt-1">Admin Books Management</h1>
-                <p className="text-text-secondary text-sm max-w-2xl mt-1">Comprehensive inventory control, stock management, and catalog reporting.</p>
+                <h1 className="text-3xl font-bold text-white tracking-tight mt-1">
+                  Admin Books Management
+                </h1>
+                <p className="text-text-secondary text-sm max-w-2xl mt-1">
+                  Comprehensive inventory control, stock management, and catalog
+                  reporting.
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button className="flex items-center gap-2 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white px-4 py-2.5 rounded-lg font-medium transition-all border border-white/5 shadow-md">
-                  <span className="material-symbols-outlined text-[20px]">description</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    description
+                  </span>
                   Reports
                 </button>
                 <button className="flex items-center gap-2 bg-card-dark hover:bg-white/5 text-text-secondary hover:text-white px-4 py-2.5 rounded-lg font-medium transition-all border border-white/5 shadow-md">
-                  <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    upload_file
+                  </span>
                   Bulk Import
                 </button>
-                <button 
+                <button
                   onClick={() => setIsAddModalOpen(true)}
                   className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20"
                 >
-                  <span className="material-symbols-outlined text-[20px]">add</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    add
+                  </span>
                   Add New Book
                 </button>
               </div>
@@ -448,11 +557,17 @@ export default function AdminBooksPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
                 <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined">library_books</span>
+                  <span className="material-symbols-outlined">
+                    library_books
+                  </span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Total Inventory</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalInventory.toLocaleString()}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Total Inventory
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.totalInventory.toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
@@ -460,17 +575,27 @@ export default function AdminBooksPage() {
                   <span className="material-symbols-outlined">outbound</span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Borrowed</p>
-                  <p className="text-2xl font-bold text-white">{stats.borrowed.toLocaleString()}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Borrowed
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.borrowed.toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
                 <div className="h-12 w-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined">check_circle</span>
+                  <span className="material-symbols-outlined">
+                    check_circle
+                  </span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Available</p>
-                  <p className="text-2xl font-bold text-white">{stats.available.toLocaleString()}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Available
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.available.toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-primary/50 transition-colors group cursor-pointer shadow-lg">
@@ -478,8 +603,12 @@ export default function AdminBooksPage() {
                   <span className="material-symbols-outlined">warning</span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Low Stock</p>
-                  <p className="text-2xl font-bold text-white">{stats.lowStock}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Low Stock
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.lowStock}
+                  </p>
                 </div>
               </div>
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-red-500/50 transition-colors group cursor-pointer shadow-lg">
@@ -487,8 +616,12 @@ export default function AdminBooksPage() {
                   <span className="material-symbols-outlined">schedule</span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Overdue Books</p>
-                  <p className="text-2xl font-bold text-white">{stats.overdueBooks.toLocaleString()}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Overdue Books
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.overdueBooks.toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="bg-card-dark p-4 rounded-xl border border-white/5 flex items-center gap-4 hover:border-yellow-500/50 transition-colors group cursor-pointer shadow-lg">
@@ -496,8 +629,12 @@ export default function AdminBooksPage() {
                   <span className="material-symbols-outlined">bookmark</span>
                 </div>
                 <div>
-                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">Pending Reservations</p>
-                  <p className="text-2xl font-bold text-white">{stats.pendingReservations.toLocaleString()}</p>
+                  <p className="text-text-secondary text-xs font-medium uppercase tracking-wider">
+                    Pending Reservations
+                  </p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.pendingReservations.toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
@@ -506,7 +643,9 @@ export default function AdminBooksPage() {
 
         <div className="px-8 py-4 bg-background-dark/90 border-b border-white/5 flex flex-col sm:flex-row gap-4 items-center justify-between sticky top-0 z-10 backdrop-blur-md shadow-md">
           <div className="flex-1 w-full sm:w-auto relative max-w-md">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">search</span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+              search
+            </span>
             <input
               className="w-full bg-card-dark border border-white/5 text-white placeholder-text-secondary pl-10 pr-4 py-2.5 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none text-sm transition-all shadow-sm"
               placeholder="Search by title, ISBN, author..."
@@ -517,32 +656,32 @@ export default function AdminBooksPage() {
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
             <div className="flex items-center gap-2 bg-card-dark rounded-lg p-1 border border-white/5 shadow-sm">
-              <button 
-                onClick={() => setLanguageFilter('all')}
+              <button
+                onClick={() => setLanguageFilter("all")}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  languageFilter === 'all' 
-                    ? 'bg-primary/20 text-white' 
-                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                  languageFilter === "all"
+                    ? "bg-primary/20 text-white"
+                    : "hover:bg-white/5 text-text-secondary hover:text-white"
                 }`}
               >
                 All
               </button>
-              <button 
-                onClick={() => setLanguageFilter('en')}
+              <button
+                onClick={() => setLanguageFilter("en")}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  languageFilter === 'en' 
-                    ? 'bg-primary/20 text-white' 
-                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                  languageFilter === "en"
+                    ? "bg-primary/20 text-white"
+                    : "hover:bg-white/5 text-text-secondary hover:text-white"
                 }`}
               >
                 English
               </button>
-              <button 
-                onClick={() => setLanguageFilter('bn')}
+              <button
+                onClick={() => setLanguageFilter("bn")}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  languageFilter === 'bn' 
-                    ? 'bg-primary/20 text-white' 
-                    : 'hover:bg-white/5 text-text-secondary hover:text-white'
+                  languageFilter === "bn"
+                    ? "bg-primary/20 text-white"
+                    : "hover:bg-white/5 text-text-secondary hover:text-white"
                 }`}
               >
                 Bangla
@@ -550,26 +689,32 @@ export default function AdminBooksPage() {
             </div>
             <div className="h-6 w-px bg-white/5 mx-1 hidden sm:block"></div>
             <div className="relative" ref={categoryDropdownRef}>
-              <button 
-                onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+              <button
+                onClick={() =>
+                  setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
+                }
                 className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">category</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  category
+                </span>
                 Categories
-                <span className="material-symbols-outlined text-[14px]">{isCategoryDropdownOpen ? 'expand_less' : 'expand_more'}</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  {isCategoryDropdownOpen ? "expand_less" : "expand_more"}
+                </span>
               </button>
               {isCategoryDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 rounded-lg bg-card-dark border border-white/5 shadow-xl z-50 max-h-80 overflow-y-auto">
                   <div className="p-2">
                     <button
                       onClick={() => {
-                        setCategoryFilter('');
+                        setCategoryFilter("");
                         setIsCategoryDropdownOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        categoryFilter === ''
-                          ? 'bg-primary/20 text-white'
-                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                        categoryFilter === ""
+                          ? "bg-primary/20 text-white"
+                          : "text-text-secondary hover:bg-white/5 hover:text-white"
                       }`}
                     >
                       All Categories
@@ -583,8 +728,8 @@ export default function AdminBooksPage() {
                         }}
                         className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
                           categoryFilter === genre._id
-                            ? 'bg-primary/20 text-white'
-                            : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                            ? "bg-primary/20 text-white"
+                            : "text-text-secondary hover:bg-white/5 hover:text-white"
                         }`}
                       >
                         {genre.name}
@@ -595,53 +740,59 @@ export default function AdminBooksPage() {
               )}
             </div>
             <div className="relative" ref={filterDropdownRef}>
-              <button 
+              <button
                 onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
                 className="flex items-center gap-2 px-3 py-2 bg-card-dark hover:bg-white/5 rounded-lg text-text-secondary hover:text-white text-sm font-medium transition-colors border border-white/5 whitespace-nowrap shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  filter_list
+                </span>
                 Filters
-                <span className="material-symbols-outlined text-[14px]">{isFilterDropdownOpen ? 'expand_less' : 'expand_more'}</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  {isFilterDropdownOpen ? "expand_less" : "expand_more"}
+                </span>
               </button>
               {isFilterDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-lg bg-card-dark border border-white/5 shadow-xl z-50">
                   <div className="p-2">
-                    <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Availability</div>
+                    <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                      Availability
+                    </div>
                     <button
                       onClick={() => {
-                        setAvailabilityFilter('all');
+                        setAvailabilityFilter("all");
                         setIsFilterDropdownOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        availabilityFilter === 'all'
-                          ? 'bg-primary/20 text-white'
-                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                        availabilityFilter === "all"
+                          ? "bg-primary/20 text-white"
+                          : "text-text-secondary hover:bg-white/5 hover:text-white"
                       }`}
                     >
                       All Books
                     </button>
                     <button
                       onClick={() => {
-                        setAvailabilityFilter('available');
+                        setAvailabilityFilter("available");
                         setIsFilterDropdownOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        availabilityFilter === 'available'
-                          ? 'bg-primary/20 text-white'
-                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                        availabilityFilter === "available"
+                          ? "bg-primary/20 text-white"
+                          : "text-text-secondary hover:bg-white/5 hover:text-white"
                       }`}
                     >
                       Available
                     </button>
                     <button
                       onClick={() => {
-                        setAvailabilityFilter('waitlist');
+                        setAvailabilityFilter("waitlist");
                         setIsFilterDropdownOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        availabilityFilter === 'waitlist'
-                          ? 'bg-primary/20 text-white'
-                          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                        availabilityFilter === "waitlist"
+                          ? "bg-primary/20 text-white"
+                          : "text-text-secondary hover:bg-white/5 hover:text-white"
                       }`}
                     >
                       Waitlist Only
@@ -649,6 +800,35 @@ export default function AdminBooksPage() {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="flex items-center gap-2 bg-card-dark border border-white/5 rounded-lg px-3 py-2 shadow-sm">
+              <span className="text-xs text-text-secondary uppercase font-semibold">
+                Rows:
+              </span>
+              <select
+                className="bg-transparent text-white text-sm outline-none cursor-pointer"
+                value={pagination.limit}
+                onChange={(e) => {
+                  setPagination((prev) => ({
+                    ...prev,
+                    limit: parseInt(e.target.value),
+                    page: 1,
+                  }));
+                }}
+              >
+                <option value="10" className="bg-card-dark">
+                  10
+                </option>
+                <option value="20" className="bg-card-dark">
+                  20
+                </option>
+                <option value="50" className="bg-card-dark">
+                  50
+                </option>
+                <option value="100" className="bg-card-dark">
+                  100
+                </option>
+              </select>
             </div>
           </div>
         </div>
@@ -659,30 +839,47 @@ export default function AdminBooksPage() {
             <div className="px-6 py-4 bg-background-dark border-b border-white/5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white">Genres</h2>
-                <p className="text-text-secondary text-sm mt-1">Manage book genres and categories</p>
+                <p className="text-text-secondary text-sm mt-1">
+                  Manage book genres and categories
+                </p>
               </div>
               <button
                 onClick={handleAddGenre}
                 className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20"
               >
-                <span className="material-symbols-outlined text-[20px]">add</span>
+                <span className="material-symbols-outlined text-[20px]">
+                  add
+                </span>
                 Add New Genre
               </button>
             </div>
             <table className="w-full text-left border-collapse">
               <thead className="bg-background-dark">
                 <tr className="border-b border-white/5">
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Slug</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Created</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                    Slug
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">
+                    Created
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {genresLoading ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-text-secondary">
+                    <td
+                      colSpan="5"
+                      className="px-6 py-8 text-center text-text-secondary"
+                    >
                       <div className="flex justify-center">
                         <Loader />
                       </div>
@@ -690,47 +887,66 @@ export default function AdminBooksPage() {
                   </tr>
                 ) : genres.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-text-secondary">
+                    <td
+                      colSpan="5"
+                      className="px-6 py-8 text-center text-text-secondary"
+                    >
                       No genres found. Click "Add New Genre" to create one.
                     </td>
                   </tr>
                 ) : (
                   genres.map((genre) => (
-                    <tr key={genre._id} className="group hover:bg-white/5 transition-colors">
+                    <tr
+                      key={genre._id}
+                      className="group hover:bg-white/5 transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {genre.icon && (
-                            <span className="material-symbols-outlined text-text-secondary text-[18px]">{genre.icon}</span>
+                            <span className="material-symbols-outlined text-text-secondary text-[18px]">
+                              {genre.icon}
+                            </span>
                           )}
                           <span className="text-white font-semibold text-sm">
-                            {genre.name.charAt(0).toUpperCase() + genre.name.slice(1)}
+                            {genre.name.charAt(0).toUpperCase() +
+                              genre.name.slice(1)}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-mono text-xs text-text-secondary tracking-wide">{genre.slug}</span>
+                        <span className="font-mono text-xs text-text-secondary tracking-wide">
+                          {genre.slug}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          genre.isActive 
-                            ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' 
-                            : 'bg-red-500/10 text-red-300 border border-red-500/20'
-                        }`}>
-                          {genre.isActive ? 'Active' : 'Inactive'}
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            genre.isActive
+                              ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                              : "bg-red-500/10 text-red-300 border border-red-500/20"
+                          }`}
+                        >
+                          {genre.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-text-secondary text-xs">
-                          {genre.createdAt ? new Date(genre.createdAt).toLocaleDateString() : 'N/A'}
+                          {genre.createdAt
+                            ? new Date(genre.createdAt).toLocaleDateString()
+                            : "N/A"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => handleDeleteGenre(genre._id, genre.name)}
+                          onClick={() =>
+                            handleDeleteGenre(genre._id, genre.name)
+                          }
                           className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-60 group-hover:opacity-100"
                           title="Delete Genre"
                         >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                          <span className="material-symbols-outlined text-[18px]">
+                            delete
+                          </span>
                         </button>
                       </td>
                     </tr>
@@ -746,21 +962,41 @@ export default function AdminBooksPage() {
               <thead className="bg-background-dark">
                 <tr className="border-b border-white/5">
                   <th className="px-6 py-4 w-12 text-center">
-                    <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer" type="checkbox" />
+                    <input
+                      className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 cursor-pointer"
+                      type="checkbox"
+                    />
                   </th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-20">Thumbnail</th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Book Details</th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-36">ISBN</th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">Total</th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">Available</th>
-                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-32">Shelf</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-44 text-right">Actions</th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-20">
+                    Thumbnail
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                    Book Details
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-36">
+                    ISBN
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">
+                    Total
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-24 text-center">
+                    Available
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-32">
+                    Shelf
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-44 text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">
+                    <td
+                      colSpan="8"
+                      className="px-6 py-8 text-center text-text-secondary"
+                    >
                       <div className="flex justify-center">
                         <Loader />
                       </div>
@@ -768,82 +1004,129 @@ export default function AdminBooksPage() {
                   </tr>
                 ) : books.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-8 text-center text-text-secondary">No books found</td>
+                    <td
+                      colSpan="8"
+                      className="px-6 py-8 text-center text-text-secondary"
+                    >
+                      No books found
+                    </td>
                   </tr>
                 ) : (
                   books.map((book) => {
                     const stockStatus = getStockStatus(book);
                     return (
-                      <tr key={book._id} className="group hover:bg-white/5 transition-colors">
+                      <tr
+                        key={book._id}
+                        className="group hover:bg-white/5 transition-colors"
+                      >
                         <td className="px-6 py-4 text-center">
-                          <input className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" type="checkbox" />
+                          <input
+                            className="rounded border-white/5 bg-background-dark text-primary focus:ring-primary/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            type="checkbox"
+                          />
                         </td>
                         <td className="px-4 py-4">
                           <div
                             className="h-16 w-11 rounded bg-gray-700 bg-cover bg-center shadow-lg border border-white/5"
-                            style={{ backgroundImage: book.coverImage ? `url('${book.coverImage}')` : 'none' }}
+                            style={{
+                              backgroundImage: book.coverImage
+                                ? `url('${book.coverImage}')`
+                                : "none",
+                            }}
                           ></div>
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex flex-col">
-                            <span className="text-white font-semibold text-sm group-hover:text-primary transition-colors cursor-pointer">{book.title}</span>
-                            <span className="text-text-secondary text-xs mt-0.5">{book.author}</span>
+                            <span className="text-white font-semibold text-sm group-hover:text-primary transition-colors cursor-pointer">
+                              {book.title}
+                            </span>
+                            <span className="text-text-secondary text-xs mt-0.5">
+                              {book.author}
+                            </span>
                             {book.category && (
                               <span className="inline-flex items-center gap-1.5 mt-1.5">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20">{book.category.name}</span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                  {book.category.name}
+                                </span>
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="font-mono text-xs text-text-secondary tracking-wide">{book.isbn || 'N/A'}</span>
+                          <span className="font-mono text-xs text-text-secondary tracking-wide">
+                            {book.isbn || "N/A"}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          <span className="text-white font-bold text-sm">{book.totalCopies || 0}</span>
+                          <span className="text-white font-bold text-sm">
+                            {book.totalCopies || 0}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          {stockStatus.color === 'red' ? (
+                          {stockStatus.color === "red" ? (
                             <div className="flex flex-col items-center">
-                              <span className="text-red-400 font-bold text-sm">0</span>
-                              <span className="text-[10px] text-red-400/70">Out of Stock</span>
+                              <span className="text-red-400 font-bold text-sm">
+                                0
+                              </span>
+                              <span className="text-[10px] text-red-400/70">
+                                Out of Stock
+                              </span>
                             </div>
-                          ) : stockStatus.color === 'orange' ? (
+                          ) : stockStatus.color === "orange" ? (
                             <div className="flex flex-col items-center">
-                              <span className="text-orange-400 font-bold text-sm">{book.availableCopies || 0}</span>
-                              <span className="text-[10px] text-orange-400/70">Low Stock</span>
+                              <span className="text-orange-400 font-bold text-sm">
+                                {book.availableCopies || 0}
+                              </span>
+                              <span className="text-[10px] text-orange-400/70">
+                                Low Stock
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-emerald-400 font-bold text-sm">{book.availableCopies || 0}</span>
+                            <span className="text-emerald-400 font-bold text-sm">
+                              {book.availableCopies || 0}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-text-secondary text-[16px]">shelves</span>
+                            <span className="material-symbols-outlined text-text-secondary text-[16px]">
+                              shelves
+                            </span>
                             <span className="text-white text-sm">A4-102</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button 
+                            <button
                               onClick={() => handleEditBook(book._id)}
-                              className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors" 
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
                               title="Edit Details"
                             >
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
+                              <span className="material-symbols-outlined text-[18px]">
+                                edit
+                              </span>
                             </button>
-                            <button 
-                              onClick={() => handleManageStock(book._id, book.title)}
-                              className="p-1.5 rounded-lg text-text-secondary hover:text-blue-400 hover:bg-blue-500/10 transition-colors" 
+                            <button
+                              onClick={() =>
+                                handleManageStock(book._id, book.title)
+                              }
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
                               title="Manage Stock"
                             >
-                              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                              <span className="material-symbols-outlined text-[18px]">
+                                inventory_2
+                              </span>
                             </button>
-                            <button 
-                              onClick={() => handleDeleteBook(book._id, book.title)}
-                              className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors" 
+                            <button
+                              onClick={() =>
+                                handleDeleteBook(book._id, book.title)
+                              }
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
                               title="Delete Book"
                             >
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                              <span className="material-symbols-outlined text-[18px]">
+                                delete
+                              </span>
                             </button>
                           </div>
                         </td>
@@ -853,36 +1136,127 @@ export default function AdminBooksPage() {
                 )}
               </tbody>
             </table>
-            <div className="px-6 py-4 bg-background-dark border-t border-white/5 flex items-center justify-between">
+            <div className="px-6 py-4 bg-background-dark border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
               <div className="text-sm text-text-secondary">
-                Showing <span className="font-semibold text-white">1</span> to <span className="font-semibold text-white">5</span> of <span className="font-semibold text-white">1,240</span> entries
+                Showing{" "}
+                <span className="font-semibold text-white">
+                  {pagination.total > 0
+                    ? (pagination.page - 1) * pagination.limit + 1
+                    : 0}
+                </span>{" "}
+                to{" "}
+                <span className="font-semibold text-white">
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total,
+                  )}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-white">
+                  {pagination.total.toLocaleString()}
+                </span>{" "}
+                entries
               </div>
-              <div className="flex items-center gap-1.5">
-                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">first_page</span>
-                </button>
-                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                </button>
-                <button className="h-8 w-8 rounded bg-primary text-white text-sm font-medium flex items-center justify-center shadow-lg shadow-primary/20">1</button>
-                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">2</button>
-                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">3</button>
-                <span className="text-text-secondary text-sm px-1">...</span>
-                <button className="h-8 w-8 rounded hover:bg-white/5 text-text-secondary text-sm font-medium flex items-center justify-center transition-colors">12</button>
-                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                </button>
-                <button className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">last_page</span>
-                </button>
-              </div>
+              {pagination.total > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() =>
+                      setPagination((prev) => ({ ...prev, page: 1 }))
+                    }
+                    disabled={pagination.page === 1}
+                    className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      first_page
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPagination((prev) => ({
+                        ...prev,
+                        page: Math.max(1, prev.page - 1),
+                      }))
+                    }
+                    disabled={pagination.page === 1}
+                    className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      chevron_left
+                    </span>
+                  </button>
+
+                  {Array.from(
+                    { length: Math.min(5, pagination.pages) },
+                    (_, i) => {
+                      let pageNum;
+                      if (pagination.pages <= 5) {
+                        pageNum = i + 1;
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (pagination.page >= pagination.pages - 2) {
+                        pageNum = pagination.pages - 4 + i;
+                      } else {
+                        pageNum = pagination.page - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() =>
+                            setPagination((prev) => ({
+                              ...prev,
+                              page: pageNum,
+                            }))
+                          }
+                          className={`h-8 w-8 rounded text-sm font-medium flex items-center justify-center transition-colors ${
+                            pagination.page === pageNum
+                              ? "bg-primary text-white shadow-lg shadow-primary/20"
+                              : "hover:bg-white/5 text-text-secondary"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    },
+                  )}
+
+                  <button
+                    onClick={() =>
+                      setPagination((prev) => ({
+                        ...prev,
+                        page: Math.min(prev.pages, prev.page + 1),
+                      }))
+                    }
+                    disabled={pagination.page >= pagination.pages}
+                    className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      chevron_right
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPagination((prev) => ({
+                        ...prev,
+                        page: pagination.pages,
+                      }))
+                    }
+                    disabled={pagination.page >= pagination.pages}
+                    className="flex items-center justify-center h-8 w-8 rounded hover:bg-white/5 text-text-secondary disabled:opacity-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      last_page
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Add Book Modal */}
-      <AddBookModal 
+      <AddBookModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onBookAdded={() => {
@@ -892,7 +1266,7 @@ export default function AdminBooksPage() {
       />
 
       {/* Edit Book Modal */}
-      <EditBookModal 
+      <EditBookModal
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
@@ -907,4 +1281,3 @@ export default function AdminBooksPage() {
     </>
   );
 }
-

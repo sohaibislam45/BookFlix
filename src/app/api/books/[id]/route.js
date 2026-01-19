@@ -1,14 +1,23 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Book from '@/models/Book';
-import BookCopy from '@/models/BookCopy';
-import Category from '@/models/Category';
-import Borrowing from '@/models/Borrowing';
-import Reservation from '@/models/Reservation';
-import { handleApiError, validateObjectId, sanitizeInput } from '@/lib/apiErrorHandler';
-import { isValidISBN, isValidDate } from '@/lib/validation';
-import { BORROWING_STATUS, RESERVATION_STATUS } from '@/lib/constants';
-import mongoose from 'mongoose';
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Book from "@/models/Book";
+import BookCopy from "@/models/BookCopy";
+import Category from "@/models/Category";
+import Borrowing from "@/models/Borrowing";
+import Reservation from "@/models/Reservation";
+import Review from "@/models/Review";
+import Wishlist from "@/models/Wishlist";
+import Notification from "@/models/Notification";
+import Fine from "@/models/Fine";
+import Payment from "@/models/Payment";
+import {
+  handleApiError,
+  validateObjectId,
+  sanitizeInput,
+} from "@/lib/apiErrorHandler";
+import { isValidISBN, isValidDate } from "@/lib/validation";
+import { BORROWING_STATUS, RESERVATION_STATUS } from "@/lib/constants";
+import mongoose from "mongoose";
 
 export async function GET(request, { params }) {
   try {
@@ -16,27 +25,24 @@ export async function GET(request, { params }) {
 
     const { id } = await params;
 
-    const idError = validateObjectId(id, 'Book ID');
+    const idError = validateObjectId(id, "Book ID");
     if (idError) {
       return idError;
     }
 
     const book = await Book.findById(id)
-      .populate('category', 'name slug icon')
-      .select('-__v')
+      .populate("category", "name slug icon")
+      .select("-__v")
       .lean();
 
     if (!book) {
-      return NextResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
     // Get copy counts
     const availableCopies = await BookCopy.countDocuments({
       book: id,
-      status: 'available',
+      status: "available",
       isActive: true,
     });
     const totalCopies = await BookCopy.countDocuments({
@@ -46,36 +52,48 @@ export async function GET(request, { params }) {
 
     // Get shelf location from Book or BookCopy
     // The shelfLocation field might not exist in old documents, so check explicitly
-    let shelfLocation = '';
-    
+    let shelfLocation = "";
+
     // Check if book has shelfLocation field (handle both undefined and empty string)
     // Use 'in' operator to check if field exists, even if value is empty
-    if ('shelfLocation' in book && book.shelfLocation !== undefined && book.shelfLocation !== null) {
+    if (
+      "shelfLocation" in book &&
+      book.shelfLocation !== undefined &&
+      book.shelfLocation !== null
+    ) {
       shelfLocation = String(book.shelfLocation).trim();
-    } else if ('location' in book && book.location !== undefined && book.location !== null) {
+    } else if (
+      "location" in book &&
+      book.location !== undefined &&
+      book.location !== null
+    ) {
       shelfLocation = String(book.location).trim();
     } else {
       // If not in Book, try to get from first BookCopy
       const firstCopy = await BookCopy.findOne({ book: id, isActive: true })
-        .select('location')
+        .select("location")
         .lean();
       if (firstCopy?.location) {
         // If location is an object with shelf, section, floor, format it
-        if (typeof firstCopy.location === 'object' && firstCopy.location !== null) {
+        if (
+          typeof firstCopy.location === "object" &&
+          firstCopy.location !== null
+        ) {
           const locParts = [];
           if (firstCopy.location.shelf) locParts.push(firstCopy.location.shelf);
-          if (firstCopy.location.section) locParts.push(firstCopy.location.section);
+          if (firstCopy.location.section)
+            locParts.push(firstCopy.location.section);
           if (firstCopy.location.floor) locParts.push(firstCopy.location.floor);
-          shelfLocation = locParts.join('-') || '';
+          shelfLocation = locParts.join("-") || "";
         } else if (firstCopy.location) {
           shelfLocation = String(firstCopy.location).trim();
         }
       }
     }
 
-    console.log('GET book - shelfLocation from DB:', book.shelfLocation);
-    console.log('GET book - location from DB:', book.location);
-    console.log('GET book - final shelfLocation:', shelfLocation);
+    console.log("GET book - shelfLocation from DB:", book.shelfLocation);
+    console.log("GET book - location from DB:", book.location);
+    console.log("GET book - final shelfLocation:", shelfLocation);
 
     // Get active borrowing info (if book is currently borrowed)
     let currentBorrower = null;
@@ -83,8 +101,8 @@ export async function GET(request, { params }) {
       book: id,
       status: { $in: [BORROWING_STATUS.ACTIVE, BORROWING_STATUS.OVERDUE] },
     })
-      .populate('member', 'name profilePhoto email')
-      .select('member dueDate borrowedDate daysRemaining daysOverdue status')
+      .populate("member", "name profilePhoto email")
+      .select("member dueDate borrowedDate daysRemaining daysOverdue status")
       .lean();
 
     if (activeBorrowing) {
@@ -92,7 +110,7 @@ export async function GET(request, { params }) {
       const now = new Date();
       const diffTime = dueDate - now;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       currentBorrower = {
         member: {
           _id: activeBorrowing.member._id,
@@ -114,8 +132,8 @@ export async function GET(request, { params }) {
       book: id,
       status: { $in: [RESERVATION_STATUS.PENDING, RESERVATION_STATUS.READY] },
     })
-      .populate('member', 'name profilePhoto email')
-      .select('member reservedDate expiryDate readyDate status')
+      .populate("member", "name profilePhoto email")
+      .select("member reservedDate expiryDate readyDate status")
       .lean();
 
     if (activeReservation) {
@@ -133,19 +151,22 @@ export async function GET(request, { params }) {
       };
     }
 
-    return NextResponse.json({
-      ...book,
-      availableCopies,
-      totalCopies,
-      shelfLocation: shelfLocation, // Always include shelfLocation, even if empty
-      currentBorrower, // null if not borrowed
-      currentReserver, // null if not reserved
-    }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching book:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch book', details: error.message },
-      { status: 500 }
+      {
+        ...book,
+        availableCopies,
+        totalCopies,
+        shelfLocation: shelfLocation, // Always include shelfLocation, even if empty
+        currentBorrower, // null if not borrowed
+        currentReserver, // null if not reserved
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error fetching book:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch book", details: error.message },
+      { status: 500 },
     );
   }
 }
@@ -155,8 +176,8 @@ export async function PATCH(request, { params }) {
     await connectDB();
 
     const { id } = await params;
-    
-    const idError = validateObjectId(id, 'Book ID');
+
+    const idError = validateObjectId(id, "Book ID");
     if (idError) {
       return idError;
     }
@@ -166,27 +187,42 @@ export async function PATCH(request, { params }) {
       body = await request.json();
     } catch (parseError) {
       return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
       );
     }
 
     const book = await Book.findById(id);
 
     if (!book) {
-      return NextResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
     // Validate and sanitize update fields
     // Note: Handle both 'language' and 'bookLanguage' for database compatibility
-    const allowedFields = ['title', 'author', 'isbn', 'description', 'coverImage', 'category', 'publishedDate', 'publisher', 'bookLanguage', 'language', 'shelfLocation', 'location', 'pages', 'rating', 'ratingCount', 'tags', 'isActive'];
+    const allowedFields = [
+      "title",
+      "author",
+      "isbn",
+      "description",
+      "coverImage",
+      "category",
+      "publishedDate",
+      "publisher",
+      "bookLanguage",
+      "language",
+      "shelfLocation",
+      "location",
+      "pages",
+      "rating",
+      "ratingCount",
+      "tags",
+      "isActive",
+    ];
     const updateData = {};
 
     for (const [key, value] of Object.entries(body)) {
-      if (!allowedFields.includes(key) || key === '_id' || key === '__v') {
+      if (!allowedFields.includes(key) || key === "_id" || key === "__v") {
         continue;
       }
 
@@ -195,45 +231,48 @@ export async function PATCH(request, { params }) {
       }
 
       // Validate specific fields
-      if (key === 'title') {
+      if (key === "title") {
         const sanitized = sanitizeInput(value, 500);
         if (!sanitized || sanitized.length < 1) {
           return NextResponse.json(
-            { error: 'Title must be at least 1 character' },
-            { status: 400 }
+            { error: "Title must be at least 1 character" },
+            { status: 400 },
           );
         }
         updateData[key] = sanitized;
-      } else if (key === 'author') {
+      } else if (key === "author") {
         const sanitized = sanitizeInput(value, 200);
         if (!sanitized || sanitized.length < 1) {
           return NextResponse.json(
-            { error: 'Author must be at least 1 character' },
-            { status: 400 }
+            { error: "Author must be at least 1 character" },
+            { status: 400 },
           );
         }
         updateData[key] = sanitized;
-      } else if (key === 'isbn') {
+      } else if (key === "isbn") {
         const sanitized = sanitizeInput(value, 20);
         if (sanitized && !isValidISBN(sanitized)) {
           return NextResponse.json(
-            { error: 'Invalid ISBN format. Must be 10 or 13 digits' },
-            { status: 400 }
+            { error: "Invalid ISBN format. Must be 10 or 13 digits" },
+            { status: 400 },
           );
         }
         // Check if ISBN is already used by another book
         if (sanitized) {
-          const existingBook = await Book.findOne({ isbn: sanitized, _id: { $ne: id } });
+          const existingBook = await Book.findOne({
+            isbn: sanitized,
+            _id: { $ne: id },
+          });
           if (existingBook) {
             return NextResponse.json(
-              { error: 'ISBN already exists for another book' },
-              { status: 409 }
+              { error: "ISBN already exists for another book" },
+              { status: 409 },
             );
           }
         }
         updateData[key] = sanitized || undefined;
-      } else if (key === 'category') {
-        const categoryError = validateObjectId(value, 'Category');
+      } else if (key === "category") {
+        const categoryError = validateObjectId(value, "Category");
         if (categoryError) {
           return categoryError;
         }
@@ -241,123 +280,126 @@ export async function PATCH(request, { params }) {
         const categoryExists = await Category.findById(value);
         if (!categoryExists) {
           return NextResponse.json(
-            { error: 'Category not found' },
-            { status: 404 }
+            { error: "Category not found" },
+            { status: 404 },
           );
         }
         updateData[key] = value;
-      } else if (key === 'publishedDate') {
+      } else if (key === "publishedDate") {
         const date = new Date(value);
         if (isNaN(date.getTime())) {
           return NextResponse.json(
-            { error: 'Invalid published date format' },
-            { status: 400 }
+            { error: "Invalid published date format" },
+            { status: 400 },
           );
         }
         if (date > new Date()) {
           return NextResponse.json(
-            { error: 'Published date cannot be in the future' },
-            { status: 400 }
+            { error: "Published date cannot be in the future" },
+            { status: 400 },
           );
         }
         updateData[key] = date;
-      } else if (key === 'pages') {
+      } else if (key === "pages") {
         const pagesNum = Number(value);
         if (isNaN(pagesNum) || pagesNum < 0 || !Number.isInteger(pagesNum)) {
           return NextResponse.json(
-            { error: 'Pages must be a non-negative integer' },
-            { status: 400 }
+            { error: "Pages must be a non-negative integer" },
+            { status: 400 },
           );
         }
         updateData[key] = pagesNum;
-      } else if (key === 'rating') {
+      } else if (key === "rating") {
         const ratingNum = Number(value);
         if (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) {
           return NextResponse.json(
-            { error: 'Rating must be between 0 and 5' },
-            { status: 400 }
+            { error: "Rating must be between 0 and 5" },
+            { status: 400 },
           );
         }
         updateData[key] = ratingNum;
-      } else if (key === 'ratingCount') {
+      } else if (key === "ratingCount") {
         const countNum = Number(value);
         if (isNaN(countNum) || countNum < 0 || !Number.isInteger(countNum)) {
           return NextResponse.json(
-            { error: 'Rating count must be a non-negative integer' },
-            { status: 400 }
+            { error: "Rating count must be a non-negative integer" },
+            { status: 400 },
           );
         }
         updateData[key] = countNum;
-      } else if (key === 'coverImage') {
+      } else if (key === "coverImage") {
         try {
           new URL(value);
         } catch {
           return NextResponse.json(
-            { error: 'Invalid cover image URL' },
-            { status: 400 }
+            { error: "Invalid cover image URL" },
+            { status: 400 },
           );
         }
         updateData[key] = value;
-      } else if (key === 'description') {
+      } else if (key === "description") {
         if (value.length > 5000) {
           return NextResponse.json(
-            { error: 'Description must be no more than 5000 characters' },
-            { status: 400 }
+            { error: "Description must be no more than 5000 characters" },
+            { status: 400 },
           );
         }
         updateData[key] = sanitizeInput(value, 5000);
-      } else if (key === 'publisher') {
+      } else if (key === "publisher") {
         if (value.length > 200) {
           return NextResponse.json(
-            { error: 'Publisher must be no more than 200 characters' },
-            { status: 400 }
+            { error: "Publisher must be no more than 200 characters" },
+            { status: 400 },
           );
         }
         updateData[key] = sanitizeInput(value, 200);
-      } else if (key === 'tags') {
+      } else if (key === "tags") {
         if (!Array.isArray(value)) {
           return NextResponse.json(
-            { error: 'Tags must be an array' },
-            { status: 400 }
+            { error: "Tags must be an array" },
+            { status: 400 },
           );
         }
         if (value.length > 20) {
           return NextResponse.json(
-            { error: 'Maximum 20 tags allowed' },
-            { status: 400 }
+            { error: "Maximum 20 tags allowed" },
+            { status: 400 },
           );
         }
-        updateData[key] = value.slice(0, 20).map(tag => sanitizeInput(String(tag), 50).toLowerCase());
-      } else if (key === 'isActive') {
-        if (typeof value !== 'boolean') {
+        updateData[key] = value
+          .slice(0, 20)
+          .map((tag) => sanitizeInput(String(tag), 50).toLowerCase());
+      } else if (key === "isActive") {
+        if (typeof value !== "boolean") {
           return NextResponse.json(
-            { error: 'isActive must be a boolean' },
-            { status: 400 }
+            { error: "isActive must be a boolean" },
+            { status: 400 },
           );
         }
         updateData[key] = value;
-      } else if (key === 'bookLanguage' || key === 'language') {
+      } else if (key === "bookLanguage" || key === "language") {
         // Validate language code - only allow 'en' or 'bn'
         // Only update 'bookLanguage' (model schema field)
         // Do NOT update 'language' field as it conflicts with MongoDB Atlas Search text index
-        const validLanguages = ['en', 'bn'];
+        const validLanguages = ["en", "bn"];
         const languageValue = String(value).trim();
         if (!validLanguages.includes(languageValue)) {
           return NextResponse.json(
-            { error: `Language must be one of: ${validLanguages.join(', ')}` },
-            { status: 400 }
+            { error: `Language must be one of: ${validLanguages.join(", ")}` },
+            { status: 400 },
           );
         }
         // Only update bookLanguage to avoid MongoDB Atlas Search language override error
-        updateData['bookLanguage'] = languageValue;
-      } else if (key === 'shelfLocation' || key === 'location') {
+        updateData["bookLanguage"] = languageValue;
+      } else if (key === "shelfLocation" || key === "location") {
         // Handle shelf location - save to 'shelfLocation' (the schema field)
         // Allow empty strings for shelfLocation
-        const locationValue = value !== undefined && value !== null ? String(value).trim() : '';
+        const locationValue =
+          value !== undefined && value !== null ? String(value).trim() : "";
         // Only save to shelfLocation (the field in the schema)
         // Don't save to 'location' to avoid confusion
-        updateData['shelfLocation'] = locationValue;
-        console.log('Setting shelfLocation to:', locationValue);
+        updateData["shelfLocation"] = locationValue;
+        console.log("Setting shelfLocation to:", locationValue);
       } else {
         updateData[key] = value;
       }
@@ -367,91 +409,112 @@ export async function PATCH(request, { params }) {
     let updatedBookDoc = null;
     if (Object.keys(updateData).length > 0) {
       try {
-        console.log('Updating book with data:', updateData);
-        
+        console.log("Updating book with data:", updateData);
+
         // Update the book - use updateOne with explicit field setting
         // Ensure shelfLocation is explicitly set even if it's a new field
         const updateResult = await Book.updateOne(
           { _id: id },
           { $set: updateData },
-          { 
+          {
             runValidators: true,
-            strict: false // Allow fields not in schema to be saved
-          }
+            strict: false, // Allow fields not in schema to be saved
+          },
         );
-        
-        console.log('Update result:', updateResult);
-        
+
+        console.log("Update result:", updateResult);
+
         if (updateResult.matchedCount === 0) {
           return NextResponse.json(
-            { error: 'Book not found' },
-            { status: 404 }
+            { error: "Book not found" },
+            { status: 404 },
           );
         }
-        
+
         if (updateResult.modifiedCount === 0) {
-          console.warn('No documents were modified. Update data:', updateData);
+          console.warn("No documents were modified. Update data:", updateData);
         }
-        
+
         // Explicitly update shelfLocation separately to ensure it's saved
         // Use direct MongoDB update to bypass any Mongoose filtering
         if (updateData.shelfLocation !== undefined) {
-          console.log('Explicitly updating shelfLocation:', updateData.shelfLocation);
+          console.log(
+            "Explicitly updating shelfLocation:",
+            updateData.shelfLocation,
+          );
           const shelfValue = String(updateData.shelfLocation).trim();
-          
+
           // Use the native MongoDB driver to ensure the field is saved
           const db = mongoose.connection.db;
           if (db) {
-            const booksCollection = db.collection('books');
+            const booksCollection = db.collection("books");
             const shelfUpdate = await booksCollection.updateOne(
               { _id: new mongoose.Types.ObjectId(id) },
-              { $set: { shelfLocation: shelfValue, location: shelfValue } }
+              { $set: { shelfLocation: shelfValue, location: shelfValue } },
             );
-            console.log('Direct MongoDB shelf location update result:', shelfUpdate);
+            console.log(
+              "Direct MongoDB shelf location update result:",
+              shelfUpdate,
+            );
           } else {
-            console.error('MongoDB connection not available');
+            console.error("MongoDB connection not available");
           }
         }
-        
+
         // Verify the field was saved by checking the document directly
-        const verifyBook = await Book.findById(id).select('shelfLocation location').lean();
-        console.log('Verified shelfLocation in DB after update:', verifyBook?.shelfLocation);
-        console.log('Verified location in DB after update:', verifyBook?.location);
+        const verifyBook = await Book.findById(id)
+          .select("shelfLocation location")
+          .lean();
+        console.log(
+          "Verified shelfLocation in DB after update:",
+          verifyBook?.shelfLocation,
+        );
+        console.log(
+          "Verified location in DB after update:",
+          verifyBook?.location,
+        );
       } catch (updateError) {
-        console.error('Error updating book:', updateError);
-        console.error('Error stack:', updateError.stack);
+        console.error("Error updating book:", updateError);
+        console.error("Error stack:", updateError.stack);
         return NextResponse.json(
-          { error: 'Failed to update book', details: updateError.message },
-          { status: 500 }
+          { error: "Failed to update book", details: updateError.message },
+          { status: 500 },
         );
       }
     }
 
     // Fetch the updated book fresh from database
     const updatedBook = await Book.findById(id)
-      .populate('category', 'name slug icon')
-      .select('-__v') // Exclude __v, all other fields including shelfLocation will be included
+      .populate("category", "name slug icon")
+      .select("-__v") // Exclude __v, all other fields including shelfLocation will be included
       .lean();
 
     if (!updatedBook) {
       return NextResponse.json(
-        { error: 'Book not found after update' },
-        { status: 404 }
+        { error: "Book not found after update" },
+        { status: 404 },
       );
     }
 
     // Get shelfLocation from the updateData we just saved, or from the fetched book
     // This ensures we return the value we just saved, even if there's a timing issue
-    const savedShelfLocation = updateData.shelfLocation || updateData.location || '';
-    
+    const savedShelfLocation =
+      updateData.shelfLocation || updateData.location || "";
+
     // Check the fetched book - handle both shelfLocation and location fields
-    let bookShelfLocation = '';
-    if (updatedBook.shelfLocation !== undefined && updatedBook.shelfLocation !== null) {
+    let bookShelfLocation = "";
+    if (
+      updatedBook.shelfLocation !== undefined &&
+      updatedBook.shelfLocation !== null
+    ) {
       bookShelfLocation = String(updatedBook.shelfLocation).trim();
-    } else if (updatedBook.location !== undefined && updatedBook.location !== null) {
+    } else if (
+      updatedBook.location !== undefined &&
+      updatedBook.location !== null
+    ) {
       bookShelfLocation = String(updatedBook.location).trim();
     }
-    
+
     // Use the saved value if available (from updateData), otherwise use what's in the book
     // This handles read-after-write consistency issues
     const finalShelfLocation = savedShelfLocation || bookShelfLocation;
@@ -463,16 +526,22 @@ export async function PATCH(request, { params }) {
       location: finalShelfLocation, // Also include as location for compatibility
     };
 
-    console.log('Updated book shelfLocation (from updateData):', savedShelfLocation);
-    console.log('Updated book shelfLocation (from document):', bookShelfLocation);
-    console.log('Final shelfLocation:', finalShelfLocation);
+    console.log(
+      "Updated book shelfLocation (from updateData):",
+      savedShelfLocation,
+    );
+    console.log(
+      "Updated book shelfLocation (from document):",
+      bookShelfLocation,
+    );
+    console.log("Final shelfLocation:", finalShelfLocation);
 
     return NextResponse.json(
-      { message: 'Book updated successfully', book: responseBook },
-      { status: 200 }
+      { message: "Book updated successfully", book: responseBook },
+      { status: 200 },
     );
   } catch (error) {
-    return handleApiError(error, 'update book');
+    return handleApiError(error, "update book");
   }
 }
 
@@ -482,7 +551,7 @@ export async function DELETE(request, { params }) {
 
     const { id } = await params;
 
-    const idError = validateObjectId(id, 'Book ID');
+    const idError = validateObjectId(id, "Book ID");
     if (idError) {
       return idError;
     }
@@ -490,28 +559,79 @@ export async function DELETE(request, { params }) {
     const book = await Book.findById(id);
 
     if (!book) {
-      return NextResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    // Soft delete - set isActive to false
-    book.isActive = false;
-    await book.save();
+    // Cascaded Delete - Remove everything related to this book
 
-    // Also soft delete all copies
-    await BookCopy.updateMany(
-      { book: id },
-      { isActive: false }
+    // 1. Get all book copies IDs
+    const bookCopies = await BookCopy.find({ book: id }).select("_id");
+    const copyIds = bookCopies.map((copy) => copy._id);
+
+    // 2. Get all borrowings related to this book or its copies
+    const borrowings = await Borrowing.find({
+      $or: [{ book: id }, { bookCopy: { $in: copyIds } }],
+    }).select("_id");
+    const borrowingIds = borrowings.map((b) => b._id);
+
+    // 3. Get all fines related to these borrowings
+    const fines = await Fine.find({ borrowing: { $in: borrowingIds } }).select(
+      "_id",
     );
+    const fineIds = fines.map((f) => f._id);
+
+    // 4. Get all reservations related to this book
+    const reservations = await Reservation.find({ book: id }).select("_id");
+    const reservationIds = reservations.map((r) => r._id);
+
+    // Start Deletion Process
+
+    // Delete Payments related to Fines
+    if (fineIds.length > 0) {
+      await Payment.deleteMany({ fine: { $in: fineIds } });
+    }
+
+    // Delete Fines
+    if (borrowingIds.length > 0) {
+      await Fine.deleteMany({ borrowing: { $in: borrowingIds } });
+    }
+
+    // Delete Borrowings
+    await Borrowing.deleteMany({
+      $or: [{ book: id }, { bookCopy: { $in: copyIds } }],
+    });
+
+    // Delete Reservations
+    await Reservation.deleteMany({ book: id });
+
+    // Delete Reviews
+    await Review.deleteMany({ book: id });
+
+    // Delete Wishlist entries
+    await Wishlist.deleteMany({ book: id });
+
+    // Delete Notifications related to the book, borrowings, reservations, or fines
+    await Notification.deleteMany({
+      $or: [
+        { "metadata.book": id },
+        { "metadata.borrowing": { $in: borrowingIds } },
+        { "metadata.reservation": { $in: reservationIds } },
+        { "metadata.fine": { $in: fineIds } },
+      ],
+    });
+
+    // Delete BookCopies
+    await BookCopy.deleteMany({ book: id });
+
+    // Finally, delete the Book itself
+    await Book.findByIdAndDelete(id);
 
     return NextResponse.json(
-      { message: 'Book deleted successfully' },
-      { status: 200 }
+      { message: "Book and all related data deleted completely" },
+      { status: 200 },
     );
   } catch (error) {
-    return handleApiError(error, 'delete book');
+    console.error("Error in cascaded book deletion:", error);
+    return handleApiError(error, "delete book");
   }
 }
-
