@@ -15,7 +15,7 @@ const slides = [
   },
   {
     image: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&q=80&w=2000",
-    title: "15,000+ Titles Await.",
+    title: "1000+ Titles Await.",
     subtitle: "From timeless classics to modern bestsellers, find your next favorite read today.",
     cta: "Top Borrowed",
     link: "/explore?sort=rating&order=desc"
@@ -46,14 +46,14 @@ const HeroSlider = () => {
 
       // Animate
       const tl = gsap.timeline();
-      tl.to(title, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' })
-        .to(subtitle, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, '-=0.5')
-        .to(buttons, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, '-=0.5');
+      tl.to(title, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' })
+        .to(subtitle, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3')
+        .to(buttons, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3');
     }
 
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
-    }, 8000); // Increased time slightly for animations
+    }, 3000); // Increased time slightly for animations
     return () => clearInterval(timer);
   }, [current]);
 
@@ -65,7 +65,7 @@ const HeroSlider = () => {
       {slides.map((slide, index) => (
         <div
           key={index}
-          className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
+          className={`absolute inset-0 transition-all duration-600 ease-in-out ${
             index === current ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'
           }`}
         >
@@ -75,10 +75,10 @@ const HeroSlider = () => {
               src={slide.image}
               alt={slide.title}
               fill
-              className="object-cover opacity-60"
+              className="object-cover opacity-30"
               priority={index === 0}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/40 to-black/20"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-black/30 blur-sm"></div>
           </div>
 
           {/* Content */}

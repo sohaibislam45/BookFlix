@@ -67,8 +67,6 @@ const subscriptionSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 subscriptionSchema.index({ user: 1, status: 1 });
-subscriptionSchema.index({ stripeCustomerId: 1 });
-subscriptionSchema.index({ currentPeriodEnd: 1 });
 
 // Virtual to check if subscription is active
 subscriptionSchema.virtual('isActive').get(function() {

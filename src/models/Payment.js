@@ -61,7 +61,6 @@ const paymentSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 paymentSchema.index({ member: 1, status: 1 });
 paymentSchema.index({ fine: 1, status: 1 });
-paymentSchema.index({ stripePaymentIntentId: 1 });
 
 const Payment = mongoose.models.Payment || mongoose.model('Payment', paymentSchema);
 

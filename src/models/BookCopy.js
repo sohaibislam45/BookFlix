@@ -6,7 +6,6 @@ const bookCopySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Book',
     required: true,
-    index: true,
   },
   copyNumber: {
     type: String,
@@ -24,7 +23,6 @@ const bookCopySchema = new mongoose.Schema({
     type: String,
     enum: Object.values(BOOK_STATUS),
     default: BOOK_STATUS.AVAILABLE,
-    index: true,
   },
   condition: {
     type: String,

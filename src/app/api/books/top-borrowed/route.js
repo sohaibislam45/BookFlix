@@ -6,10 +6,13 @@ import { handleApiError } from '@/lib/apiErrorHandler';
 
 export async function GET(request) {
   try {
+    console.log('[API] /api/books/top-borrowed - Request received');
     await connectDB();
+    console.log('[API] Database connected');
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
+    console.log('[API] Query params:', { limit });
 
     // Validate limit
     if (isNaN(limit) || limit < 1 || limit > 50) {
@@ -76,6 +79,7 @@ export async function GET(request) {
       })
       .filter(Boolean);
 
+    console.log('[API] Successfully fetched', booksWithCounts.length, 'top borrowed books');
     return NextResponse.json(
       {
         books: booksWithCounts,
@@ -83,6 +87,7 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
+    console.error('[API] Error in /api/books/top-borrowed:', error);
     return handleApiError(error, 'fetch top borrowed books');
   }
 }

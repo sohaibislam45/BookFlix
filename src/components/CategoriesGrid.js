@@ -78,7 +78,7 @@ const CategoriesGrid = () => {
             <Link 
               key={cat._id}
               href={`/explore?category=${cat._id}`}
-              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name.toLowerCase()] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4 opacity-0 animate-on-scroll`}
+              className={`p-8 rounded-3xl bg-gradient-to-br ${colorMap[cat.name.toLowerCase()] || 'from-gray-500/20 to-gray-600/20'} border border-white/5 hover:border-primary/30 transition-all duration-300 group text-center flex flex-col items-center justify-center gap-4 animate-on-scroll`}
             >
               <span className={`material-symbols-outlined text-4xl text-white group-hover:scale-110 transition-transform duration-300`}>
                 {cat.icon || iconMap[cat.name.toLowerCase()] || 'book'}

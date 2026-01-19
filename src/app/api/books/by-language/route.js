@@ -6,11 +6,14 @@ import { handleApiError, validatePaginationParams, normalizePaginationParams } f
 
 export async function GET(request) {
   try {
+    console.log('[API] /api/books/by-language - Request received');
     await connectDB();
+    console.log('[API] Database connected');
 
     const { searchParams } = new URL(request.url);
     const language = searchParams.get('language');
     const limit = parseInt(searchParams.get('limit') || '12', 10);
+    console.log('[API] Query params:', { language, limit });
 
     // Validate language parameter
     if (!language) {
@@ -85,6 +88,7 @@ export async function GET(request) {
       })
     );
 
+    console.log('[API] Successfully fetched', booksWithCounts.length, 'books');
     return NextResponse.json(
       {
         books: booksWithCounts,
@@ -92,6 +96,7 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
+    console.error('[API] Error in /api/books/by-language:', error);
     return handleApiError(error, 'fetch books by language');
   }
 }

@@ -20,7 +20,7 @@ const Newsletter = () => {
   return (
     <section className="py-20 px-6" id="newsletter">
       <div className="max-w-[1400px] mx-auto">
-        <div className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-primary/20 to-purple-900/40 p-12 md:p-24 border border-white/10 text-center opacity-0 animate-on-scroll">
+        <div className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-primary/20 to-purple-900/40 p-12 md:p-24 border border-white/10 text-center animate-on-scroll">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
           
           <div className="relative z-10 max-w-2xl mx-auto">

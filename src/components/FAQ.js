@@ -36,7 +36,7 @@ const FAQ = () => {
           {faqs.map((faq, index) => (
             <div 
               key={index} 
-              className="glass-panel rounded-2xl border border-white/5 overflow-hidden transition-all duration-300 opacity-0 animate-on-scroll"
+              className="glass-panel rounded-2xl border border-white/5 overflow-hidden transition-all duration-300 animate-on-scroll"
             >
               <button 
                 onClick={() => setActiveIndex(activeIndex === index ? null : index)}

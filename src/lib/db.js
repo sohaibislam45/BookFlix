@@ -19,6 +19,7 @@ if (!cached) {
 
 async function dbConnect() {
   if (cached.conn) {
+    console.log('[DB] Using cached MongoDB connection');
     return cached.conn;
   }
 
@@ -27,7 +28,9 @@ async function dbConnect() {
       bufferCommands: false,
     };
 
+    console.log('[DB] Creating new MongoDB connection...');
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log('[DB] MongoDB connected successfully');
       return mongoose;
     });
   }
@@ -36,7 +39,8 @@ async function dbConnect() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
-    console.error('MongoDB connection error:', e.message);
+    console.error('[DB] MongoDB connection error:', e.message);
+    console.error('[DB] Full error:', e);
     throw new Error(`Database connection failed: ${e.message}`);
   }
 

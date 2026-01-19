@@ -27,12 +27,17 @@ export default function BookDetailsPage() {
   const [checkingWishlist, setCheckingWishlist] = useState(false);
   const [isReserved, setIsReserved] = useState(false);
   const [checkingReservation, setCheckingReservation] = useState(false);
+  const [realReviews, setRealReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [actionProcessing, setActionProcessing] = useState(false);
 
   // Role checks
   const isMember = userData?.role === USER_ROLES.MEMBER;
   const isAdmin = userData?.role === USER_ROLES.ADMIN;
   const isLibrarian = userData?.role === USER_ROLES.LIBRARIAN;
   const isStaff = isAdmin || isLibrarian;
+  const isPremium = userData?.subscription?.status === 'active' && 
+                    ['monthly', 'yearly'].includes(userData?.subscription?.type);
 
   // Check if book is in wishlist
   useEffect(() => {
@@ -110,8 +115,25 @@ export default function BookDetailsPage() {
 
     if (bookId) {
       fetchBook();
+      fetchReviews();
     }
   }, [bookId, router]);
+
+  // Fetch reviews
+  const fetchReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const response = await fetch(`/api/books/${bookId}/reviews`);
+      if (response.ok) {
+        const data = await response.json();
+        setRealReviews(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   // Fetch similar books
   const fetchSimilarBooks = async (categoryId, excludeId) => {
@@ -143,19 +165,22 @@ export default function BookDetailsPage() {
       return;
     }
 
-    const result = await Swal.fire({
-      title: 'Borrow Book',
-      text: 'Are you sure you want to borrow this book?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, borrow it',
-      cancelButtonText: 'Cancel',
-    });
+    if (actionProcessing) return;
+
+    const result = await showConfirm(
+      'Borrow Book',
+      'Are you sure you want to borrow this book?',
+      {
+        confirmButtonText: 'Yes, borrow it',
+        cancelButtonText: 'Cancel'
+      }
+    );
 
     if (!result.isConfirmed) return;
 
     try {
       setReserving(true);
+      setActionProcessing(true);
       const response = await fetch('/api/borrowings/borrow', {
         method: 'POST',
         headers: {
@@ -282,6 +307,7 @@ export default function BookDetailsPage() {
     // For now, treat it as a reservation with delivery option
     try {
       setReserving(true);
+      setActionProcessing(true);
       const response = await fetch('/api/reservations', {
         method: 'POST',
         headers: {
@@ -318,6 +344,7 @@ export default function BookDetailsPage() {
     }
 
     try {
+      setActionProcessing(true);
       if (isFavorite) {
         // Remove from wishlist
         const response = await fetch(`/api/wishlist?userId=${userData._id}&bookId=${book._id}`, {
@@ -368,6 +395,8 @@ export default function BookDetailsPage() {
     } catch (error) {
       console.error('Error toggling wishlist:', error);
       showError('Error', 'Failed to update wishlist. Please try again.');
+    } finally {
+      setActionProcessing(false);
     }
   };
 
@@ -398,33 +427,6 @@ export default function BookDetailsPage() {
     );
   };
 
-  // Mock reviews (can be replaced with real API later)
-  const mockReviews = [
-    {
-      id: 1,
-      user: 'Sarah Jenkins',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBytsJMQWZz44dSkra8sEfXwbDkoPNv84owib6_WVjuo88IHJtEfjc9DBQAM9OG9ahHbAcXBANA-obvixbdFUdDW3i3KN3sjCgumg52KxyhEkEyaGRUqqbOYgDDrTvK7WPj-Pdwkp--_PC9qAGzUVE97ofVZViTblcq97eZN0tQNAtBwdnh49_Rw675VDakYNkf1i6QseQx4vRsSkCRVuN3PyQSAsuNAmkT4cDvUxYJ9Zuzw1lx-O3t-JmQuUEFitdb252VUwpt5Yw',
-      rating: 5,
-      date: '2 days ago',
-      text: 'A masterpiece of world-building. I\'ve read this book three times and discover something new every single time. The politics are intense.',
-    },
-    {
-      id: 2,
-      user: 'Marcus Chen',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCQu34GD3LmYSaHFN-uHkD_kMiUsdqn252HByvVZ714bMhkoF3RtsrYfL-teDcu8iCij_zoRUXQIxGG6s49f6Y-ddQqQT-Kd8C9KpE2t1sl4QQXvEmnOwDt3IVb8gPDzCgsrRLewWSPXqtluJxffbuxHXMJ9CHwPaNtXYqhNwUGdHmRhJXRJacVAIslWm5hM7UQ7yIWWMYiLGMnB9p6NoUL0mqUAg6v0JVpEd4JaDxfQ1tb30NNl8rWzGl1Nyn76Uqd9lpxaXpG1ME',
-      rating: 4,
-      date: '1 week ago',
-      text: 'The beginning is a bit slow, but once you get into it, it\'s impossible to put down. Highly recommend for any fan of the genre.',
-    },
-    {
-      id: 3,
-      user: 'Elara Vance',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDvQAG4ay6pSfoHhIr29thG5MQURDU-7VEojVqwfOk9YBH6_8Tf3WwhiZ0cTfD90VsbKWSvc6cQCb7ZJ4DQiol0nwmxqHpYrTyPaKIHpQ5Qo52b8X000nPoWb40W1QoKv1uzOhVBvrqGudMMDEiVjOZypS7gZquZm4YkH5UxHjNAsA5SLGlaN83o5wp8UEpzQZ7kva-gt1G7vzMZPVQUA1b08k36hBYf9-_2mZ8a0rgpmLnllGmzCCFUGSpNOrCjgn_4Vlwe_TAtfQ',
-      rating: 5,
-      date: '3 weeks ago',
-      text: 'The themes are so relevant today. A must-read for everyone.',
-    },
-  ];
 
   if (loading) {
     return (
@@ -438,8 +440,6 @@ export default function BookDetailsPage() {
     return null;
   }
 
-  const isPremium = userData?.subscription?.status === 'active' && 
-                    ['monthly', 'yearly'].includes(userData?.subscription?.type);
   const isAvailable = book.availableCopies > 0;
 
   return (
@@ -698,13 +698,13 @@ export default function BookDetailsPage() {
                         // Book is available - show Borrow button for all members
                         <button
                           onClick={handleBorrow}
-                          disabled={reserving || !isMember}
+                          disabled={reserving || !isMember || actionProcessing}
                           className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {reserving ? (
+                          {reserving || actionProcessing ? (
                             <>
                               <Loader />
-                              <span>Processing...</span>
+                              <span>{reserving ? 'Processing...' : 'Wait...'}</span>
                             </>
                           ) : (
                             <>
@@ -740,7 +740,7 @@ export default function BookDetailsPage() {
                           ) : (
                             <button
                               onClick={handleReserve}
-                              disabled={reserving || isReserved || !user || !isMember || checkingReservation}
+                              disabled={reserving || isReserved || !user || !isMember || checkingReservation || actionProcessing}
                               className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold h-12 px-6 rounded-lg shadow-[0_0_20px_-5px_rgba(170,31,239,0.4)] transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {reserving ? (
@@ -783,17 +783,17 @@ export default function BookDetailsPage() {
                       <div className="flex-1 relative group/tooltip">
                         <button
                           onClick={handleHomeDelivery}
-                          disabled={!isPremium || reserving || !isMember}
+                          disabled={!isPremium || reserving || !isMember || actionProcessing}
                           className={`w-full h-12 px-6 rounded-lg border border-surface-border bg-surface-dark text-text-secondary flex items-center justify-center gap-2 transition-all ${
-                            isPremium && !reserving && isMember
+                            isPremium && !reserving && isMember && !actionProcessing
                               ? 'hover:border-primary hover:text-white cursor-pointer' 
                               : 'disabled:cursor-not-allowed disabled:opacity-70 hover:opacity-100 hover:border-surface-border'
                           }`}
                         >
-                          {reserving ? (
+                          {reserving || actionProcessing ? (
                             <>
                               <Loader />
-                              <span>Processing...</span>
+                              <span>{reserving ? 'Processing...' : 'Wait...'}</span>
                             </>
                           ) : (
                             <>
@@ -813,7 +813,8 @@ export default function BookDetailsPage() {
                       {/* Favorite Action */}
                       <button
                         onClick={toggleFavorite}
-                        className="h-12 w-12 rounded-lg border border-surface-border bg-surface-dark text-white hover:bg-surface-border hover:text-red-400 transition-colors flex items-center justify-center shrink-0"
+                        disabled={actionProcessing}
+                        className="h-12 w-12 rounded-lg border border-surface-border bg-surface-dark text-white hover:bg-surface-border hover:text-red-400 transition-colors flex items-center justify-center shrink-0 disabled:opacity-50"
                       >
                         <span className={`material-symbols-outlined ${isFavorite ? 'fill text-red-400' : ''}`}>
                           favorite
@@ -829,38 +830,53 @@ export default function BookDetailsPage() {
           <div className="w-full h-px bg-surface-border my-4"></div>
 
           {/* Reviews Section */}
-          {mockReviews.length > 0 && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white text-xl font-bold">Community Reviews</h3>
-                {book.ratingCount > 0 && (
-                  <Link href="#" className="text-sm text-primary font-medium hover:text-white transition-colors">
-                    View all {book.ratingCount} reviews
-                  </Link>
-                )}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white text-xl font-bold">Community Reviews</h3>
+              {book.ratingCount > 0 && (
+                <span className="text-sm text-text-secondary font-medium">
+                  {book.ratingCount} {book.ratingCount === 1 ? 'review' : 'reviews'}
+                </span>
+              )}
+            </div>
+            
+            {loadingReviews ? (
+              <div className="py-12 flex justify-center">
+                <Loader />
               </div>
+            ) : realReviews.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mockReviews.map((review) => (
-                  <div key={review.id} className="bg-surface-dark border border-surface-border p-5 rounded-xl flex flex-col gap-3">
+                {realReviews.map((review) => (
+                  <div key={review._id} className="bg-surface-dark border border-surface-border p-5 rounded-xl flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className="size-8 rounded-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${review.avatar})` }}
-                        ></div>
-                        <span className="text-white font-medium text-sm">{review.user}</span>
+                          className="size-8 rounded-full bg-cover bg-center bg-surface-border overflow-hidden"
+                          style={review.user?.profileImage ? { backgroundImage: `url(${review.user.profileImage})` } : {}}
+                        >
+                          {!review.user?.profileImage && (
+                            <span className="material-symbols-outlined text-gray-500 w-full h-full flex items-center justify-center text-xl">person</span>
+                          )}
+                        </div>
+                        <span className="text-white font-medium text-sm">{review.user?.name || 'Anonymous User'}</span>
                       </div>
-                      <span className="text-text-secondary text-xs">{review.date}</span>
+                      <span className="text-text-secondary text-xs">{new Date(review.createdAt).toLocaleDateString()}</span>
                     </div>
                     <div className="flex text-yellow-400 text-xs">
                       {renderStars(review.rating)}
                     </div>
-                    <p className="text-gray-400 text-sm leading-relaxed">{review.text}</p>
+                    <p className="text-gray-400 text-sm leading-relaxed">{review.comment}</p>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-surface-dark/40 border border-white/5 p-12 rounded-2xl text-center">
+                <span className="material-symbols-outlined text-gray-600 text-5xl mb-4">rate_review</span>
+                <p className="text-gray-500 text-lg">No review found for this book.</p>
+                <p className="text-gray-600 text-sm mt-1">Be the first to share your thoughts!</p>
+              </div>
+            )}
+          </div>
 
           {/* More Like This Section */}
           {similarBooks.length > 0 && (

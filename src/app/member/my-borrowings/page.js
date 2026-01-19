@@ -25,6 +25,9 @@ function MyShelfPageContent() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, active, overdue, returned
   const [processing, setProcessing] = useState(null);
+  const [reviewModal, setReviewModal] = useState({ open: false, borrowing: null });
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (userData?._id) {
@@ -102,6 +105,51 @@ function MyShelfPageContent() {
       setProcessing(null);
     }
   };
+
+  const openReviewModal = (borrowing) => {
+    setReviewModal({ open: true, borrowing });
+    setReviewData({ rating: 5, comment: '' });
+  };
+
+  const closeReviewModal = () => {
+    setReviewModal({ open: false, borrowing: null });
+    setReviewData({ rating: 5, comment: '' });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewData.comment.trim()) {
+      showError('Comment Required', 'Please write a comment for your review.');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: reviewModal.borrowing.book._id,
+          userId: userData._id,
+          rating: reviewData.rating,
+          comment: reviewData.comment,
+        }),
+      });
+
+      if (response.ok) {
+        showSuccess('Review Submitted!', 'Thank you for sharing your thoughts!');
+        closeReviewModal();
+      } else {
+        const error = await response.json();
+        showError('Error', error.error || 'Failed to submit review');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      showError('Error', 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
 
   const displayBorrowings = () => {
     if (filter === 'active') return borrowings.active;
@@ -291,6 +339,17 @@ function MyShelfPageContent() {
                         </button>
                       </div>
                     )}
+                    {isReturned && (
+                      <div className="mt-4">
+                        <button
+                          onClick={() => openReviewModal(borrowing)}
+                          className="w-full bg-primary/10 hover:bg-primary text-primary hover:text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">rate_review</span>
+                          <span>Write Review</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -298,6 +357,74 @@ function MyShelfPageContent() {
           )}
         </div>
       </div>
+
+      {/* Review Modal */}
+      {reviewModal.open && reviewModal.borrowing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-dark border border-surface-border rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Write a Review</h3>
+              <button
+                onClick={closeReviewModal}
+                className="text-text-secondary hover:text-white transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-text-secondary text-sm mb-2">Book: <span className="text-white font-medium">{reviewModal.borrowing.book?.title}</span></p>
+            </div>
+
+            {/* Star Rating */}
+            <div className="mb-4">
+              <label className="block text-text-secondary text-sm font-medium mb-2">Rating</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewData({ ...reviewData, rating: star })}
+                    className="text-3xl transition-colors hover:scale-110 transform"
+                  >
+                    <span className={`material-symbols-outlined ${star <= reviewData.rating ? 'fill text-yellow-400' : 'text-gray-600'}`}>
+                      star
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Comment */}
+            <div className="mb-6">
+              <label className="block text-text-secondary text-sm font-medium mb-2">Your Review</label>
+              <textarea
+                value={reviewData.comment}
+                onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                placeholder="Share your thoughts about this book..."
+                className="w-full bg-background-dark border border-surface-border rounded-lg p-3 text-white placeholder-text-secondary focus:border-primary focus:outline-none resize-none"
+                rows={4}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={closeReviewModal}
+                className="flex-1 bg-surface-dark border border-surface-border text-text-secondary hover:text-white hover:border-primary py-2 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={submittingReview}
+                className="flex-1 bg-primary hover:bg-primary-hover text-white py-2 rounded-lg transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -80,34 +80,42 @@ export default function Home() {
       );
     }
 
-    sectionsRef.current.forEach((section, index) => {
+    // Global animate-on-scroll elements
+    const scrollElements = document.querySelectorAll('.animate-on-scroll');
+    scrollElements.forEach((el) => {
+      gsap.fromTo(el, 
+        { opacity: 0, y: 50 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 85%',
+            toggleActions: 'play none none none'
+          }
+        }
+      );
+    });
+
+    // Reveal container sections
+    sectionsRef.current.forEach((section) => {
       if (!section) return;
-
-      const title = section.querySelector('h2');
-      const content = section.querySelector('.section-content');
-      const cards = section.querySelectorAll('.animate-on-scroll');
-
-      const tl = gsap.timeline({
+      gsap.to(section, {
+        opacity: 1,
+        duration: 0.5,
         scrollTrigger: {
           trigger: section,
-          start: 'top 80%',
-          toggleActions: 'play none none none'
+          start: 'top 90%',
         }
       });
-
-      if (title) tl.from(title, { opacity: 0, y: 30, duration: 0.8, ease: 'power3.out' });
-      if (content) tl.from(content, { opacity: 0, y: 30, duration: 0.8, ease: 'power3.out' }, '-=0.5');
-      if (cards.length > 0) {
-        tl.from(cards, { 
-          opacity: 0, 
-          y: 40, 
-          duration: 0.8, 
-          stagger: 0.15, 
-          ease: 'power2.out' 
-        }, '-=0.5');
-      }
     });
-  }, [loadingStats]); // Recalculate if stats load
+
+    return () => {
+      ScrollTrigger.getAll().forEach(t => t.kill());
+    };
+  }, [loadingStats, loadingBooks]);
 
   // Handle scroll for parallax
   useEffect(() => {
@@ -370,7 +378,7 @@ export default function Home() {
         {/* Top Borrowed Section */}
         <div 
           ref={(el) => (sectionsRef.current[0] = el)}
-          className="flex flex-col gap-4 opacity-0"
+          className="flex flex-col gap-4"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Top Borrowed This Week</h2>
@@ -396,7 +404,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -426,7 +434,7 @@ export default function Home() {
         {/* Fresh New Arrivals Section */}
         <div 
           ref={(el) => (sectionsRef.current[1] = el)}
-          className="flex flex-col gap-4 opacity-0"
+          className="flex flex-col gap-4"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Fresh New Arrivals</h2>
@@ -452,7 +460,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -482,7 +490,7 @@ export default function Home() {
         {/* Bangla Books Section */}
         <div 
           ref={(el) => (sectionsRef.current[2] = el)}
-          className="flex flex-col gap-4 opacity-0"
+          className="flex flex-col gap-4"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Bangla Books</h2>
@@ -508,7 +516,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
@@ -538,7 +546,7 @@ export default function Home() {
         {/* English Books Section */}
         <div 
           ref={(el) => (sectionsRef.current[3] = el)}
-          className="flex flex-col gap-4 opacity-0"
+          className="flex flex-col gap-4"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">English Books</h2>
@@ -564,7 +572,7 @@ export default function Home() {
                   <Link
                     key={book._id}
                     href={`/book/${book._id}`}
-                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer opacity-0 animate-on-scroll"
+                    className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
                   >
                     <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
                       <Image
