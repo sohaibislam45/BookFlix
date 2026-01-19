@@ -64,56 +64,74 @@ export default function Home() {
 
   // GSAP Animations
   useEffect(() => {
-    // Stats Animation
-    if (statsRef.current) {
-      gsap.fromTo(
-        statsRef.current,
-        { opacity: 0, scale: 0.95, y: 30 },
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 1,
-          ease: "power4.out",
-          scrollTrigger: {
-            trigger: statsRef.current,
-            start: "top 90%",
-          },
+    // Stats Number Counting Animation
+    if (statsRef.current && !loadingStats) {
+      const statsTargets = {
+        books: 0,
+        members: 0,
+        libraries: 0,
+      };
+
+      gsap.to(statsTargets, {
+        books: stats.totalBooks,
+        members: stats.activeMembers,
+        libraries: stats.totalLibraries,
+        duration: 2.5,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: statsRef.current,
+          start: "top 85%",
         },
-      );
+        onUpdate: () => {
+          setStats((prev) => ({
+            ...prev,
+            displayBooks: Math.floor(statsTargets.books),
+            displayMembers: Math.floor(statsTargets.members),
+            displayLibraries: Math.floor(statsTargets.libraries),
+          }));
+        },
+      });
     }
 
-    // Global animate-on-scroll elements
-    const scrollElements = document.querySelectorAll(".animate-on-scroll");
-    scrollElements.forEach((el) => {
+    // Advanced Text Reveal Animation
+    const headings = document.querySelectorAll("h2, h3:not(.hero-title)");
+    headings.forEach((heading) => {
       gsap.fromTo(
-        el,
-        { opacity: 0, y: 50 },
+        heading,
+        { opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" },
         {
           opacity: 1,
           y: 0,
-          duration: 1,
-          ease: "power3.out",
+          clipPath: "inset(0 0 0% 0)",
+          duration: 1.2,
+          ease: "power4.out",
           scrollTrigger: {
-            trigger: el,
-            start: "top 85%",
-            toggleActions: "play none none none",
+            trigger: heading,
+            start: "top 90%",
           },
         },
       );
     });
 
-    // Reveal container sections
-    sectionsRef.current.forEach((section) => {
-      if (!section) return;
-      gsap.to(section, {
-        opacity: 1,
-        duration: 0.5,
-        scrollTrigger: {
-          trigger: section,
-          start: "top 90%",
+    // Global animate-on-scroll elements (Staggered)
+    const sections = document.querySelectorAll(".animate-section");
+    sections.forEach((section) => {
+      const children = section.querySelectorAll(".animate-on-scroll");
+      gsap.fromTo(
+        children,
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          stagger: 0.1,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: section,
+            start: "top 85%",
+          },
         },
-      });
+      );
     });
 
     return () => {
@@ -344,15 +362,15 @@ export default function Home() {
         {/* Stats */}
         <div
           ref={statsRef}
-          className="glass-panel w-full rounded-[2rem] p-3 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8 opacity-0"
+          className="glass-panel w-full rounded-[2rem] p-3 border border-white/10 shadow-2xl backdrop-blur-xl bg-black/40 mb-8"
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-white/10 text-center">
             <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
                 {!loadingStats
-                  ? stats.totalBooks >= 1000
-                    ? formatNumber(stats.totalBooks)
-                    : stats.totalBooks
+                  ? (stats.displayBooks || 0) >= 1000
+                    ? formatNumber(stats.displayBooks || 0)
+                    : stats.displayBooks || 0
                   : "0"}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
@@ -365,9 +383,9 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
                 {!loadingStats
-                  ? stats.activeMembers >= 1000
-                    ? formatNumber(stats.activeMembers)
-                    : stats.activeMembers
+                  ? (stats.displayMembers || 0) >= 1000
+                    ? formatNumber(stats.displayMembers || 0)
+                    : stats.displayMembers || 0
                   : "0"}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
@@ -377,7 +395,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col items-center justify-center p-4">
               <span className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tight">
-                {!loadingStats ? stats.totalLibraries : "0"}
+                {!loadingStats ? stats.displayLibraries || 0 : "0"}
               </span>
               <span className="text-sm text-primary font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">
@@ -401,15 +419,19 @@ export default function Home() {
         </div>
 
         {/* Features Section */}
-        <Features />
+        <div className="animate-section">
+          <Features />
+        </div>
 
         {/* Categories Section */}
-        <CategoriesGrid />
+        <div className="animate-section">
+          <CategoriesGrid />
+        </div>
 
         {/* Top Borrowed Section */}
         <div
           ref={(el) => (sectionsRef.current[0] = el)}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 animate-section"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">
@@ -472,7 +494,7 @@ export default function Home() {
         {/* Fresh New Arrivals Section */}
         <div
           ref={(el) => (sectionsRef.current[1] = el)}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 animate-section"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">
@@ -500,76 +522,36 @@ export default function Home() {
                     No new books available yet.
                   </div>
                 ) : (
-                  <>
-                    <div className="flex gap-4 md:gap-6">
-                      {newArrivalsBooks
-                        .slice(0, Math.min(newArrivalsBooks.length, 10))
-                        .map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
+                  <div className="flex gap-4 md:gap-6">
+                    {newArrivalsBooks.map((book) => (
+                      <Link
+                        key={book._id}
+                        href={`/book/${book._id}`}
+                        className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
+                      >
+                        <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
+                          <Image
+                            src={book.coverImage || "/placeholder-book.png"}
+                            alt={`${book.title} by ${book.author}`}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            sizes="(max-width: 768px) 160px, 200px"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                            <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
+                              View Details
                             </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                    </div>
-                    {newArrivalsBooks.length > 10 && (
-                      <div className="flex gap-4 md:gap-6">
-                        {newArrivalsBooks.slice(10).map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <h3 className="text-white text-sm font-semibold truncate">
+                            {book.title}
+                          </h3>
+                          <p className="text-gray-400 text-xs">{book.author}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -579,7 +561,7 @@ export default function Home() {
         {/* Bangla Books Section */}
         <div
           ref={(el) => (sectionsRef.current[2] = el)}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 animate-section"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">
@@ -607,76 +589,36 @@ export default function Home() {
                     No Bangla books available yet.
                   </div>
                 ) : (
-                  <>
-                    <div className="flex gap-4 md:gap-6">
-                      {banglaBooks
-                        .slice(0, Math.min(banglaBooks.length, 10))
-                        .map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
+                  <div className="flex gap-4 md:gap-6">
+                    {banglaBooks.map((book) => (
+                      <Link
+                        key={book._id}
+                        href={`/book/${book._id}`}
+                        className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
+                      >
+                        <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
+                          <Image
+                            src={book.coverImage || "/placeholder-book.png"}
+                            alt={`${book.title} by ${book.author}`}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            sizes="(max-width: 768px) 160px, 200px"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                            <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
+                              View Details
                             </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                    </div>
-                    {banglaBooks.length > 10 && (
-                      <div className="flex gap-4 md:gap-6">
-                        {banglaBooks.slice(10).map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <h3 className="text-white text-sm font-semibold truncate">
+                            {book.title}
+                          </h3>
+                          <p className="text-gray-400 text-xs">{book.author}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -686,7 +628,7 @@ export default function Home() {
         {/* English Books Section */}
         <div
           ref={(el) => (sectionsRef.current[3] = el)}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 animate-section"
         >
           <div className="flex items-end justify-between px-2">
             <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">
@@ -714,76 +656,36 @@ export default function Home() {
                     No English books available yet.
                   </div>
                 ) : (
-                  <>
-                    <div className="flex gap-4 md:gap-6">
-                      {englishBooks
-                        .slice(0, Math.min(englishBooks.length, 10))
-                        .map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
+                  <div className="flex gap-4 md:gap-6">
+                    {englishBooks.map((book) => (
+                      <Link
+                        key={book._id}
+                        href={`/book/${book._id}`}
+                        className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
+                      >
+                        <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
+                          <Image
+                            src={book.coverImage || "/placeholder-book.png"}
+                            alt={`${book.title} by ${book.author}`}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            sizes="(max-width: 768px) 160px, 200px"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                            <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
+                              View Details
                             </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                    </div>
-                    {englishBooks.length > 10 && (
-                      <div className="flex gap-4 md:gap-6">
-                        {englishBooks.slice(10).map((book) => (
-                          <Link
-                            key={book._id}
-                            href={`/book/${book._id}`}
-                            className="flex-none w-[160px] md:w-[200px] snap-start group cursor-pointer animate-on-scroll"
-                          >
-                            <div className="card-hover-effect relative aspect-[2/3] rounded-md overflow-hidden shadow-lg shadow-black/50 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20">
-                              <Image
-                                src={book.coverImage || "/placeholder-book.png"}
-                                alt={`${book.title} by ${book.author}`}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                sizes="(max-width: 768px) 160px, 200px"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                <div className="bg-primary/20 backdrop-blur-md border border-white/20 text-white font-medium py-2 px-4 rounded-sm text-sm text-center">
-                                  View Details
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-3">
-                              <h3 className="text-white text-sm font-semibold truncate">
-                                {book.title}
-                              </h3>
-                              <p className="text-gray-400 text-xs">
-                                {book.author}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <h3 className="text-white text-sm font-semibold truncate">
+                            {book.title}
+                          </h3>
+                          <p className="text-gray-400 text-xs">{book.author}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -794,7 +696,7 @@ export default function Home() {
         {(isGeneralMember || !user) && (
           <div
             ref={(el) => (sectionsRef.current[4] = el)}
-            className={`relative rounded-[3rem] overflow-hidden mt-12 group`}
+            className={`relative rounded-[3rem] overflow-hidden mt-12 group animate-section`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-900 opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
