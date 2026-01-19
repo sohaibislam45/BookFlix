@@ -31,6 +31,10 @@ export default function Home() {
   const [scrollY, setScrollY] = useState(0);
   const statsRef = useRef(null);
   const sectionsRef = useRef([]);
+  const topBorrowedRef = useRef(null);
+  const arrivalsRef = useRef(null);
+  const banglaRef = useRef(null);
+  const englishRef = useRef(null);
 
   // Stats state
   const [stats, setStats] = useState({
@@ -352,6 +356,17 @@ export default function Home() {
     return num.toString();
   };
 
+  // Scroll Carousel function
+  const scrollCarousel = (ref, direction) => {
+    if (ref.current) {
+      const scrollAmount = 600;
+      ref.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
   return (
     <div className="relative min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden">
       <Navbar togglePricingModal={togglePricingModal} />
@@ -448,7 +463,24 @@ export default function Home() {
             </Link>
           </div>
           <div className="relative group/carousel">
-            <div className="flex overflow-x-auto gap-4 md:gap-6 pb-8 pt-4 px-4 md:px-6 no-scrollbar scroll-smooth snap-x">
+            {/* Carousel Navigation Buttons */}
+            <button
+              onClick={() => scrollCarousel(topBorrowedRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button
+              onClick={() => scrollCarousel(topBorrowedRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:-translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+
+            <div
+              ref={topBorrowedRef}
+              className="flex overflow-x-auto gap-4 md:gap-6 pb-8 pt-4 px-4 md:px-6 no-scrollbar scroll-smooth snap-x"
+            >
               {loadingBooks.topBorrowed ? (
                 <div className="flex items-center justify-center w-full py-8 text-gray-400">
                   Loading...
@@ -511,7 +543,24 @@ export default function Home() {
             </Link>
           </div>
           <div className="relative group/carousel">
-            <div className="overflow-x-auto no-scrollbar scroll-smooth snap-x">
+            {/* Carousel Navigation Buttons */}
+            <button
+              onClick={() => scrollCarousel(arrivalsRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button
+              onClick={() => scrollCarousel(arrivalsRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:-translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+
+            <div
+              ref={arrivalsRef}
+              className="overflow-x-auto no-scrollbar scroll-smooth snap-x"
+            >
               <div className="flex flex-col gap-4 md:gap-6 pb-8 pt-4 px-4 md:px-6 w-fit">
                 {loadingBooks.newArrivals ? (
                   <div className="flex items-center justify-center w-full py-8 text-gray-400">
@@ -578,7 +627,24 @@ export default function Home() {
             </Link>
           </div>
           <div className="relative group/carousel">
-            <div className="overflow-x-auto no-scrollbar scroll-smooth snap-x">
+            {/* Carousel Navigation Buttons */}
+            <button
+              onClick={() => scrollCarousel(banglaRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button
+              onClick={() => scrollCarousel(banglaRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:-translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+
+            <div
+              ref={banglaRef}
+              className="overflow-x-auto no-scrollbar scroll-smooth snap-x"
+            >
               <div className="flex flex-col gap-4 md:gap-6 pb-8 pt-4 px-4 md:px-6 w-fit">
                 {loadingBooks.bangla ? (
                   <div className="flex items-center justify-center w-full py-8 text-gray-400">
@@ -645,7 +711,24 @@ export default function Home() {
             </Link>
           </div>
           <div className="relative group/carousel">
-            <div className="overflow-x-auto no-scrollbar scroll-smooth snap-x">
+            {/* Carousel Navigation Buttons */}
+            <button
+              onClick={() => scrollCarousel(englishRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button
+              onClick={() => scrollCarousel(englishRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 group-hover/carousel:-translate-x-4 transition-all duration-300 hover:bg-primary"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+
+            <div
+              ref={englishRef}
+              className="overflow-x-auto no-scrollbar scroll-smooth snap-x"
+            >
               <div className="flex flex-col gap-4 md:gap-6 pb-8 pt-4 px-4 md:px-6 w-fit">
                 {loadingBooks.english ? (
                   <div className="flex items-center justify-center w-full py-8 text-gray-400">

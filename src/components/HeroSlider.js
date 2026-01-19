@@ -84,7 +84,7 @@ const HeroSlider = () => {
           {/* Content */}
           <div className={`slide-${index} relative h-full flex items-center justify-center text-center px-6`}>
             <div className={`max-w-4xl`}>
-              <h2 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-6 drop-shadow-2xl">
+              <h2 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-8 drop-shadow-2xl">
                 {slide.title.split(',').map((part, i) => (
                   <span key={i} className={part.includes('Reimagined') || part.includes('Await') || part.includes('Experience') ? "text-primary block md:inline" : ""}>
                     {part}{i === 0 && slide.title.includes(',') ? ',' : ''}
