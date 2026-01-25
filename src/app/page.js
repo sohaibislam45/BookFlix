@@ -121,21 +121,23 @@ export default function Home() {
     const sections = document.querySelectorAll(".animate-section");
     sections.forEach((section) => {
       const children = section.querySelectorAll(".animate-on-scroll");
-      gsap.fromTo(
-        children,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 85%",
+      if (children.length > 0) {
+        gsap.fromTo(
+          children,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: section,
+              start: "top 85%",
+            },
           },
-        },
-      );
+        );
+      }
     });
 
     return () => {

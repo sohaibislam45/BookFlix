@@ -21,31 +21,35 @@ export default function AboutPage() {
     const heroTitle = heroRef.current.querySelector('h1');
     const heroSubtitle = heroRef.current.querySelector('p');
     
-    gsap.fromTo(heroTitle,
-      { opacity: 0, x: -100 },
-      { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out' }
-    );
-    
-    gsap.fromTo(heroSubtitle,
-      { opacity: 0, x: 100 },
-      { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out', delay: 0.2 }
-    );
+    if (heroTitle && heroSubtitle) {
+      gsap.fromTo(heroTitle,
+        { opacity: 0, x: -100 },
+        { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out' }
+      );
+      
+      gsap.fromTo(heroSubtitle,
+        { opacity: 0, x: 100 },
+        { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out', delay: 0.2 }
+      );
+    }
 
 
     // Story Section Reveal
-    gsap.fromTo(storyRef.current,
-      { opacity: 0, y: 100 },
-      { 
-        opacity: 1, 
-        y: 0, 
-        duration: 1.5, 
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: storyRef.current,
-          start: 'top 80%',
+    if (storyRef.current) {
+      gsap.fromTo(storyRef.current,
+        { opacity: 0, y: 100 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          duration: 1.5, 
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: storyRef.current,
+            start: 'top 80%',
+          }
         }
-      }
-    );
+      );
+    }
 
     // Global animate-on-scroll elements
     const scrollElements = document.querySelectorAll('.animate-on-scroll');

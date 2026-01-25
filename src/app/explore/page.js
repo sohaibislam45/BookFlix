@@ -66,10 +66,12 @@ function ExplorePageContent() {
     if (loading || books.length === 0) return;
 
     // Title animation
-    gsap.fromTo(titleRef.current, 
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }
-    );
+    if (titleRef.current) {
+      gsap.fromTo(titleRef.current, 
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }
+      );
+    }
 
     // Staggered grid animation
     const cards = gridRef.current?.querySelectorAll('.book-card');

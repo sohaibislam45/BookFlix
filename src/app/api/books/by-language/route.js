@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import BookCopy from '@/models/BookCopy';
+import Category from '@/models/Category';
 import { handleApiError, validatePaginationParams, normalizePaginationParams } from '@/lib/apiErrorHandler';
 
 export async function GET(request) {

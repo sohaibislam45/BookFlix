@@ -27,27 +27,31 @@ export default function PricingPage() {
       return;
     }
     // Title Animation
-    gsap.fromTo(titleRef.current,
-      { opacity: 0, scale: 0.9, y: 50 },
-      { opacity: 1, scale: 1, y: 0, duration: 1.2, ease: 'power4.out' }
-    );
+    if (titleRef.current) {
+      gsap.fromTo(titleRef.current,
+        { opacity: 0, scale: 0.9, y: 50 },
+        { opacity: 1, scale: 1, y: 0, duration: 1.2, ease: 'power4.out' }
+      );
+    }
 
     // Cards Staggered Entry
-    const cards = cardsRef.current.children;
-    gsap.fromTo(cards,
-      { opacity: 0, y: 60 },
-      { 
-        opacity: 1, 
-        y: 0, 
-        duration: 0.8, 
-        stagger: 0.2, 
-        ease: 'back.out(1.7)',
-        scrollTrigger: {
-          trigger: cardsRef.current,
-          start: 'top 80%',
+    if (cardsRef.current && cardsRef.current.children.length > 0) {
+      const cards = cardsRef.current.children;
+      gsap.fromTo(cards,
+        { opacity: 0, y: 60 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          duration: 0.8, 
+          stagger: 0.2, 
+          ease: 'back.out(1.7)',
+          scrollTrigger: {
+            trigger: cardsRef.current,
+            start: 'top 80%',
+          }
         }
-      }
-    );
+      );
+    }
 
     // Global animate-on-scroll elements
     const scrollElements = document.querySelectorAll('.animate-on-scroll');

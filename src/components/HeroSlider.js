@@ -37,18 +37,23 @@ const HeroSlider = () => {
     // GSAP Animation for current slide
     if (containerRef.current) {
       const activeSlide = containerRef.current.querySelector(`.slide-${current}`);
-      const title = activeSlide.querySelector('h2');
-      const subtitle = activeSlide.querySelector('p');
-      const buttons = activeSlide.querySelector('.button-group');
+      if (activeSlide) {
+        const title = activeSlide.querySelector('h2');
+        const subtitle = activeSlide.querySelector('p');
+        const buttons = activeSlide.querySelector('.button-group');
 
-      // Reset previous states
-      gsap.set([title, subtitle, buttons], { opacity: 0, y: 30 });
+        // Reset previous states
+        if (title || subtitle || buttons) {
+          const targets = [title, subtitle, buttons].filter(Boolean);
+          gsap.set(targets, { opacity: 0, y: 30 });
 
-      // Animate
-      const tl = gsap.timeline();
-      tl.to(title, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' })
-        .to(subtitle, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3')
-        .to(buttons, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3');
+          // Animate
+          const tl = gsap.timeline();
+          if (title) tl.to(title, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' });
+          if (subtitle) tl.to(subtitle, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3');
+          if (buttons) tl.to(buttons, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3');
+        }
+      }
     }
 
     const timer = setInterval(() => {
