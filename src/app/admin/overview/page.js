@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
 import { formatDate, formatCurrency, formatDateTime } from '@/lib/utils';
@@ -33,9 +34,9 @@ export default function AdminOverviewPage() {
     fetchStats();
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStats]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/stats');
@@ -67,7 +68,7 @@ export default function AdminOverviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const getDaysAgo = (date) => {
     if (!date) return 'N/A';
@@ -511,9 +512,11 @@ export default function AdminOverviewPage() {
                                 {/* User Profile Photo */}
                                 <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
                                   {memberPhoto && memberPhoto.trim() !== '' && !imageErrors.has(activityKey) ? (
-                                    <img
+                                    <Image
                                       src={`${memberPhoto}${memberPhoto.includes('?') ? '&' : '?'}t=${Date.now()}`}
                                       alt={memberName}
+                                      width={36}
+                                      height={36}
                                       className="w-full h-full rounded-full object-cover"
                                       onError={() => {
                                         setImageErrors(prev => new Set(prev).add(activityKey));

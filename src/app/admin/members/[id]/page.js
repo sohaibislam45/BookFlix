@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
@@ -42,9 +42,9 @@ export default function MemberDetailsPage() {
     if (memberId) {
       fetchMemberDetails();
     }
-  }, [memberId]);
+  }, [memberId, fetchMemberDetails]);
 
-  const fetchMemberDetails = async () => {
+  const fetchMemberDetails = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/members?userId=${memberId}`);
@@ -113,7 +113,7 @@ export default function MemberDetailsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [memberId, router]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

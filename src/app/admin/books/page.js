@@ -179,15 +179,6 @@ export default function AdminBooksPage() {
     };
   }, []);
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchBooks();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, languageFilter, categoryFilter, availabilityFilter]);
-
   useEffect(() => {
     fetchStats();
     fetchGenres();
@@ -891,7 +882,7 @@ export default function AdminBooksPage() {
                       colSpan="5"
                       className="px-6 py-8 text-center text-text-secondary"
                     >
-                      No genres found. Click "Add New Genre" to create one.
+                      No genres found. Click &quot;Add New Genre&quot; to create one.
                     </td>
                   </tr>
                 ) : (

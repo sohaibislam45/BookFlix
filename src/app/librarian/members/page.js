@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LibrarianHeader from '@/components/LibrarianHeader';
 import Loader from '@/components/Loader';
@@ -20,11 +20,7 @@ export default function LibrarianMembersPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [searchQuery, tierFilter, statusFilter]);
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -46,7 +42,11 @@ export default function LibrarianMembersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, tierFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   const getTierBadge = (subscriptionType) => {
     const badges = {

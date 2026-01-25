@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
+import Image from 'next/image';
 import Loader from '@/components/Loader';
 import { formatDate, getSubscriptionDisplayName } from '@/lib/utils';
 import { showError, showSuccess, showConfirm, showInput } from '@/lib/swal';
@@ -34,9 +35,9 @@ export default function AdminMembersPage() {
 
   useEffect(() => {
     fetchMembers();
-  }, [page, searchQuery, statusFilter, tierFilter]);
+  }, [page, searchQuery, statusFilter, tierFilter, fetchMembers]);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -61,7 +62,7 @@ export default function AdminMembersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchQuery, statusFilter, tierFilter, pagination, stats]);
 
   const handleEdit = (member) => {
     router.push(`/admin/members/${member._id}`);
@@ -502,11 +503,13 @@ export default function AdminMembersPage() {
                               <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner relative overflow-hidden flex-shrink-0 border-2 border-card-dark group-hover:border-primary/50 transition-colors">
                                   {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
-                                    <img
+                                    <Image
                                       src={`/api/image-proxy?url=${encodeURIComponent(member.profilePhoto)}`}
                                       alt={member.name}
+                                      width={40}
+                                      height={40}
                                       className="w-full h-full rounded-full object-cover"
-                                      onError={(e) => {
+                                      onError={() => {
                                         setImageErrors(prev => new Set(prev).add(member._id));
                                       }}
                                     />

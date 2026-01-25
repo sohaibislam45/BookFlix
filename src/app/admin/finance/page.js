@@ -48,7 +48,7 @@ export default function AdminFinancePage() {
 
   useEffect(() => {
     fetchFinanceData();
-  }, [timePeriod]);
+  }, [fetchFinanceData, timePeriod]);
 
   // Filter transactions based on search and status
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function AdminFinancePage() {
     setTransactions(filtered);
   }, [searchQuery, statusFilter, allTransactions]);
 
-  const fetchFinanceData = async () => {
+  const fetchFinanceData = useCallback(async () => {
     try {
       setLoading(true);
       const [statsRes, paymentsRes] = await Promise.all([
@@ -144,9 +144,9 @@ export default function AdminFinancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [calculateRevenueChart, timePeriod]);
 
-  const calculateRevenueChart = (monthlyRevenue, period) => {
+  const calculateRevenueChart = useCallback((monthlyRevenue, period) => {
     const now = new Date();
     const days = 7;
     const dataPoints = 7; // Show daily for 7 days
@@ -170,7 +170,7 @@ export default function AdminFinancePage() {
     }
 
     setRevenueData(chartData);
-  };
+  }, []);
 
   const handleExportReport = () => {
     try {

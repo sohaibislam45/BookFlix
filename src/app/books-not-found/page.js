@@ -65,7 +65,7 @@ function BooksNotFoundContent() {
             No books found
           </h1>
           <p className="text-white/60 text-base md:text-lg font-normal leading-relaxed max-w-[540px] mb-10">
-            We couldn't find a match for "{searchQuery}". Try adjusting your keywords, checking for typos, or browse our categories.
+            We couldn&apos;t find a match for &quot;{searchQuery}&quot;. Try adjusting your keywords, checking for typos, or browse our categories.
           </p>
           
           {/* Search Bar */}
@@ -127,7 +127,7 @@ function BooksNotFoundContent() {
         <div className="max-w-[1200px] mx-auto px-6 lg:px-10 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-white tracking-tight text-xl md:text-2xl font-bold leading-tight">
-              While you're here, check out these popular reads
+              While you&apos;re here, check out these popular reads
             </h3>
             <div className="flex gap-2">
               <button className="w-8 h-8 rounded-full bg-surface-dark hover:bg-primary/20 flex items-center justify-center text-white transition-colors border border-border-dark">

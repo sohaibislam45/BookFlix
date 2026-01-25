@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LibrarianHeader from "@/components/LibrarianHeader";
 import Loader from "@/components/Loader";
@@ -36,19 +36,13 @@ export default function LibrarianInventoryPage() {
   useEffect(() => {
     fetchCategories();
     fetchStats();
-  }, []);
+  }, [fetchCategories, fetchStats]);
 
   useEffect(() => {
     fetchBooks();
-  }, [
-    pagination.page,
-    searchQuery,
-    categoryFilter,
-    availabilityFilter,
-    languageSort,
-  ]);
+  }, [fetchBooks]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch("/api/categories");
       if (response.ok) {
@@ -58,9 +52,9 @@ export default function LibrarianInventoryPage() {
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
-  };
+  }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch("/api/librarian/inventory/stats");
       if (response.ok) {
@@ -76,9 +70,22 @@ export default function LibrarianInventoryPage() {
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
-  };
+  }, []);
 
-  const fetchBooks = async () => {
+  const getStockStatus = useCallback((book) => {
+    const available = book.availableCopies || 0;
+    const total = book.totalCopies || 0;
+
+    if (total === 0)
+      return { status: "out", label: "Out of Stock", color: "red" };
+    if (available === 0)
+      return { status: "out", label: "Out of Stock", color: "red" };
+    if (available <= 2)
+      return { status: "low", label: "Low Stock", color: "amber" };
+    return { status: "in", label: "In Stock", color: "emerald" };
+  }, []);
+
+  const fetchBooks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -172,20 +179,7 @@ export default function LibrarianInventoryPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStockStatus = (book) => {
-    const available = book.availableCopies || 0;
-    const total = book.totalCopies || 0;
-
-    if (total === 0)
-      return { status: "out", label: "Out of Stock", color: "red" };
-    if (available === 0)
-      return { status: "out", label: "Out of Stock", color: "red" };
-    if (available <= 2)
-      return { status: "low", label: "Low Stock", color: "amber" };
-    return { status: "in", label: "In Stock", color: "emerald" };
-  };
+  }, [availabilityFilter, categoryFilter, pagination.limit, pagination.page, searchQuery, languageSort, getStockStatus]);
 
   const handleBookAdded = () => {
     fetchBooks();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import LibrarianHeader from '@/components/LibrarianHeader';
@@ -33,15 +33,15 @@ export default function CirculationDeskPage() {
       router.push('/member/overview');
     }
     fetchRecentReturns();
-  }, [userData, router]);
+  }, [userData, router, fetchRecentReturns]);
 
   useEffect(() => {
     if (member?._id) {
       fetchMemberFines();
     }
-  }, [member]);
+  }, [member, fetchMemberFines]);
 
-  const fetchRecentReturns = async () => {
+  const fetchRecentReturns = useCallback(async () => {
     try {
       const response = await fetch('/api/borrowings?status=returned&limit=5&sort=returnedDate');
       if (response.ok) {
@@ -51,9 +51,10 @@ export default function CirculationDeskPage() {
     } catch (error) {
       console.error('Error fetching recent returns:', error);
     }
-  };
+  }, []);
 
-  const fetchMemberFines = async () => {
+  const fetchMemberFines = useCallback(async () => {
+    if (!member?._id) return;
     try {
       const response = await fetch(`/api/fines?memberId=${member._id}&status=pending`);
       if (response.ok) {
@@ -64,7 +65,7 @@ export default function CirculationDeskPage() {
     } catch (error) {
       console.error('Error fetching fines:', error);
     }
-  };
+  }, [member?._id]);
 
   const searchMember = async () => {
     if (!memberSearch) return;

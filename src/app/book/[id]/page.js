@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -120,7 +120,7 @@ export default function BookDetailsPage() {
   }, [bookId, router]);
 
   // Fetch reviews
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       setLoadingReviews(true);
       const response = await fetch(`/api/books/${bookId}/reviews`);
@@ -133,7 +133,7 @@ export default function BookDetailsPage() {
     } finally {
       setLoadingReviews(false);
     }
-  };
+  }, [bookId]);
 
   // Fetch similar books
   const fetchSimilarBooks = async (categoryId, excludeId) => {

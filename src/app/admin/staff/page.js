@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminHeader from '@/components/AdminHeader';
+import Image from 'next/image';
 import AddStaffModal from '@/components/AddStaffModal';
 import EditStaffModal from '@/components/EditStaffModal';
 import ManageRoleModal from '@/components/ManageRoleModal';
@@ -32,9 +33,9 @@ export default function AdminStaffPage() {
   useEffect(() => {
     fetchStaff();
     fetchActivities();
-  }, [searchQuery, roleFilter]);
+  }, [searchQuery, roleFilter, fetchStaff, fetchActivities]);
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       setActivitiesLoading(true);
       const response = await fetch('/api/admin/staff/activity?limit=10');
@@ -47,9 +48,9 @@ export default function AdminStaffPage() {
     } finally {
       setActivitiesLoading(false);
     }
-  };
+  }, []);
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -79,7 +80,7 @@ export default function AdminStaffPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, roleFilter]);
 
   const handleEditStaff = (staffId) => {
     setEditingStaffId(staffId);
@@ -291,11 +292,13 @@ export default function AdminStaffPage() {
                                 <div className="flex items-center gap-3">
                                   <div className="size-9 rounded-full bg-[#3c2348] flex items-center justify-center text-white text-xs font-bold overflow-hidden">
                                     {member.profilePhoto && member.profilePhoto.trim() !== '' && !imageErrors.has(member._id) ? (
-                                      <img
+                                    <Image
                                         src={`${member.profilePhoto}${member.profilePhoto.includes('?') ? '&' : '?'}t=${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}
                                         alt={member.name}
+                                        width={36}
+                                        height={36}
                                         className="w-full h-full rounded-full object-cover"
-                                        onError={(e) => {
+                                        onError={() => {
                                           setImageErrors(prev => new Set(prev).add(member._id));
                                         }}
                                         key={`img-${member._id}-${member.profilePhoto}-${member.updatedAt ? new Date(member.updatedAt).getTime() : Date.now()}`}

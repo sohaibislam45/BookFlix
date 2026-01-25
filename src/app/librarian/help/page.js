@@ -217,7 +217,7 @@ export default function LibrarianHelpPage() {
               {filteredFAQs.length === 0 ? (
                 <div className="bg-card-dark rounded-2xl border border-white/5 p-12 text-center shadow-lg">
                   <span className="material-symbols-outlined text-6xl text-white/20 mb-4 block">search_off</span>
-                  <p className="text-white/60">No results found for "{searchQuery}"</p>
+                  <p className="text-white/60">No results found for &quot;{searchQuery}&quot;</p>
                 </div>
               ) : (
                 filteredFAQs.map((category) => (

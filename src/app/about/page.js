@@ -115,7 +115,7 @@ export default function AboutPage() {
               </div>
               <p className="text-gray-400 text-lg leading-relaxed font-light">
                 Founded in 2024, Bookflix started with a simple belief: that everyone should have easy 
-                access to the world's collective knowledge. We saw traditional libraries struggling 
+                access to the world&apos;s collective knowledge. We saw traditional libraries struggling 
                 with outdated systems and decided to build something better.
               </p>
               <div className="space-y-6">
